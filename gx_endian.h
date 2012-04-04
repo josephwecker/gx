@@ -1,6 +1,7 @@
 /**
- * @file      gx.h
- * @brief     Generic eXtra stuff (GX) primary header file- misc. macros.
+ * @file      gx_endian.h
+ * @brief     Detect endianness at runtime and various _portable_ macros for
+ *            conversion.
  *
  * Thanks to stackoverflow:
  * http://stackoverflow.com/questions/1001307/detecting-endianness-programmatically-in-a-c-program
