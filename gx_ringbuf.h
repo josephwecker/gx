@@ -1,6 +1,6 @@
 #ifndef GX_RINGBUF_H
 #define GX_RINGBUF_H
-#include <gx.h>
+#include <gx/gx.h>
 #include <sys/mman.h>
 //#include <gx_endian.h>
 

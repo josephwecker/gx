@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <gx.h>
+#include <gx/gx.h>
 
 
 static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port) {

@@ -1,4 +1,4 @@
-#include <gx.h>
+#include <gx/gx.h>
 
 //------- epoll ----------------------------------------------------------------
 #if defined(__LINUX__) || defined(HAVE_EPOLL_WAIT)

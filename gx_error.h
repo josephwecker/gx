@@ -89,7 +89,7 @@
 #ifndef GX_ERROR_H
 #define GX_ERROR_H
 
-#include <gx.h>
+#include <gx/gx.h>
 #include <errno.h>
 #include <string.h>
 #include <stdarg.h>

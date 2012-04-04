@@ -41,8 +41,8 @@
 ///   struct gx_tcp_sess _gx_sess;
 /// Make sure it's typedef'ed to the same name as the struct name.
 /// Then call gx_tcp_register_session_struct with the name of it.
-#define gx_tcp_register_session_struct(STRUCT) \
-    gx_pool_init(STRUCT);
+//#define gx_tcp_register_session_struct(STRUCT)
+    //gx_pool_init(STRUCT);
 
 
 #define RD_DEVNULL -2   ///> Throw away the incoming data
@@ -52,11 +52,11 @@
 //static gx_rb_pool             *rb_pool;
 //static gx_rb                   rcvrb;
 
-struct gx_tcp_sess {
+typedef struct gx_tcp_sess {
     struct gx_tcp_sess   *next;      ///< Used for resource pooling
     struct gx_tcp_sess   *prev;      ///< For occasional staleness checks
     int                   peer_fd;   ///< TCP/IP connected peer
-    //void                 *udata;     ///< Misc data associated w/ session
+    void                 *udata;     ///< Misc data associated w/ session
     gx_rb                *rcv_buf;   ///< Only acquired if/when necessary
     gx_rb                *snd_buf;   ///< Only acquired if/when necessary
 
@@ -64,7 +64,8 @@ struct gx_tcp_sess {
     size_t                rcv_bytes; ///< How many bytes to rcv before next handler
     int (*fn_rcv_handler) (struct gx_tcp_sess *,    uint8_t *,size_t);
     int (*fn_misc_handler)(struct gx_tcp_sess *,int,uint8_t *,size_t);
-};
+} gx_tcp_sess;
+gx_pool_init(gx_tcp_sess);
 
 struct gx_tcp_server {
     int                   ev_fd;     ///< File Descriptor for the eventloop
@@ -73,7 +74,7 @@ struct gx_tcp_server {
     gx_tcp_sess_pool     *sess_pool;
     int (*fn_worker_init) (int new_worker_id);
     int (*fn_sess_init)   (struct gx_tcp_sess *); ///< Also sets first handlers
-}
+};
 
 
 

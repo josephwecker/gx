@@ -220,5 +220,5 @@
   #endif
 
 
-  #include <gx_error.h>
+  #include <gx/gx_error.h>
 #endif
