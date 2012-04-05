@@ -25,17 +25,21 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  *   DEALINGS IN THE SOFTWARE.
  *
- * @todo      Reincarnation with appropriate data-masage handler
+ * @todo      Reincarnation with appropriate state-transfer handler
  *
  *
  */
-
 
 #include <gx/gx.h>
 #include <gx/gx_error.h>
 #include <gx/gx_ringbuf.h>
 #include <gx/gx_net.h>
 #include <gx/gx_event.h>
+#include <gx/gx_cpus.h>
+
+
+
+
 
 /// First, create a struct that has as its first member:
 ///   struct gx_tcp_sess _gx_sess;
@@ -76,11 +80,43 @@ struct gx_tcp_server {
     int (*fn_sess_init)   (struct gx_tcp_sess *); ///< Also sets first handlers
 };
 
+static GX_INLINE long _gx_optimal_worker_num() {
+    long cpus = gx_cpu_count();
+    if(cpus <= 2) return 1;
+    return cpus - 1;
+}
 
 
-static struct gx_tcp_server *gx_tcp_new() {
 
-    /// @todo initialize rb_pool & sess_pool
+// Service node + port
+// Self Controller path
+// Ancestor Controller path (defaults to self-controller-path)
+//
+// [what to do about orphaned workers?]
+//
+// - Allow me to accept
+// - Register as drain recipient
+// - 
+//
+// | ## | ancestor           |       | rising-generation                |
+// |----|--------------------|-------|----------------------------------|
+// |  1 |                    |       | Find & connect to ancestor       |
+// |  2 | Transfer listen_fd | ----> | Launch workers & start accepting |
+// |  3 |                    | <---- | Verify accepting                 | HANDLING-ALL-NEW
+// |  4 | Stop Accepting     |       |                                  |
+// |  5 |                    |       | 
+//
+//
+
+static GX_INLINE int gx_tcp_server_init(struct gx_tcp_server *srv,
+                                        int (*fn_worker_init)(int),
+                                        int (*fn_sess_init)(struct gx_tcp_sess *)) {
+    srv->fn_worker_init = fn_worker_init;
+    srv->fn_sess_init   = fn_sess_init;
+    Xn(srv->rb_pool     = gx_rb_pool_new(5,4096,2))   X_RAISE;
+    Xn(srv->sess_pool   = new_gx_tcp_sess_pool(0x10)) X_RAISE;
+    X (gx_rb_create(&(srv->rcvrb), 0x10000, 1))       X_RAISE;
+
     /// @todo initialize rcvrb
     return NULL;
 }
