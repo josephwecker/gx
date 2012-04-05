@@ -31,7 +31,7 @@
  *   DEALINGS IN THE SOFTWARE.
  *
  */
-#include <gx.h>
+#include <gx/gx.h>
 
 /// Apparently this can be determined at compile-time, so the functions below
 /// that depend only on this conditional effectively have the dead branch

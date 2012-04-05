@@ -62,8 +62,8 @@
   #include <sys/uio.h>
 #endif
 
-#include <gx.h>
-#include <gx_ringbuf.h>
+#include <gx/gx.h>
+#include <gx/gx_ringbuf.h>
 
 /// All return number of bytes transfered or -1 if fatal error. If zero
 /// or less then desired was transfered, it could be because of EAGAIN, several
