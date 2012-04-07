@@ -191,7 +191,7 @@ typedef struct gx_error_report {
     void *context;
     int   sys_errno;
     int   gx_errno;
-    char  custom_msg[256];
+    char  custom_msg[1024];
     char  filename[256];
     int   linenum;
     char  function[256];
@@ -323,10 +323,10 @@ static void _GX_X(
     rp->sys_errno = sys_errno;
     rp->gx_errno  = gx_errno;
     rp->linenum   = linenum;
-    if(filename)   strncpy(rp->filename,   filename,   255);   else rp->filename[0]  =0;
-    if(custom_msg) vsnprintf(rp->custom_msg,255,custom_msg,ap);else rp->custom_msg[0]=0;
-    if(function)   strncpy(rp->function,   function,   255);   else rp->function[0]  =0;
-    if(expression) strncpy(rp->expression, expression, 255);   else rp->expression[0]=0;
+    if(filename)   strncpy(rp->filename,   filename,   255);    else rp->filename[0]  =0;
+    if(custom_msg) vsnprintf(rp->custom_msg,1023,custom_msg,ap);else rp->custom_msg[0]=0;
+    if(function)   strncpy(rp->function,   function,   255);    else rp->function[0]  =0;
+    if(expression) strncpy(rp->expression, expression, 255);    else rp->expression[0]=0;
     va_end(ap);
 }
 
@@ -356,15 +356,15 @@ static void _GX_ERROR_LOG(int severity) {
         gx_error_report *rp = &gx_error_recent_reports[gx_error_curr_report];
         char basename[20];
         char expr_part[20];
-        char sys_errormsg[256];
-        char final_logline[1024];
+        char sys_errormsg[1024];
+        char final_logline[4096];
         char *fname;
         _gx_get_basename(rp->filename, basename);
         _gx_get_expr_part(rp->expression, expr_part);
 
         // Populate sys_errormsg
-        if(rp->sys_errno)          strerror_r(rp->sys_errno, sys_errormsg, 255);
-        else if(rp->custom_msg[0]) strncpy(sys_errormsg, rp->custom_msg, 255);
+        if(rp->sys_errno)          strerror_r(rp->sys_errno, sys_errormsg, 1023);
+        else if(rp->custom_msg[0]) strncpy(sys_errormsg, rp->custom_msg, 1023);
         else                       strncpy(sys_errormsg, _gx_errmsgs[rp->gx_errno], 255);
 
         int len_fun = strlen(rp->function);
@@ -386,7 +386,7 @@ static void _GX_ERROR_LOG(int severity) {
         }
 
         // [SEVERITY:ENAME:basename:linenum:function/exprpart] sysmsg | custom_msg
-        (void) snprintf(final_logline, 1023,
+        (void) snprintf(final_logline, 4095,
             _START "%s"    /* severity     */ _DLM(":")
                    "%s"    /* sys-errname  */ _DLM(":")
                    "%-15s" /* src basename */ _DLM(":")
