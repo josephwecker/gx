@@ -33,6 +33,15 @@
  */
 #include <gx/gx.h>
 
+#define gx_econst64_def(NAME, B1,B2,B3,B4,B5,B6,B7,B8) \
+  const uint64_t NAME ## __host=0x ## B1 ## B2 ## B3 ## B4 ## B5 ## B6 ## B7 ## B8;\
+  const uint64_t NAME ## __tsoh=0x ## B8 ## B7 ## B6 ## B5 ## B4 ## B3 ## B2 ## B1
+
+#define gx_econst64_use(NAME) \
+  (gx_unlikely(gx_is_big_endian()) ? NAME ## __host : NAME ## __tsoh)
+
+
+
 /// Apparently this can be determined at compile-time, so the functions below
 /// that depend only on this conditional effectively have the dead branch
 /// eliminated.
