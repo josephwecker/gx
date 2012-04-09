@@ -35,21 +35,25 @@
 #ifndef   GX_H
   #define GX_H
 
+  /// Normalize some OS names
+  #ifdef __linux__
+    #define __LINUX__ 1
+  #elif defined(__APPLE__) || defined(__MACH__)
+    #define __DARWIN__ 1
+  #endif
+
+  #if defined(__LINUX__)
+    #ifndef _GNU_SOURCE
+      #define _GNU_SOURCE 1
+    #endif
+  #endif
+
   #include <stdio.h>
   #include <stdlib.h>
   #include <unistd.h>
   #include <sys/stat.h>
   #include <fcntl.h>
   #include <string.h>
-
-
-  /// Normalize some OS names
-
-  #ifdef __linux__
-    #define __LINUX__ 1
-  #elif defined(__APPLE__) || defined(__MACH__)
-    #define __DARWIN__ 1
-  #endif
 
   /// Types
   #include <stdint.h>

@@ -53,16 +53,22 @@
 #ifndef GX_ZEROCOPY_H
 #define GX_ZEROCOPY_H
 
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <gx/gx.h>
 
 #if defined(__LINUX__)
+  #ifndef _GNU_SOURCE
+    #define _GNU_SOURCE 1
+  #endif
+  #include <fcntl.h>
+  #include <unistd.h>
   #include <sys/sendfile.h>
 #elif defined(__DARWIN__)
   #include <sys/uio.h>
 #endif
 
-#include <gx/gx.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <gx/gx_ringbuf.h>
 
 /// All return number of bytes transfered or -1 if fatal error. If zero
