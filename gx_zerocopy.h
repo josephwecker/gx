@@ -76,8 +76,8 @@
 /// EINTRs, or because there was nothing to transer (such as EOF). Can't rely
 /// on 0 to mean that EOF was reached.
 
-//                          | Source    | Source offset | Xfr amt   |Destination | Dest. offset  | Consume?   |
-//--------------------------|-----------|---------------|-----------|------------|---------------|------------|
+//                                    | Source    | Source offset | Xfr amt   |Destination | Dest. offset  | Consume?   |
+//--------------------------          |-----------|---------------|-----------|------------|---------------|------------|
 static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
 static GX_INLINE ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
 static GX_INLINE ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
