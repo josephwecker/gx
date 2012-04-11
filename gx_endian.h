@@ -31,6 +31,8 @@
  *   DEALINGS IN THE SOFTWARE.
  *
  */
+#ifndef GX_ENDIAN_H
+#define GX_ENDIAN_H
 #include <gx/gx.h>
 
 #define gx_econst64_def(NAME, B1,B2,B3,B4,B5,B6,B7,B8) \
@@ -79,3 +81,4 @@ static GX_INLINE uint64_t big_endian64(uint64_t x) {
            ((x & 0x00FF000000000000ULL) >> 40) |
            ((x & 0xFF00000000000000ULL) >> 56) ;
 }
+#endif

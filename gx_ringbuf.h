@@ -1,8 +1,8 @@
 #ifndef GX_RINGBUF_H
 #define GX_RINGBUF_H
 #include <gx/gx.h>
+#include <gx/gx_endian.h>
 #include <sys/mman.h>
-//#include <gx_endian.h>
 
 //=============================================================================
 /**
@@ -112,6 +112,14 @@ static GX_INLINE void rb_wbe32(gx_rb *rb, uint32_t data) {
     rb_wbyte(rb, (data & 0x00FF0000U) >> 16);
     rb_wbyte(rb, (data & 0x0000FF00U) >>  8);
     rb_wbyte(rb, (data & 0x000000FFU)      );
+}
+
+static GX_INLINE void rb_wse32(gx_rb *rb, uint32_t data) {
+    if(gx_unlikely(gx_is_big_endian())) {
+        X_LOG_ERROR("Small endian conversion not implemented.");
+        return;
+    }
+    rb_write(rb, &data, 4);
 }
 
 //static GX_INLINE void rb_wbe64(gx_rb *rb, uint64_t data) {
