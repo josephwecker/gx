@@ -77,16 +77,20 @@
 /// on 0 to mean that EOF was reached.
 
 //                                    | Source    | Source offset | Xfr amt   |Destination | Dest. offset  | Consume?   |
-//--------------------------          |-----------|---------------|-----------|------------|---------------|------------|
-static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
+//------------------------------------|-----------|---------------|-----------|------------|---------------|------------|
 static GX_INLINE ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
-static GX_INLINE ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
-static GX_INLINE ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
-//static ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
-//static ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd, size_t dst_off, int consume);
 static GX_INLINE ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
-static GX_INLINE ssize_t zc_sock_null (int    sock,                 size_t len                                          );
+static GX_INLINE ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
 
+static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
+
+static GX_INLINE ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
+
+static GX_INLINE ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
+
+static GX_INLINE ssize_t zc_sock_null (int    sock,                 size_t len                                          );
+static GX_INLINE ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
+//static ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
 
 
 
@@ -163,6 +167,45 @@ static GX_INLINE ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
     return len;
 }
 
+static GX_INLINE ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
+    ssize_t sent;
+do_write:
+    Xs(sent = write(mmfd, rb_r(rbuf), len)) {
+        case EINTR: goto do_write;
+        case EAGAIN: errno = 0; return 0;
+        default: X_RAISE(-1);
+    }
+    rb_advr(rbuf, sent);
+    if(rbuf->r > rbuf->w) rb_clear(rbuf);
+    return sent;
+}
+
+static GX_INLINE ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
+    int     tries = 0;
+    uint8_t tmp_buf[4096];
+    size_t  sent = 0, remaining;
+    ssize_t just_sent;
+    int     rflags = (consume ? MSG_PEEK : 0) | MSG_DONTWAIT;
+
+    do {
+        remaining = len - sent;
+        Xs(just_sent = recv(sock, tmp_buf, MIN(remaining, 4096), rflags)) {
+            case EAGAIN: return sent;
+            case EINTR:  if(tries++ < 2) continue;
+            default:     X_RAISE(-1);
+        }
+        if(just_sent > 0) {
+do_file_write:
+            Xs(write(mmfd, tmp_buf, just_sent)) {
+                case EINTR:  goto do_file_write;
+                case EAGAIN: if(tries++ < 2) goto do_file_write; // Should never happen, at least on linux
+                default: X_RAISE(-1);
+            }
+            sent += just_sent;
+        }
+    } while(sent < len && (just_sent > 0 || tries));
+    return sent;
+}
 
 #ifdef __LINUX__
 static int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
@@ -214,13 +257,13 @@ sendagain:
     return total_sent;
 #else
     int     tries = 1;
-    uint8_t devnull_buf[1024];
+    uint8_t devnull_buf[4096];
     size_t  sent = 0, remaining;
     ssize_t just_sent;
 
     do {
         remaining = len - sent;
-        just_sent = recv(sock, devnull_buf, MIN(remaining, 1024), 0);
+        just_sent = recv(sock, devnull_buf, MIN(remaining, 4096), 0);
         if(just_sent == -1) {
             if(errno == EINTR && tries++ < 3) continue;
             if(errno == EAGAIN) return sent;
