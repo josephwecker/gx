@@ -389,7 +389,7 @@ static void _GX_ERROR_LOG(int severity) {
         (void) snprintf(final_logline, 4095,
             _START "%s"    /* severity     */ _DLM(":")
                    "%s"    /* sys-errname  */ _DLM(":")
-                   "%-15s" /* src basename */ _DLM(":")
+                   "%-17s" /* src basename */ _DLM(":")
                    "%4d"   /* line number  */ _DLM(":")
                    "%-17s" /* fun/err-fun  */
             _FINISH
