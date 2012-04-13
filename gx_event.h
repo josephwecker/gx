@@ -39,7 +39,8 @@
   #define GX_EVENT_WRITABLE  0x004
   #define GX_EVENT_READABLE  0x001
   #define GX_EVENT_ERROR     EV_ERROR
-  #define GX_EVENT_CLOSED    EV_EOF
+  //#define GX_EVENT_CLOSED    EV_EOF
+  #define GX_EVENT_CLOSED    0x000 // Until I figure out a way to do it for real
 
   #define GX_EVENT_STRUCT kevent64_s
 
