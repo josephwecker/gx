@@ -185,7 +185,7 @@ static GX_INLINE ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consu
     uint8_t tmp_buf[4096];
     size_t  sent = 0, remaining;
     ssize_t just_sent;
-    int     rflags = (consume ? MSG_PEEK : 0) | MSG_DONTWAIT;
+    int     rflags = (consume ? 0 : MSG_PEEK) | MSG_DONTWAIT;
 
     do {
         remaining = len - sent;
