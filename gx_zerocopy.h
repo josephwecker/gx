@@ -180,6 +180,13 @@ do_write:
     return sent;
 }
 
+
+/// @todo For linux implementation, when I get to it finally, I'll need the
+/// calling program to maintain a struct that holds the "entry" pipes (similar
+/// to the static global ones I'm using for sock_null). Then the implementation
+/// is very straightforward- similar to:
+/// http://blog.superpat.com/2010/06/01/zero-copy-in-linux-with-sendfile-and-splice/
+///
 static GX_INLINE ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
     int     tries = 0;
     uint8_t tmp_buf[4096];
