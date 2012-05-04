@@ -22,8 +22,8 @@
   }
 
   // TODO: one day, when I need it, a timer.
-  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned) {
-      return epoll_wait(evfd, events, max_returned, -1);
+  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
+      return epoll_wait(evfd, events, max_returned, milli_timeout);
   }
 
   #define gx_event_data(EVENT) (EVENT).data.ptr
@@ -59,8 +59,15 @@
   }
 
   // TODO: one day, when I need it, a timer.
-  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned) {
-      return kevent64(evfd, NULL, 0, events, max_returned, 0, NULL);
+  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
+      if (milli_timeout == -1) return kevent64(evfd, NULL, 0, events, max_returned, 0, NULL);
+      else {
+          struct timespec timeout;
+          timeout.tv_sec = milli_timeout/1000;
+          timeout.tv_nsec = (milli_timeout % 1000) * 1000 * 1000;
+          return kevent64(evfd, NULL, 0, events, max_returned, 0, &timeout);
+      }
+      
   }
 
   #define gx_event_data(EVENT) ((void *)((EVENT).udata))
