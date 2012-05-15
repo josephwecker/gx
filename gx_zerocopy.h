@@ -167,7 +167,8 @@ static GX_INLINE ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
     return len;
 }
 
-static GX_INLINE ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
+
+static GX_INLINE ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
     ssize_t sent;
 do_write:
     Xs(sent = write(mmfd, rb_r(rbuf), len)) {
@@ -175,9 +176,15 @@ do_write:
         case EAGAIN: errno = 0; return 0;
         default: X_RAISE(-1);
     }
-    rb_advr(rbuf, sent);
-    if(rbuf->r > rbuf->w) rb_clear(rbuf);
+    if (consume) {
+        rb_advr(rbuf, sent);
+        if(rbuf->r > rbuf->w) rb_clear(rbuf);
+    }
     return sent;
+}
+
+static GX_INLINE ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
+    return zc_rbuf_mmfd2(rbuf, len, mmfd, 1);
 }
 
 
