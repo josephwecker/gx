@@ -123,10 +123,10 @@
   }
 
 
-  // TYPE must be a type that has a "next" member that is a pointer to the same
+  // TYPE must be a type that has a "next" and "prev" member that is a pointer to the same
   // type. Also, the struct should be aligned (?).
 
-  #define gx_pool_init(TYPE)                                           \
+  #define gx_pool_init(TYPE)                                                                           \
                                                                                          \
     typedef struct pool_memory_segment ## TYPE {                                         \
         struct pool_memory_segment ## TYPE *next;                                        \
@@ -136,6 +136,7 @@
     typedef struct TYPE ## _pool {                                                       \
         size_t total_items;                                                              \
         TYPE *available_head;                                                            \
+        TYPE *active_head, *active_tail;                                                 \
         pool_memory_segment ## TYPE *memseg_head;                                        \
     } TYPE ## _pool;                                                                     \
                                                                                          \
@@ -171,6 +172,22 @@
         return 0;                                                                        \
     }                                                                                    \
                                                                                          \
+    static GX_INLINE void _prepend_ ## TYPE (TYPE ## _pool *pool, TYPE *entry) {          \
+        /* put an object at the front of the active list */                              \
+        entry->next = pool->active_head;                                                 \
+        if (gx_likely(pool->active_head != NULL)) { pool->active_head->prev = entry; }   \
+        pool->active_head = entry;                                                       \
+        if (gx_unlikely(pool->active_tail == NULL)) { pool->active_tail = entry; }       \
+    }                                                                                    \
+                                                                                         \
+    static GX_INLINE void _remove_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {                   \
+        /* remove an object from the active list */                                      \
+        if (gx_likely(entry->prev != NULL)) { entry->prev->next = entry->next; }         \
+        else { pool->active_head = entry->next; }                                        \
+        if (gx_likely(entry->next != NULL)) { entry->next->prev = entry->prev; }         \
+        else { pool->active_tail = entry->prev; }                                        \
+    }                                                                                    \
+                                                                                         \
     static GX_INLINE TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                       \
         TYPE *res;                                                                       \
         if(gx_unlikely(!pool->available_head))                                           \
@@ -178,12 +195,19 @@
         res = pool->available_head;                                                      \
         pool->available_head = res->next;                                                \
         memset(res, 0, sizeof(TYPE));                                                    \
+        _prepend_ ## TYPE(pool, res);                                                             \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {        \
+    static GX_INLINE void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
+        _remove_ ## TYPE(pool, entry);                                                            \
         entry->next = pool->available_head;                                              \
         pool->available_head = entry;                                                    \
+    }                                                                                    \
+    static GX_INLINE void move_to_front_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {             \
+        /* move an object to the front of the active list */                             \
+        _remove_ ## TYPE(pool, entry);                                                            \
+        _prepend_ ## TYPE(pool, entry);                                                           \
     }
 
 
