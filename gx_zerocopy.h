@@ -70,6 +70,7 @@
 #include <sys/socket.h>
 
 #include <gx/gx_ringbuf.h>
+#include "ll.h"
 
 /// All return number of bytes transfered or -1 if fatal error. If zero
 /// or less then desired was transfered, it could be because of EAGAIN, several
@@ -81,6 +82,7 @@
 static GX_INLINE ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
 static GX_INLINE ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
 static GX_INLINE ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
+static GX_INLINE ssize_t zc_rbuf_mmfd2(gx_rb *rbuf,                 size_t len, int    mmfd,                 int consume);
 
 static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
 
@@ -92,7 +94,9 @@ static GX_INLINE ssize_t zc_sock_null (int    sock,                 size_t len  
 static GX_INLINE ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
 //static ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
 
-
+typedef ssize_t (*zc_fd_fd) (int, size_t, int, int); 
+typedef ssize_t (*zc_rb_fd) (gx_rb*, size_t, int, int); 
+typedef int (*ll_fd_getter) (ll **list);
 
 /// Just like sendfile, but with a ringbuffer instead of file
 static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int sock, int consume) {
@@ -167,6 +171,20 @@ static GX_INLINE ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
     return len;
 }
 
+static GX_INLINE ssize_t zc_rbuf_mmfds(gx_rb *rbuf, size_t len, ll* mmfds, ll_fd_getter getfunc) {
+    ssize_t sent;
+    int mmfd;
+    ll *iterator = mmfds;
+    while ((mmfd = getfunc(&iterator)) != -1) {
+do_write:
+        Xs(sent = write(mmfd, rb_r(rbuf), len)) {
+            case EINTR: goto do_write;
+            case EAGAIN: errno = 0; return 0;
+            default: X_RAISE(-1);
+        }
+    }
+    return sent;
+}
 
 static GX_INLINE ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
     ssize_t sent;
@@ -221,6 +239,36 @@ do_file_write:
     return sent;
 }
 
+static GX_INLINE ssize_t zc_sock_mmfds (int sock, size_t len, ll *mmfds, ll_fd_getter getfunc) {
+    int     tries = 0;
+    uint8_t tmp_buf[4096];
+    size_t  sent = 0, remaining;
+    ssize_t just_sent;
+    int     rflags = MSG_PEEK | MSG_DONTWAIT;
+    int     mmfd;
+
+    do {
+        remaining = len - sent;
+        Xs(just_sent = recv(sock, tmp_buf, MIN(remaining, 4096), rflags)) {
+            case EAGAIN: return sent;
+            case EINTR:  if(tries++ < 2) continue;
+            default:     X_RAISE(-1);
+        }
+        if(just_sent > 0) {
+            ll *iterator = mmfds;
+            while ((mmfd = getfunc(&iterator)) != -1) {
+do_file_write:
+                Xs(write(mmfd, tmp_buf, just_sent)) {
+                    case EINTR:  goto do_file_write;
+                    case EAGAIN: if(tries++ < 2) goto do_file_write; // Should never happen, at least on linux
+                    default: X_RAISE(-1);
+                }
+            }
+            sent += just_sent;
+        }
+    } while(sent < len && (just_sent > 0 || tries));
+    return sent;
+}
 #ifdef __LINUX__
 static int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
 static int zc_devnull_fd = -1;
