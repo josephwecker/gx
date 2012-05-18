@@ -31,8 +31,9 @@
 
 
 //------- poll -----------------------------------------------------------------
-// I want this because kevent64 isn't implemented in valgrind
-#elif defined(DEBUG)
+// I want this someday because kevent64 isn't implemented in valgrind
+#elif 0
+//#elif defined(DEBUG)
   #include <poll.h>
   #define GX_EVENT_STRUCT pollfd
   #define gx_event_newset(max_returned) -1

@@ -270,8 +270,8 @@ do_file_write:
     return sent;
 }
 #ifdef __LINUX__
-static int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
-static int zc_devnull_fd = -1;
+static __attribute__ ((unused)) int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
+static __attribute__ ((unused)) int zc_devnull_fd = -1;
 #endif
 
 /// Discard len bytes from a socket. Who would have thought it would be so much

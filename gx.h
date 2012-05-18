@@ -92,7 +92,11 @@
       #define  gx_hot_f       __attribute__((hot))
     #endif
     #ifndef    GX_INLINE
-      #define  GX_INLINE   inline __attribute__((always_inline))
+      #ifdef   DEBUG
+        #define GX_INLINE
+      #else 
+        #define  GX_INLINE   inline __attribute__((always_inline))
+      #endif
     #endif
   #else
     #ifndef    gx_likely
