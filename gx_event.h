@@ -30,6 +30,26 @@
   #define gx_event_states(EVENT) (EVENT).events
 
 
+//------- poll -----------------------------------------------------------------
+// I want this because kevent64 isn't implemented in valgrind
+#elif defined(DEBUG)
+  #include <poll.h>
+  #define GX_EVENT_STRUCT pollfd
+  #define gx_event_newset(max_returned) -1
+  static struct pollfd pollfds[1024];
+  static int pollfd_count = 0;
+  static GX_INLINE int gx_event_add(int evfd, int fd, void *data_ptr) {
+    struct GX_EVENT_STRUCT new_event;
+    new_event.fd = fd;
+    new_event.events = POLLIN  | POLLOUT | POLLPRI | POLLERR | POLLHUP;
+    pollfds[pollfd_count++] = new_event;
+    return 0;
+  }
+  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
+    X_LOG_DEBUG("polling...");
+    return poll(pollfds, pollfd_count, -1);
+  }
+
 //------- kqueue ---------------------------------------------------------------
 #elif defined(__DARWIN__) || defined(HAVE_KQUEUE)
   #include <sys/types.h>
@@ -72,6 +92,8 @@
 
   #define gx_event_data(EVENT) ((void *)((EVENT).udata))
   #define gx_event_states(EVENT) ((EVENT).filter | GX_EVENT_WRITABLE | GX_EVENT_READABLE)
+
+
 
 #else
   // TODO: if ever needed, do a select or poll fallback here
