@@ -277,7 +277,9 @@ static int zc_devnull_fd = -1;
 /// Discard len bytes from a socket. Who would have thought it would be so much
 /// code? Haven't done mac version yet even...
 static ssize_t zc_sock_null(int sock, size_t len) {
-#ifdef __LINUX__
+// @todo rewrite this so it actually works on linux--SPLICE_F_MOVE seems to have disappeared
+// #ifdef __LINUX__
+#if 0
     int     tries = 1;
     ssize_t res;
     size_t  total_sent = 0;
