@@ -272,17 +272,31 @@ extern int             gx_error_loglevel;
 #endif
 
 /* Some predefined color escape sequences */
-#define C_N               "\e[0m"
-#define C_PANIC           "\e[38;5;198m"
-#define C_FATAL           "\e[38;5;196m"
-#define C_ERROR           "\e[38;5;160m"
-#define C_WARN            "\e[38;5;202m"
-#define C_INFO            "\e[38;5;118m"
-#define C_DEBUG           "\e[38;5;226m"
-#define C_UNKN            "\e[38;5;27m"
-#define C_DELIM           "\e[38;5;236m"
-#define C_BG              "\e[48;5;234m"
-#define C_REF             "\e[38;5;240m"
+#ifndef LOG_PLAIN
+    #define C_N               "\e[0m"
+    #define C_PANIC           "\e[38;5;198m"
+    #define C_FATAL           "\e[38;5;196m"
+    #define C_ERROR           "\e[38;5;160m"
+    #define C_WARN            "\e[38;5;202m"
+    #define C_INFO            "\e[38;5;118m"
+    #define C_DEBUG           "\e[38;5;226m"
+    #define C_UNKN            "\e[38;5;27m"
+    #define C_DELIM           "\e[38;5;236m"
+    #define C_BG              "\e[48;5;234m"
+    #define C_REF             "\e[38;5;240m"
+#else 
+    #define C_N               "\e[0m"
+    #define C_PANIC           "\e[38;5;198m"
+    #define C_FATAL           "\e[38;5;196m"
+    #define C_ERROR           "\e[38;5;160m"
+    #define C_WARN            "\e[38;5;202m"
+    #define C_INFO            "\e[38;5;118m"
+    #define C_DEBUG           "\e[38;5;226m"
+    #define C_UNKN            "\e[38;5;27m"
+    #define C_DELIM           "\e[38;5;236m"
+    #define C_BG              "\e[48;5;234m"
+    #define C_REF             "\e[38;5;240m"
+#endif
 
 #define _START   C_BG C_DELIM "["
 #define _DLM(ch) C_BG C_DELIM ch C_REF   // delimiter shorthand for internal use
