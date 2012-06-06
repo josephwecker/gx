@@ -116,13 +116,14 @@
   static GX_INLINE void gx_hexdump(void *buf, size_t len) {
       size_t i;
       flockfile(stderr);
-      fprintf(stderr, "-------------\n");
+      //fprintf(stderr, "-------------\n");
       for(i=0; i<len; i++) {
           fprintf(stderr, "%02X ", ((uint8_t *)buf)[i]);
           if(i%8==7) fprintf(stderr, "| ");
           if(i%24==23)fprintf(stderr, "\n");
       }
-      fprintf(stderr, "\n-------------\n\n");
+      //fprintf(stderr, "\n-------------\n\n");
+      fprintf(stderr, "\n");
       funlockfile(stderr);
   }
 
