@@ -21,6 +21,12 @@
       return epoll_ctl(evfd, EPOLL_CTL_ADD, fd, &new_event);
   }
 
+  static GX_INLINE int gx_event_del(int evfd, int fd) {
+      //pointer to empty event for linux < 2.6.9 bug
+      static struct GX_EVENT_STRUCT non_event;
+      return epoll_ctl(evfd, EPOLL_CTL_DEL, fd, &non_event);
+  }
+
   // TODO: one day, when I need it, a timer.
   static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
       return epoll_wait(evfd, events, max_returned, milli_timeout);
@@ -29,27 +35,6 @@
   #define gx_event_data(EVENT) (EVENT).data.ptr
   #define gx_event_states(EVENT) (EVENT).events
 
-
-//------- poll -----------------------------------------------------------------
-// I want this someday because kevent64 isn't implemented in valgrind
-#elif 0
-//#elif defined(DEBUG)
-  #include <poll.h>
-  #define GX_EVENT_STRUCT pollfd
-  #define gx_event_newset(max_returned) -1
-  static struct pollfd pollfds[1024];
-  static int pollfd_count = 0;
-  static GX_INLINE int gx_event_add(int evfd, int fd, void *data_ptr) {
-    struct GX_EVENT_STRUCT new_event;
-    new_event.fd = fd;
-    new_event.events = POLLIN  | POLLOUT | POLLPRI | POLLERR | POLLHUP;
-    pollfds[pollfd_count++] = new_event;
-    return 0;
-  }
-  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
-    X_LOG_DEBUG("polling...");
-    return poll(pollfds, pollfd_count, -1);
-  }
 
 //------- kqueue ---------------------------------------------------------------
 #elif defined(__DARWIN__) || defined(HAVE_KQUEUE)
@@ -75,6 +60,18 @@
           .fflags = 0,
           .data   = 0,
           .udata  = (uint64_t)data_ptr,
+          .ext    = {0,0}};
+      return kevent64(evfd, &new_event, 1, NULL, 0, 0, NULL);
+  }
+
+  static GX_INLINE int gx_event_del(int evfd, int fd) {
+      struct GX_EVENT_STRUCT new_event = {
+          .ident  = (uint64_t)fd,
+          .filter = EVFILT_READ | EVFILT_WRITE,
+          .flags  = EV_DISABLE | EV_DELETE,
+          .fflags = 0,
+          .data   = 0,
+          .udata  = (uint64_t)NULL,
           .ext    = {0,0}};
       return kevent64(evfd, &new_event, 1, NULL, 0, 0, NULL);
   }
