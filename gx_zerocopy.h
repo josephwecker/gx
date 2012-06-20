@@ -291,7 +291,30 @@ sendagain:
 #endif
 }
 static GX_INLINE ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
-    return zc_sock_mmfd(in, len, out, consume);
+    int     tries = 0;
+    uint8_t tmp_buf[4096];
+    size_t  sent = 0, remaining;
+    ssize_t just_sent;
+    int     rflags = (consume ? 0 : MSG_PEEK) | MSG_DONTWAIT;
+
+    do {
+        remaining = len - sent;
+        Xs(just_sent = recv(in, tmp_buf, MIN(remaining, 4096), rflags)) {
+            case EAGAIN: continue;
+            case EINTR:  if(tries++ < 2) continue;
+            default:     X_RAISE(-1);
+        }
+        if(just_sent > 0) {
+do_file_write:
+            Xs(write(out, tmp_buf, just_sent)) {
+                case EINTR:  goto do_file_write;
+                case EAGAIN: goto do_file_write;
+                default: X_RAISE(-1);
+            }
+            sent += just_sent;
+        }
+    } while(sent < len && (just_sent > 0 || tries));
+    return sent;
 }
 static GX_INLINE ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int consume) {
     ssize_t rcvd;
