@@ -3,11 +3,31 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <gx/gx.h>
+
+static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {
+    int             ires;
+    struct addrinfo hints, *servinfo, *p;
+    int             sockfd;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    X (ires = getaddrinfo(host, port, &hints, &servinfo)){X_RAISE(-1)}
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        X (sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) continue;
+        X (connect(sockfd, p->ai_addr, p->ai_addrlen)) {close(sockfd); continue;}
+        break;
+    }
+    if(!p){X_RAISE(-1)}
+    freeaddrinfo(servinfo);
+    return sockfd;
+}
 
 
 static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port) {
