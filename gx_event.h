@@ -10,12 +10,13 @@
  *   To be called (for now) somewhere in global statespace- defines structs
  *   etc. Defines the following pieces- parenthases indicate that it's used
  *   internally:
- *   -  <name>_sess             - session struct (and pool-related stuff)
- *   - ( main_<name>_sess_pool   - preallocated session structs         )
- *   - ( <name>_events           - GX_EVENT_STRUCT for the eventloop    )
- *   - ( <name>_events_at_a_time - int global param                     )
- *   - ( <name>_events_fd        - int primary eventloop filedescriptor )
- *   - ( TODO: expected_sessions )
+ *   -  <name>_sess               - session struct (and pool-related stuff)
+ *   - ( <name>_sess_pool         - preallocated session structs         )
+ *   - ( <name>_events            - GX_EVENT_STRUCT for the eventloop    )
+ *   - ( <name>_events_at_a_time  - int global param                     )
+ *   - ( <name>_events_fd         - int primary eventloop filedescriptor )
+ *   - ( <name>_expected_sessions - expected sessions                    )
+ *   - ( <name>_rb_pool           - gx_rb_pool pointer                   )
  *
  *
  * Lower-level
@@ -40,43 +41,42 @@
 
 
 #define gx_eventloop_prepare(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME) \
-    typedef struct NAME ## _sess {
-        struct NAME ## _sess *_next, *_prev;
-        int                   rcv_dest;
-        gx_rb                *rcv_buf;
-        size_t                rcv_readahead;
-        ssize_t               rcv_expected;
-        size_t                rcvd_so_far;
-        int                   peer_fd;
-        gx_rb                *snd_buf;
-        int (*fn_handler)    (struct gx_tcp_sess *, uint8_t *, ssize_t);
-        char                 *fn_handler_name;
-        void                 *udata;
-    } NAME ## _sess;
-    gx_pool_init(NAME ## _sess);
-    main_ ## NAME ## _sess_pool = new_ ## NAME ## _sess_pool(EXPECTED_SESSIONS);
-    struct GX_EVENT_STRUCT NAME ## _events;
-    int NAME ## _events_at_a_time = EVENTS_AT_A_TIME;
-    int NAME ## _events_fd;
-    int NAME ## _expected_sessions = EXPECTED_SESSIONS;
-    
-    // TODO:
-    //   - define rb-pool
-    //   - define primary receive buffer
+    typedef struct NAME ## _sess {                                      \
+        struct NAME ## _sess *_next, *_prev;                            \
+        int                   rcv_dest;                                 \
+        gx_rb                *rcv_buf;                                  \
+        size_t                rcv_readahead;                            \
+        ssize_t               rcv_expected;                             \
+        size_t                rcvd_so_far;                              \
+        int                   peer_fd;                                  \
+        gx_rb                *snd_buf;                                  \
+        int (*fn_handler)    (struct NAME ## _sess *, uint8_t *, ssize_t);\
+        char                 *fn_handler_name;                          \
+        void                 *udata;                                    \
+    } NAME ## _sess;                                                    \
+    gx_pool_init(NAME ## _sess);                                        \
+    struct GX_EVENT_STRUCT   NAME ## _events;                           \
+    int                      NAME ## _events_at_a_time = EVENTS_AT_A_TIME;\
+    int                      NAME ## _events_fd;                        \
+    int                      NAME ## _expected_sessions = EXPECTED_SESSIONS;\
+    NAME ## _sess_pool     * NAME ## _spool;                            \
+    gx_rb_pool             * NAME ## _rb_pool;                          \
+    gx_rb                  * NAME ## _rcvrb;                            \
 
-#define gx_eventloop_init(NAME)
-    // TODO:
-    // Xn(NAME ## rb_pool = gx_rb_pool_new(NAME ## _expected_sessions / 4 + 2, 0x1000, 2) ){X_ERROR; X_EXIT;}
-    // (acquire a pool as primary receive buffer)
-    // rtmp_pool    = new_rtmp_sess_pool(0x10);
-    // initialize actual event-structure into _events_fd
+
+#define gx_eventloop_init(NAME) { \
+    Xn(NAME ## _rb_pool   = gx_rb_pool_new(NAME ## _expected_sessions / 4 + 2, 0x1000, 2)){X_ERROR; X_EXIT;}\
+    Xn(NAME ## _rcvrb     = gx_rb_acquire(NAME ## _rb_pool))                              {X_ERROR; X_EXIT;}\
+    Xn(NAME ## _spool     = new_ ## NAME ## _sess_pool(NAME ## _expected_sessions))       {X_ERROR; X_EXIT;}\
+    X (NAME ## _events_fd = gx_event_newset(NAME ## _events_at_a_time))                   {X_ERROR; X_EXIT;}\
+}
 
 
 #define tcp_sess_handler(NAME) extern int NAME(struct gx_tcp_sess *sess, uint8_t *dat, ssize_t len)
 #define set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER; }
 
 
-/* TODO: YOU ARE HERE- make these functions generic */
+/* TODO: YOU ARE HERE- make these functions generic
 GX_INLINE void rtmp_event_drain_buf(rtmp_sess *rtmp);
 //-----------------------------------------------------------------------------
 /// Receive as much as we can and dispatch to the current handler that's
@@ -211,7 +211,7 @@ GX_INLINE void rtmp_event_drain_buf(struct rtmp_sess *rtmp) {
 //rtmp_handler( hs_check_version             );
 
 //#define set_handler(RTMP, HANDLER) {RTMP->handler = &HANDLER; RTMP->handler_name = #HANDLER; }
-
+*/
 
 
 
