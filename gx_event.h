@@ -285,8 +285,8 @@ gx_pool_init(gx_tcp_sess);
 /// current handler in which case we keep looping until the buffer is drained.
 ///
 
-GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp); // Forward declaration
-GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
+static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp); // Forward declaration
+static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     if(gx_likely(events & GX_EVENT_READABLE)) {
         gx_rb   *rcvrb = *rcvrbp;
         ssize_t  rcvd, curr_remaining;
@@ -354,7 +354,7 @@ done_with_writing:
     return;
 }
 
-GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
+static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     uint8_t *hbuf  = NULL;
     gx_rb   *rcvrb = *rcvrbp;
     while(rb_used(rcvrb)) {
