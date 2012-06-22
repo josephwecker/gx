@@ -155,7 +155,12 @@ gx_pool_init(gx_tcp_sess);
 }
 
 #define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, uint8_t *dat, size_t len)
-#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
+#define gx_next_handle(HANDLER, EXPECTED) {\
+    sess->fn_handler = &HANDLER;           \
+    sess->rcv_expected = EXPECTED;         \
+}
+
+//#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
 
 //#define rtmp_handler(NAME) extern int NAME(struct rtmp_sess *rtmp, uint8_t *dat, ssize_t len)
 //rtmp_handler( dumper                       );
