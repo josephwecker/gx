@@ -13,6 +13,15 @@
  * <name>_add_misc(peer_fd, *misc)
  * <name>_add_sess(peer_fd, disc_handler, dest1, handler1, expected1, readahead1, *misc)
  * <name>_wait(timeout, misc_handler) // returns -1 on error, 0 on timeout
+ * 
+ * GX_EVENT_HANDLER(name) // <name>(sess*, dat*, len)
+ * gx_event_set_handler(sess, handler_function_name);
+ * TODO: set_handler that also sets expected & destination etc.
+ *
+ * destination is buffer, devnull, or filedescriptor.
+ * I'm thinking that there will be some utilities for creating an intermediate
+ * filedescriptor that allows for broadcasting to any number of additional
+ * descriptors, be they sockets or files or whatever.
  *
  *
  * Eventloop internal variables
