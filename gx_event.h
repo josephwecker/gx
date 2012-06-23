@@ -52,6 +52,19 @@
  * gx_event_data(events[i])
  * gx_event_states(events[i])
  *
+ *
+ *
+ *
+ *
+ *
+ *   |sock|-- |rbuf|
+ *            |mmfd|
+ *            |null|
+ *            |pipe|-- |tee|-- *|sock|
+ *                             *|tmp-rbuf|
+ *
+ *
+ *
  */
 
 #include <gx/gx.h>
