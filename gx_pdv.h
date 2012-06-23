@@ -6,10 +6,9 @@
  * Especially for pure dataflow applications with backtracking and persistence.
  *
  *
- * 
- *
- *
- *
+ * Unreliable backfilled pdvs are special cases- possibly able to punt forever
+ * on them and assume that they'll fill up / get solid in time that anything in
+ * the rest of the sequence can treat them simply.
  *
  * (mremap implementation for mac osx that does munmap+mmap)
  *
@@ -30,19 +29,19 @@
 
 #define _GX_PATHSIZE 0x400
 
+typedef struct gx_pdv_meta {
+    // Metainfo: stuff to be read from or written to 
+    int         data_type;   ///< READ/WRITE: For reference only, really
+    size_t      size;        ///< READ/WRITE: Size in data_types. i.e., number of values.
+    size_t      last_valid;  ///< Pointer to latest valid slot for reading
+} gx_pdv_meta;
+
 typedef struct gx_pdv_map {
-    int        persist_fd;
-    char       persist_path[_GX_PATHSIZE];
-
-    size_t     fsize;      ///< Actual filesize (via ftruncate etc.)
-    size_t     allocated;  ///< (maybe same as fsize- file in actual pagesize chunks ok?)
-
-    // Metainfo
-    //int        data_type; // ?
-    size_t     curr;        ///< Pointer to the next available slot
-    size_t     last_valid;  ///< Maybe not the current one
-    size_t     first_valid; 
+    int         persist_fd;
+    char        persist_path[_GX_PATHSIZE];
+    size_t      data_size;   ///< READ/WRITE: Filesize in bytes, always a multiple of system page size
+    size_t      curr;        ///< WRITE-ONLY: Pointer to the next available slot for writing
+    gx_pdv_meta meta_info;   ///< probably mmap it in as well. muahahaha
 } gx_pdv_map;
-
 
 #endif
