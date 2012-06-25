@@ -21,6 +21,11 @@
  * size_t ps = sysconf (_SC_PAGESIZE);
  * size_t ns = (at + size + ps - 1) & ~(ps - 1);
  *
+ * 
+ * b/a, d(b/a), f(b/a) :: int32 (except maybe f(sig) for some of the bigger original signals?)
+ *      d(b/a) could stay integer even w/ half-diffs assuming a constant x2 factor...
+ * 
+ *
  *
  */
 
@@ -29,19 +34,20 @@
 
 #define _GX_PATHSIZE 0x400
 
+// Metainfo: stuff to be read from or written to 
 typedef struct gx_pdv_meta {
-    // Metainfo: stuff to be read from or written to 
-    int         data_type;   ///< READ/WRITE: For reference only, really
-    size_t      size;        ///< READ/WRITE: Size in data_types. i.e., number of values.
-    size_t      last_valid;  ///< Pointer to latest valid slot for reading
+    int          data_type;   ///< READ/WRITE: For reference only, really
+    size_t       size;        ///< READ/WRITE: Size in data_types. i.e., number of values.
+    size_t       last_valid;  ///< Pointer to latest valid slot for reading
 } gx_pdv_meta;
 
 typedef struct gx_pdv_map {
-    int         persist_fd;
-    char        persist_path[_GX_PATHSIZE];
-    size_t      data_size;   ///< READ/WRITE: Filesize in bytes, always a multiple of system page size
-    size_t      curr;        ///< WRITE-ONLY: Pointer to the next available slot for writing
-    gx_pdv_meta meta_info;   ///< probably mmap it in as well. muahahaha
+    int          persist_fd;
+    char         persist_path[_GX_PATHSIZE];
+    size_t       data_size;   ///< Filesize in bytes, always a multiple of system page size
+    void        *mapped_file;
+    gx_pdv_meta *meta_info;
+    //void        *curr;        ///< Pointer to the next available slot for writing
 } gx_pdv_map;
 
 #endif
