@@ -454,10 +454,6 @@ static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahand
             X (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {X_ERROR; close(peer_fd); X_RAISE();}
 
             if(gx_likely(ahandler != NULL)) {
-                /* TODO: YOU ARE HERE:
-                 *   - hook in accept_connections correctly
-                 *   - write ahandler for imbibe as main case to try it
-                 */
                 Xn(new_sess = acquire_gx_tcp_sess(cespool)) {X_ERROR; close(peer_fd); X_RAISE();}
                 new_sess->peer_fd = peer_fd;
                 if(gx_likely(ahandler(new_sess) == GX_CONTINUE)) {
