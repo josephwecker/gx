@@ -37,6 +37,7 @@
  *   - ( <name>_events_fd         - int primary eventloop filedescriptor )
  *   - ( <name>_expected_sessions - expected sessions                    )
  *   - ( <name>_rb_pool           - gx_rb_pool pointer                   )
+ *   - ( <name>_acceptor_fd       - if specified, the fd for the listener)
  *
  *
  * Lower-level
@@ -61,6 +62,10 @@
 
 #define GX_DEST_DEVNULL      -3  ///< Discard incoming data
 #define GX_DEST_BUF          -2  ///< Save incoming data in a ring buffer
+#define GX_DEST_UNDEF         0  ///< Not defined- handler called on every event
+
+#define GX_CONTINUE           0  // TODO: For handler return values- change from 1/0
+#define GX_ABORT             -1
 
 typedef struct gx_tcp_sess {
     struct gx_tcp_sess   *_next, *_prev;
@@ -71,8 +76,8 @@ typedef struct gx_tcp_sess {
     size_t                rcvd_so_far;
     int                   peer_fd;
     gx_rb                *snd_buf;
-    int (*fn_handler)    (struct gx_tcp_sess *, uint8_t *, size_t);
-    void (*fn_disconnect)(struct gx_tcp_sess *);
+    int                 (*fn_handler)    (struct gx_tcp_sess *,uint8_t *,size_t);
+    void                (*fn_disconnect) (struct gx_tcp_sess *);
     //char                 *fn_handler_name;
     void                 *udata;
 } gx_tcp_sess;
@@ -81,12 +86,14 @@ gx_pool_init(gx_tcp_sess);
 
 #define gx_eventloop_prepare(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)          \
     struct GX_EVENT_STRUCT   NAME ## _events[EVENTS_AT_A_TIME];                  \
-    int                      NAME ## _events_at_a_time = EVENTS_AT_A_TIME;       \
+    int                      NAME ## _events_at_a_time     = EVENTS_AT_A_TIME;   \
     int                      NAME ## _events_fd;                                 \
-    int                      NAME ## _expected_sessions = EXPECTED_SESSIONS;     \
-    gx_tcp_sess_pool       * NAME ## _sess_pool_inst;                            \
-    gx_rb_pool             * NAME ## _rb_pool;                                   \
-    gx_rb                  * NAME ## _rcvrb;                                     \
+    int                      NAME ## _expected_sessions    = EXPECTED_SESSIONS;  \
+    gx_tcp_sess_pool       * NAME ## _sess_pool_inst       = NULL;               \
+    gx_rb_pool             * NAME ## _rb_pool              = NULL;               \
+    gx_rb                  * NAME ## _rcvrb                = NULL;               \
+    int                      NAME ## _acceptor_fd          = 0;                  \
+    int                   (* NAME ## _accept_handler)(gx_tcp_sess *) = NULL;     \
                                                                                  \
     int GX_INLINE NAME ## _add_sess(int peer_fd,                                 \
             void *misc,                                                          \
@@ -108,9 +115,17 @@ gx_pool_init(gx_tcp_sess);
         sess->rcvd_so_far      = 0;                                              \
         return gx_event_add(NAME ## _events_fd, peer_fd,(void *)sess);           \
     }                                                                            \
-                                                                                 \
+    /* TODO: <name>_add_misc possibly not needed at all */                       \
     int GX_INLINE NAME ## _add_misc(int peer_fd, void *misc) {                   \
-        return NAME ## _add_sess(peer_fd, misc, NULL, -1, NULL, 0, 0);           \
+        return NAME ## _add_sess(peer_fd, misc, NULL, GX_DEST_UNDEF, NULL,0,0);  \
+    }                                                                            \
+    /* TODO: listener disconnect handler that exits main event "wait" */         \
+    int GX_INLINE NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)) {\
+        NAME ## _acceptor_fd = afd;                                              \
+        NAME ## _accept_handler = ahandler;                                      \
+        return gx_event_add(NAME ## _events_fd, afd,                             \
+                (void *) & NAME ## _acceptor_fd);                                \
+      /*return NAME ## _add_sess(afd,(void *)&afd,NULL,GX_DEST_UNDEF,NULL,0,0);*/\
     }                                                                            \
                                                                                  \
     int GX_INLINE NAME ## _wait(int timeout,                                     \
@@ -119,11 +134,24 @@ gx_pool_init(gx_tcp_sess);
         uint32_t evstates;                                                       \
         gx_tcp_sess *sess;                                                       \
         while(1) {                                                               \
+            if(NAME ## _acceptor_fd)                                             \
+                _gx_event_accept_connections(5, NAME ## _acceptor_fd,            \
+                        NAME ## _accept_handler, NAME ## _sess_pool_inst,        \
+                        NAME ## _events_fd, NAME ## _rb_pool,                    \
+                        &NAME ## _rcvrb);                                        \
+            /* TODO: a bunch of accepts here first if applicable */              \
             X (nfds = gx_event_wait(NAME ## _events_fd,                          \
                         NAME ## _events,                                         \
                         EVENTS_AT_A_TIME, timeout)) X_RAISE(-1);                 \
             if(!nfds) return 0;                                                  \
             for(i=0; i < nfds; ++i) {                                            \
+                if(gx_unlikely(gx_event_data(NAME ## _events[i]) ==              \
+                            (void *) &NAME ## _acceptor_fd)) {                   \
+                    _gx_event_accept_connections(1, NAME ## _acceptor_fd,        \
+                            NAME ## _accept_handler, NAME ## _sess_pool_inst,    \
+                            NAME ## _events_fd, NAME ## _rb_pool,                \
+                            &NAME ## _rcvrb);                                    \
+                }                                                                \
                 sess     = (gx_tcp_sess *)gx_event_data(NAME ## _events[i]);     \
                 evstates = gx_event_states(NAME ## _events[i]);                  \
                 if(gx_likely(sess->fn_handler)) {                                \
@@ -322,7 +350,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     if(!sess->fn_handler(sess, NULL, sess->rcv_expected)) goto done_with_reading;
                     can_rcv_more = 1;
                 }
-            } else {
+            } else { // TODO: Check for GX_DEST_UNDEF
                 X_LOG_ERROR("Not yet implemented");
                 /* TODO: the below is from imbibe- needs to be better and also
                  * detect and handle multiple destinations when appropriate.
@@ -374,7 +402,7 @@ static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool,
                 return;
             }
             rb_advr(rcvrb, curr_remaining); // curr_remaining because we've rb_clear'ed earlier ones
-        } else { // File descriptor
+        } else { // File descriptor TODO: check for GX_DEST_UNDEF
             X_LOG_ERROR("Not yet implemented");
             hbuf = NULL;
         }
@@ -382,6 +410,70 @@ static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool,
         sess->rcvd_so_far = 0; // Clear it out
         if(!sess->fn_handler(sess, hbuf, sess->rcv_expected)) return;
         //if(sess->rcv_buf)
+    }
+}
+
+static void _gx_close_sess(gx_tcp_sess *sess, gx_tcp_sess_pool *cespool) {
+    if(sess->peer_fd > 2) close(sess->peer_fd);
+    if(sess->fn_disconnect) sess->fn_disconnect(sess);
+    release_gx_tcp_sess(cespool, sess);
+}
+
+
+static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahandler)(gx_tcp_sess *),
+        gx_tcp_sess_pool *cespool, int events_fd, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
+    int                 i;
+    struct sockaddr     peer_addr;
+    socklen_t           slen = sizeof(struct sockaddr);
+    int                 peer_fd;
+    int                 warn_count = 0;
+    gx_tcp_sess        *new_sess = NULL;
+
+    for(i=0; i<lim; i++) {
+        Xs(peer_fd = accept(afd, &peer_addr, &slen)) {
+            case EWOULDBLOCK:
+            case EINTR:
+                return;
+            case ENETDOWN:
+            case EPROTO:
+            case ENOPROTOOPT:
+            case EHOSTDOWN:
+#if defined(__linux__) || defined(__LINUX__)
+            case ENONET:
+#endif
+            case EHOSTUNREACH:
+            case EOPNOTSUPP:
+            case ENETUNREACH:
+                warn_count ++;
+                if(warn_count < 5) continue; // Transitory as per manpages. Try again
+                else return;
+            default:
+                X_ERROR;
+                X_RAISE();
+        } else {
+            X (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {X_ERROR; close(peer_fd); X_RAISE();}
+
+            if(gx_likely(ahandler != NULL)) {
+                /* TODO: YOU ARE HERE:
+                 *   - hook in accept_connections correctly
+                 *   - write ahandler for imbibe as main case to try it
+                 */
+                Xn(new_sess = acquire_gx_tcp_sess(cespool)) {X_ERROR; close(peer_fd); X_RAISE();}
+                new_sess->peer_fd = peer_fd;
+                if(gx_likely(ahandler(new_sess) == GX_CONTINUE)) {
+                    X (gx_event_add(events_fd, peer_fd, (void *)new_sess)) {
+                        X_ERROR;
+                        _gx_close_sess(new_sess, cespool);
+                    }
+                    // Trigger here because it's very likely to be available
+                    _gx_event_incoming(new_sess, GX_EVENT_READABLE | GX_EVENT_WRITABLE, rb_pool, rcvrbp);
+                } else {
+                    // Will not call the disconnect handler if accept-handler rejected.
+                    close(peer_fd);
+                    release_gx_tcp_sess(cespool, new_sess);
+                }
+            }
+        }
     }
 }
 
