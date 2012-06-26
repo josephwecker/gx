@@ -323,6 +323,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
             can_rcv_more = 0;
             curr_remaining = sess->rcv_expected - sess->rcvd_so_far;
 
+            XDBG;
             if(sess->rcv_dest == GX_DEST_BUF) {
                 ssize_t  bytes_attempted;
                 if(sess->rcv_buf) { // If present, use as the receive buffer
@@ -336,10 +337,13 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                 else bytes_attempted = curr_remaining;
 
                 if(gx_likely(bytes_attempted > 0)) {
+                    XDBG;
                     X (rcvd = zc_sock_rbuf(sess->peer_fd, bytes_attempted, rcvrb, 1)){X_FATAL;rcvd=0;}
                     if(gx_likely(rcvd==bytes_attempted)) can_rcv_more = 1; // might still be something on the wire
                 }
+                XDBG;
                 _gx_event_drainbuf(sess, rb_pool, rcvrbp);
+                XDBG;
             } else if(sess->rcv_dest == GX_DEST_DEVNULL) {
                 X (rcvd = zc_sock_null(sess->peer_fd, curr_remaining)){X_FATAL;rcvd=curr_remaining;}
                 if(rcvd < curr_remaining) {
@@ -385,7 +389,10 @@ done_with_writing:
 static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     uint8_t *hbuf  = NULL;
     gx_rb   *rcvrb = *rcvrbp;
+    XDBG;
+    // TODO: YOU ARE HERE- something wrong w/ rcvrb (as expected)
     while(rb_used(rcvrb)) {
+        XDBG;
         ssize_t curr_remaining = sess->rcv_expected - sess->rcvd_so_far;
         if(sess->rcv_dest == GX_DEST_BUF) {
             if(rb_used(rcvrb) < curr_remaining) { // Done draining- partial buffered chunk
@@ -455,7 +462,10 @@ static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahand
 
             if(gx_likely(ahandler != NULL)) {
                 Xn(new_sess = acquire_gx_tcp_sess(cespool)) {X_ERROR; close(peer_fd); X_RAISE();}
-                new_sess->peer_fd = peer_fd;
+                new_sess->peer_fd     = peer_fd;
+                new_sess->rcv_buf     = NULL;
+                new_sess->snd_buf     = NULL;
+                new_sess->rcvd_so_far = 0;
                 if(gx_likely(ahandler(new_sess) == GX_CONTINUE)) {
                     X (gx_event_add(events_fd, peer_fd, (void *)new_sess)) {
                         X_ERROR;
