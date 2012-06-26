@@ -387,7 +387,6 @@ done_with_writing:
 static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     uint8_t *hbuf  = NULL;
     gx_rb   *rcvrb = *rcvrbp;
-    // TODO: YOU ARE HERE- something wrong w/ rcvrb (as expected)
     while(rb_used(rcvrb)) {
         ssize_t curr_remaining = sess->rcv_expected - sess->rcvd_so_far;
         if(sess->rcv_dest == GX_DEST_BUF) {
