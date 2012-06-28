@@ -22,15 +22,15 @@
  *
  *
  * USAGE:
- *  - Allocate gx_mfd pool:     new_gx_mfd_pool (INITIAL_SIZE)    --> mfd_pool or NULL on error
- *  - Get gx_mfd from pool:     acquire_gx_mfd  (mfd_pool)        --> actual gx_mfd
- *  - Initialize writer gx_mfd: gx_mfd_create_w (mfd,* char *path)--> -1 on error, otherwise mfd->fd.
- *  - Prepare to read or write: mfd_c_adv       (mfd*, length)    --> pointer to where you can now read/write length bytes.
- *  - Update fd's offset to c:  mfd_autoseek    (mfd*)            --> -1 on error, in preparation for fd based read/write/sendfile/etc.
- *  - Update c to fd's offset:  mfd_autotell    (mfd*)            --> -1 on error
- *  - Tell readers re new data: mfd_broadcast   (mfd*)            --> -1 on error
+ * RW|Allocate gx_mfd pool    |new_gx_mfd_pool(SIZE)     |mfd_pool or NULL on error
+ * RW|Get gx_mfd from pool    |acquire_gx_mfd (mfd_pool) |actual gx_mfd
+ *  W|Initialize writer gx_mfd|gx_mfd_create_w(mfd*,path)|-1 on error, otherwise mfd->fd.
+ * R |Initialize reader gx_mfd|gx_mfd_create_r(mfd*,path)|-1 or populate mfd & mfd->watch_fd
+ * RW|Prepare to read or write|mfd_c_adv      (mfd*,len) |pointer to where you can now r/w len bytes.
+ * RW|Update fd's offset to c |mfd_autoseek   (mfd*)     |-1=err, do before fd based read/write/sendfile/etc
+ * RW|Update c to fd's offset |mfd_autotell   (mfd*)     |-1 on error
+ *  W|Tell readers re new data|mfd_broadcast  (mfd*)     |-1 on error
  *
- *  - Get "watcher" fd:
  *
  * TODO:
  *  - Abstraction for auto-update-files from writer perspective
@@ -83,7 +83,7 @@ typedef struct gx_mfd {
     int             type;          ///< Readonly or writeonly at the moment
     int             fd;            ///< File descriptor, ready for IO operations
     size_t          c;             ///< Current pointer (write or read position depending on context)
-    size_t          map_size;      ///< Currently allocated map-size- may or may not correspond to filesize (usually it'll be larger)
+    size_t          map_size;      ///< Current allocated map-len- usually >= filesize
     void           *full_map;      ///< For remapping etc.
     gx_mfd_head    *head;          ///< Points to the very front of the mapped file
     void           *dat;           ///< Points to the data- just after the head
