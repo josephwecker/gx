@@ -24,11 +24,6 @@
  *
  * TODO:
  *  - Abstraction for auto-update-files from writer perspective
- *    * Opens for writing, respecting any advisory locks
- *    * Acquires write locks etc.
- *    * mmaps
- *    * Fills in initial standard structure if required (and ftruncates, or
- *      just use write so fd is all queued up correctly).
  *    * Gives the fd back for subsequent operations (for zerocopy ones, that is).
  *    * Gives back also a pointer and some abstractions for writing directly to
  *      the memory (which re-mmaps as appropriate etc.)
@@ -60,42 +55,72 @@
 #include <sys/stat.h>
 
 
+#define _GX_MFD_ERR_IF     { X_LOG_ERROR("Not a properly formatted file for mfd (found other data inside)."); X_RAISE(-1);}
+#define _GX_MFD_FILESIG    UINT64_C(0x1c1c1c1c1c1c1c1c)
+
+#define GX_MFD_RO 0
+#define GX_MFD_WO 1
+
 typedef struct gx_mfd_head {
-    uint64_t     sig;        // Will always be 0x1c1c1c1c1c1c1c1c
-    uint64_t     size;       // Data size (not including header). Host-endian
-                             //     and not necessarily accurate- used as a
-                             //     kind of semaphore.
+    uint64_t        sig;           ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this.
+    uint64_t        size;          ///< Data size (not including header). Host-endian and not necessarily accurate; used as a kind of semaphore.
 } gx_mfd_head;
 
 typedef struct gx_mfd {
-    struct gx_mfd *_next, *_prev;
-    int          fd;
-    void        *full_map;
-    gx_mfd_head *head;
+    struct gx_mfd  *_next, *_prev; ///< For resource pooling
+    int             type;          ///< Readonly or writeonly at the moment
+    int             fd;            ///< File descriptor, ready for IO operations
+    size_t          c;             ///< Current pointer (write or read position depending on context)
+    size_t          map_size;      ///< Currently allocated map-size- may or may not correspond to filesize (usually it'll be larger)
+    void           *full_map;      ///< For remapping etc.
+    gx_mfd_head    *head;          ///< Points to the very front of the mapped file
+    void           *dat;           ///< Points to the data- just after the head
 } gx_mfd;
 
 gx_pool_init(gx_mfd);
 
-static gx_mfd_open_writer(gx_mfd *mfd, const char *path) {
-    int          fd;
-    void        *map;
+
+/** Initialize an mfd struct for a given file, mapping the file for writes etc. */
+static int gx_mfd_open_writer(gx_mfd *mfd, const char *path) {
     struct stat  filestat;
     off_t        curr_size;
 
-    X(  fd = open(path, O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)  ) X_RAISE(-1);
-    X(  flock(fd, LOCK_EX | LOCK_NB)                                                          ) X_RAISE(-1);
-    X(  fstat(fd, &filestat)                                                                  ) X_RAISE(-1);
+    X(  mfd->fd=open(path,O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) X_RAISE(-1);
+    X(  flock(mfd->fd, LOCK_EX | LOCK_NB)                                                     ) X_RAISE(-1);
+    X(  fstat(mfd->fd, &filestat)                                                             ) X_RAISE(-1);
     curr_size = filestat.st_size;
-    Xm( map = mmap(NULL, MAX(curr_size, gx_pagesize), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) X_RAISE(-1);
-    if(curr_size > 0) { // Should be valid header in place
-        if(((uint64_t *)map)[0] != 0x1c1c1c1c1c1c1c1cUL){X_LOG_ERROR("Not a proper mfd file."); X_RAISE(-1);}
-        // TODO: possibly warn if curr_size is very wrong indicating some kind of bad state.
+    mfd->map_size = MAX(curr_size, gx_pagesize);
+    Xm( mfd->full_map = mmap(NULL, mfd->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mfd->fd,0)) X_RAISE(-1);
+    mfd->head = (gx_mfd_head *)(mfd->full_map);
+    mfd->dat  = mfd->head + sizeof(gx_mfd_head);
+    mfd->type = GX_MFD_WO;
+    if(curr_size > 0) {
+        // There should be a valid header in place then.
+        if(mfd->head->sig != _GX_MFD_FILESIG) _GX_MFD_ERR_IF;
+        if(curr_size < sizeof(gx_mfd_head))   _GX_MFD_ERR_IF;
+        // TODO: possibly warn if curr_size is very wrong indicating some kind
+        //       of inconsistent state last time this stuff was run...
+        mfd->head->size = curr_size - sizeof(gx_mfd_head);
     } else {
-
+        // Using write so that the calling process has the offset pointer
+        // pointing to the actual data section.
+        uint64_t sig = _GX_MFD_FILESIG;
+        write(mfd->fd, &sig, sizeof(uint64_t));
+        sig = 0;
+        write(mfd->fd, &sig, sizeof(uint64_t));
     }
+    // TODO: initialize "mfd->c" after looking at the ringbuf stuff again and
+    // gleaning any useful idioms (it's been a while now).
 }
 
+/** Tell system that a write (using some standard IO or zerocopy) occurred so
+ * it can notify readers.
+ */
+static GX_INLINE int gx_mfd_did_write(gx_mfd *mfd, size_t just_wrote) {
 
+    return 0;
+}
 
+//static GX_INLINE int gx_mfd_write(gx_mfd *mfd, 
 
 #endif
