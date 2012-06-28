@@ -1,0 +1,5 @@
+#!/bin/bash
+
+mkdir -p ./tmp
+gcc -I ../ test/test_gx_mfd.c -o tmp/tst && tmp/tst
+rm -rf ./tmp
