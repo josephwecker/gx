@@ -145,7 +145,7 @@
         pool_memory_segment ## TYPE *memseg_head;                                        \
     } TYPE ## _pool;                                                                     \
                                                                                          \
-    static GX_INLINE int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);    \
+    static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
     static GX_INLINE TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {    \
         TYPE ## _pool *res;                                                              \
         Xn(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) X_RAISE(NULL);            \
