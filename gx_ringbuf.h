@@ -29,7 +29,7 @@ typedef struct gx_rb {
     void         *addr; ///< Actual mmap region
     int           fd;   ///< File descriptor associated w/ mmap region
     ssize_t       len;  ///< Total size
-    ssize_t       w;    ///< Write head / offset
+    ssize_t       w;    ///< Write head / offset    TODO: these should probably be size_t instead
     ssize_t       r;    ///< Read head  / offset
 } gx_rb;
 
