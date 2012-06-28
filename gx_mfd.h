@@ -82,13 +82,13 @@ static gx_mfd_open_writer(gx_mfd *mfd, const char *path) {
     struct stat  filestat;
     off_t        curr_size;
 
-    X(  fd = open(path, O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)    ){X_FATAL; X_RAISE(-1);}
-    X(  flock(fd, LOCK_EX | LOCK_NB)                                                            ){X_FATAL; X_RAISE(-1);}
-    X(  fstat(fd, &filestat)                                                                    ){X_FATAL; X_RAISE(-1);}
+    X(  fd = open(path, O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)  ) X_RAISE(-1);
+    X(  flock(fd, LOCK_EX | LOCK_NB)                                                          ) X_RAISE(-1);
+    X(  fstat(fd, &filestat)                                                                  ) X_RAISE(-1);
     curr_size = filestat.st_size;
-    Xm( map = mmap(NULL, MAX(curr_size, gx_pagesize), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)  ){X_FATAL; X_RAISE(-1);}
+    Xm( map = mmap(NULL, MAX(curr_size, gx_pagesize), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) X_RAISE(-1);
     if(curr_size > 0) { // Should be valid header in place
-        if(((uint64_t *)map)[0] != 0x1c1c1c1c1c1c1c1cUL)           {X_LOG_ERROR("Not a proper mfd file."); X_RAISE(-1);}
+        if(((uint64_t *)map)[0] != 0x1c1c1c1c1c1c1c1cUL){X_LOG_ERROR("Not a proper mfd file."); X_RAISE(-1);}
         // TODO: possibly warn if curr_size is very wrong indicating some kind of bad state.
     } else {
 
