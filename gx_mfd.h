@@ -21,6 +21,16 @@
  *  portability...
  *
  *
+ * USAGE:
+ *  - Allocate gx_mfd pool:     new_gx_mfd_pool (INITIAL_SIZE)    --> mfd_pool or NULL on error
+ *  - Get gx_mfd from pool:     acquire_gx_mfd  (mfd_pool)        --> actual gx_mfd
+ *  - Initialize writer gx_mfd: gx_mfd_create_w (mfd,* char *path)--> -1 on error, otherwise mfd->fd.
+ *  - Prepare to read or write: mfd_c_adv       (mfd*, length)    --> pointer to where you can now read/write length bytes.
+ *  - Update fd's offset to c:  mfd_autoseek    (mfd*)            --> -1 on error, in preparation for fd based read/write/sendfile/etc.
+ *  - Update c to fd's offset:  mfd_autotell    (mfd*)            --> -1 on error
+ *  - Tell readers re new data: mfd_broadcast   (mfd*)            --> -1 on error
+ *
+ *  - Get "watcher" fd:
  *
  * TODO:
  *  - Abstraction for auto-update-files from writer perspective
@@ -42,6 +52,8 @@
  *  - Make sure and mark variable as volatile (in the smallest appropriate
  *    scope ala wikipedia)
  *  
+ *
+ *  - Possibly lock first page of every mfd into RAM?
  *
  */
 #ifndef GX_MFD_H
@@ -81,7 +93,7 @@ gx_pool_init(gx_mfd);
 
 
 /** Initialize an mfd struct for a given file, mapping the file for writes etc. */
-static int gx_mfd_open_writer(gx_mfd *mfd, const char *path) {
+static int gx_mfd_create_w(gx_mfd *mfd, const char *path) {
     struct stat  filestat;
     off_t        curr_size;
 
@@ -109,18 +121,56 @@ static int gx_mfd_open_writer(gx_mfd *mfd, const char *path) {
         sig = 0;
         write(mfd->fd, &sig, sizeof(uint64_t));
     }
-    // TODO: initialize "mfd->c" after looking at the ringbuf stuff again and
-    // gleaning any useful idioms (it's been a while now).
+    mfd->c = 0;
+    return mfd->fd;
 }
+
+/// Preferred method for reading/writing. Returns a pointer to the "current"
+/// position after preparing for user to read or write 'length' bytes of data.
+static GX_INLINE void *mfd_c_adv(gx_mfd *mfd, size_t length) {
+
+}
+
+// TODO: (if needed)  mfd_seek(...) - does lseek to move actual fd
+// filepointer to the current cursor before normal IO reads/writes.
+
+
+
+/// Address for current cursor
+static GX_INLINE void *mfd_c(gx_mfd *mfd) {return mfd->dat + mfd->c;}
+
+/// Advance the read/write cursor
+/// TODO: Always keep at least a couple of blank pages in front so that a
+///       spontaneous write or read is guaranteed to be able to do at least
+///       page-size (and/or 4096 bytes).
+/// TODO: Ask for average throughput when initializing to optimize "pages at a
+///       time" so it's not doing a mremap every 4096 bytes shovelled...
+static GX_INLINE int mfd_adv(gx_mfd *mfd, size_t len) {
+    // TODO:
+    //  - If @ mmap boundary:
+    //    - If write-context, ftruncate (can be avoided w/o sigbus?)
+    //    - Remap
+    //    - madvise on new & older pages
+    //  - On Linux, trigger a FUTEX_WAKE
+}
+
+// TODO: (as needed)
+//  mfd_write(mfd*, void *src, len)
+//  mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
+
 
 /** Tell system that a write (using some standard IO or zerocopy) occurred so
  * it can notify readers.
- */
+ *
 static GX_INLINE int gx_mfd_did_write(gx_mfd *mfd, size_t just_wrote) {
 
     return 0;
 }
 
 //static GX_INLINE int gx_mfd_write(gx_mfd *mfd, 
+*/
+
+
+
 
 #endif
