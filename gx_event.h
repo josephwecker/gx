@@ -14,7 +14,7 @@
  * <name>_add_sess(peer_fd, disc_handler, dest1, handler1, expected1, readahead1, *misc)
  * <name>_wait(timeout, misc_handler) // returns -1 on error, 0 on timeout
  * 
- * GX_EVENT_HANDLER(name) // <name>(sess*, dat*, len)
+ * GX_EVENT_HANDLER(name) // <name>(sess*, rb*)
  * gx_event_set_handler(sess, handler_function_name);
  * TODO: set_handler that also sets expected & destination etc.
  *
@@ -89,7 +89,7 @@ typedef struct gx_tcp_sess {
     size_t                rcvd_so_far;
     int                   peer_fd;
     gx_rb                *snd_buf;
-    int                 (*fn_handler)    (struct gx_tcp_sess *,uint8_t *,size_t);
+    int                 (*fn_handler)    (struct gx_tcp_sess *, gx_rb *);
     void                (*fn_disconnect) (struct gx_tcp_sess *);
     //char                 *fn_handler_name;
     void                 *udata;
@@ -112,7 +112,7 @@ gx_pool_init(gx_tcp_sess);
             void *misc,                                                          \
             void (*disc_handler)(gx_tcp_sess *),                                 \
             int dest,                                                            \
-            int (*handler)(gx_tcp_sess *, uint8_t *, size_t),                    \
+            int (*handler)(gx_tcp_sess *, gx_rb *),                              \
             size_t bytes_expected, int do_readahead) {                           \
         gx_tcp_sess *sess;                                                       \
         Xn(sess = acquire_gx_tcp_sess(NAME ## _sess_pool_inst)) X_RAISE(-1);     \
@@ -196,11 +196,12 @@ gx_pool_init(gx_tcp_sess);
     X (NAME ## _events_fd      = gx_event_newset(NAME ## _events_at_a_time))              {X_ERROR; X_EXIT;}\
 }
 
-#define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, uint8_t *dat, size_t len)
-#define gx_next_handle(HANDLER, EXPECTED) {\
-    sess->fn_handler = &HANDLER;           \
-    sess->rcv_expected = EXPECTED;         \
-}
+#define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
+#define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
+    sess->fn_handler = &HANDLER;                        \
+    sess->rcv_dest = DESTINATION;                       \
+    sess->rcv_expected = EXPECTED;                      \
+} while (0)
 
 //#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
 
@@ -362,7 +363,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     goto done_with_reading; // Not enough thrown away yet.
                 } else {
                     sess->rcvd_so_far = 0;
-                    if(!sess->fn_handler(sess, NULL, sess->rcv_expected)) goto done_with_reading;
+                    if(!sess->fn_handler(sess, NULL)) goto done_with_reading;
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
@@ -398,7 +399,8 @@ done_with_writing:
 }
 
 static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
-    uint8_t *hbuf  = NULL;
+    // policy is to advance for anything but GX_DEST_BUF immediately
+    // but wait till handler call to advance GX_DEST_BUF
     gx_rb   *rcvrb = *rcvrbp;
     while(rb_used(rcvrb)) {
         ssize_t curr_remaining = sess->rcv_expected - sess->rcvd_so_far;
@@ -409,7 +411,6 @@ static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool,
                 Xn(rcvrb           = gx_rb_acquire(rb_pool)) X_FATAL;
                 return;
             }
-            hbuf = rb_read_adv(rcvrb, sess->rcv_expected); // full expected
         } else if(sess->rcv_dest == GX_DEST_DEVNULL) {
             if(rb_used(rcvrb) < curr_remaining) { // Done draining- partial throwaway
                 sess->rcvd_so_far += rb_used(rcvrb);
@@ -419,12 +420,20 @@ static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool,
             rb_advr(rcvrb, curr_remaining); // curr_remaining because we've rb_clear'ed earlier ones
         } else { // File descriptor TODO: check for GX_DEST_UNDEF
             X_LOG_ERROR("Not yet implemented");
-            hbuf = NULL;
         }
         // Looks like we have a full chunk / full expected length available.
         sess->rcvd_so_far = 0; // Clear it out
-        if(!sess->fn_handler(sess, hbuf, sess->rcv_expected)) return;
-        //if(sess->rcv_buf)
+
+        // advance ringbuffer after calling handler if GX_DEST_BUF
+        if (sess->rcv_dest == GX_DEST_BUF) {
+            size_t old_write_head = rcvrb->w;
+            rcvrb->w = rcvrb->r + sess->rcv_expected;
+            if(!sess->fn_handler(sess, rcvrb)) return;
+            rcvrb->w = old_write_head;
+            rb_advr(rcvrb, sess->rcv_expected);
+        } else {
+            if(!sess->fn_handler(sess, NULL)) return;
+        }
     }
 }
 

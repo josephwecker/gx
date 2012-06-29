@@ -74,6 +74,12 @@ static int gx_rb_create(gx_rb *rb, ssize_t min_size, int stay_in_ram) {
 static GX_INLINE void *rb_w(gx_rb *rb) {return rb->addr + rb->w;}
 /// Address for the current read position for directly reading.
 static GX_INLINE void *rb_r(gx_rb *rb) {return rb->addr + rb->r;}
+
+/// Address for the current write position for directly writing.
+static GX_INLINE uint8_t *rb_uintw(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->w);}
+/// Address for the current read position for directly reading.
+static GX_INLINE uint8_t *rb_uintr(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->r);}
+
 /// Advance write cursor (after writing directly usually).
 static GX_INLINE void rb_advw (gx_rb *rb, ssize_t len) {rb->w += len;}
 /// Advance read cursor (after reading directly usually).
