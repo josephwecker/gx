@@ -7,7 +7,9 @@
  *
  * Including a function that returns a filedescriptor that can be used in epoll
  * etc. when a variable is changed (usually a memory-mapped variable changed by
- * another process). Coded to be very fast, at least for Linux.
+ * another process). Coded to be very fast, at least for Linux. At this point
+ * mostly used as a very, very fast alternative to inotify etc. that works even
+ * when the data hasn't been written to any inodes etc.
  *
  * At some point I'll probably put in here mome mmap simplifications /
  * abstractions in order to take advantage of various optimizations since
@@ -29,56 +31,16 @@
  *
  *
  * TODO:
- *  -  W| |mfd_write(mfd*, void *src, len)
- *  -  W| |mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
  *  - Abstraction for auto-update-files from writer perspective
  *    * Trigger for waking up waiting processes (FUTEX_WAKE on linux, nothing
  *      on mac-osx, which is going to be polling) - automatic where possible
  *      and exposed where not.
- *  - Abstraction for monitoring. i.e., the reader perspective
  *  - Be sure readonly stuff is set on readers
  *  - Make sure and mark variable as volatile (in the smallest appropriate
  *    scope ala wikipedia)
- *  - Flag on init to decide if the file is going to persist. If not, when the
- *    mfd is closed: (1) unlink, (2) msync(DIRTY), (3) close-fd, (4) munmap -
- *    to avoid disk churn as much as possible (or RAM churn if /dev/shm)
- *    Unfortunately going to have some churn regardless while the file is
- *    building or else new processes wouldn't be able to find it.
- *  - Turn off atime modifications for readers and possibly st_ctime/st_mtime
- *    for writer to avoid unnecessary IO.
- *
- *
- * IMPLEMENTATION:
- *  ** /SEQUENTIAL/ vs. RANDOM-ACCESS
- *  ** /PERSISTENT/ vs. TRANSIENT vs. INVISIBLE
- *  ** Can atomically read/write at most (reliably) 1/2 the size of the premapping
- *
- *  - Open mfd file
- *  - If a writer, lock the file (other writer attempts then will fail)
- *  - TODO: If writer and filesize > initial premapping...
- *  - Premap = map MAX(pages_at_a_time, 2) pages worth of the file (guarantees space available)
- *  - Verify that, if there is already some data, it's a valid mfd
- *  - Lock 1st page into RAM
- *  - (do remaining pages work as if they were a separate mapping? I assume so)
- *  - Advise first page as random-access
- *  - Advise rest of pages as sequential
- *  - If rest of pages are more than 1 page past actual filesize & writer
- *    context, ftruncate/lseek+write to the very end, creating a (filesystem)
- *    hole.
- *  - If writer, fill in mfd-header if necessary
- *  - Set reading or writing cursor (reading after mfd-header, writer at end of current data).
- *
- *  - When advancing write cursor, if past the 
- *
- *
- *  mremap: need to make sure it plays nicely with futexes if we simply remap
- *  the entire thing... OR, can we just mremap starting with the last one?
- *  NOPE, at least, not reliably without it having to change the position.
- *
- * MAP FIRST PAGE TWICE- second one grows and is invalidated as usual, first
- * one gets pinned to memory and is used for futexes etc. Shouldn't use up any
- * extra physical memory and there should be more than enough addressable
- * virtual memory.
+ *  - Programatically check and warn on bad system limitations
+ *  -  W| |mfd_write(mfd*, void *src, len)
+ *  -  W| |mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
  *
  * RELEVANT SYSTEM LIMITATIONS:
  *  - vm.max_map_count  (65530)
@@ -86,6 +48,79 @@
  *  - ulimit / open file descriptors
  *  - virtual memory available per process (RLIMIT_AS)
  *  - RLIMIT_MEMLOCK (needs one per writer-mfd at least)
+ *
+ * IMPLEMENTATION (again):
+ *
+ *  - (optimized for sequential write/read, but will allow for random access)
+ *  - (optimized for data persistence, but can easily add unlinking and use
+ *     ram-based filesystems if needed).
+ *
+ *  - Open mfd file or (WRITER) create one
+ *  - Turn off atime modifications for readers and possibly st_ctime/st_mtime
+ *    for writer to avoid unnecessary IO. (possibly future)
+ *  - If a writer, lock the file (other writer attempts will fail)
+ *  - Map only the first page, lock it in RAM, and point the header structure
+ *    to it. It will be redundant but only use up (essentially limitless)
+ *    virtual memory. Must be locked into RAM for futexes / notifications to
+ *    work well etc.
+ *  - Check for a correct header if there is any data
+ *
+ *  (WRITER only)
+ *  - Create a correct header if there is none
+ *  - Map the entire file + page_precache pages
+ *  - ftruncate or lseek+write to extend _just barely_ into the last mapped
+ *    page to eliminate sigbus signals. On Linux at least, if contents to
+ *    happen to write out to disk, a hole will be created and therefore actual
+ *    disk-space won't really be affected.
+ *  - Update header, trigger futex-wake on the current size in page-locked
+ *    header, and wait for write operations.
+ *  - On a write operation, mremap (or mac equiv) occurs if needed, including
+ *    ftruncate et al. Madvise any new pages to be sequential.
+ *  - After a write operation, size variable is changed and futex-wake invoked
+ *    (on Linux).
+ *  - When write cursor advances across page boundaries, mark older pages as
+ *    dontneed.
+ *  - When mfd is closed, clean up futex, clean up memory maps, clean up file
+ *    as appropriate (for persistent mfds, be sure and ftruncate to the end of
+ *    the last page instead of the beginning of it), etc.
+ *
+ *  (READER only)
+ *  - Map the entire file + page_precache pages - but all PROT_READ / RONLY,
+ *    etc. to cause very efficient kernel optimizations. (possibly same w/
+ *    memory-locked header page, but only if it doesn't interfere with the
+ *    futex).
+ *  - Create a new pipe pair
+ *  - Do the cheapest sys_clone possible (vfork on mac, alas), and have one
+ *    branch return the read-end of the pipe (or have it as part of the mfd
+ *    structure that will be referenced).
+ *  - Have the other end do the following:
+ *    - Prepare to handle any specific signals indicating that the writer is
+ *      done or futex doesn't exist any more etc. but without disturbing the
+ *      main process if at all possible.
+ *    - Prepare to gracefully shut down when the parent process needs it to for
+ *      any reason.
+ *    - Block on a volatile futex created on the "size" part of memorymapped
+ *      header - simply waiting for _any_ change on the variable (hence mfd =
+ *      memory-file-descriptor).
+ *    - When futex is awakened, current size is written to the pipe, and then
+ *      the futex is reacquired.
+ *    - All of the above will be a simple poll/sleep loop for mac osx plus the
+ *      signal handling.
+ *  - User can put the "notification fd" (read side of the pipe) in an event
+ *    loop and trigger simple memory read operations whenever desired.
+ *  - When read operations advance the cursor across page boundaries, mark
+ *    earlier pages as dontneed and new pages as sequential, like the writer,
+ *    BUT obviously don't do ftruncate or anything. Any sigbus errors are
+ *    indications that there are serious problems w/ disk or with the
+ *    writer-side, so allow it to propagate at least to parent.
+ *
+ *  (FUTURE)
+ *  - Non-persistent (or, "briefly" persistent) flag:
+ *    Flag on init to decide if the file is going to persist. If not, when the
+ *    mfd is closed: (1) unlink, (2) msync(DIRTY), (3) close-fd, (4) munmap -
+ *    to avoid disk churn as much as possible (or RAM churn if /dev/shm)
+ *    Unfortunately going to have some churn regardless while the file is
+ *    building or else new processes wouldn't be able to find it.
  *
  */
 #ifndef GX_MFD_H
