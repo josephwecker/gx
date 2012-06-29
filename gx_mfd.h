@@ -14,13 +14,9 @@
  * that'll be the primary usecase for memfd.
  *
  *  http://gustedt.wordpress.com/2011/01/28/linux-futexes-non-blocking-integer-valued-condition-variables/
+ * Also, for mac-osx mremap emulation, see:
+ *  https://dank.qemfd.net/bugzilla/show_bug.cgi?id=119
  * 
- * RANDOM:
- *  (mac osx backup: memory poll w/ sleep, or something similar)
- *  use pipe pair or something even cheaper (if exists) instead of eventfd for
- *  portability...
- *
- *
  * USAGE:
  * RW|Allocate gx_mfd pool    |new_gx_mfd_pool(SIZE)     |mfd_pool or NULL on error
  * RW|Get gx_mfd from pool    |acquire_gx_mfd (mfd_pool) |actual gx_mfd
@@ -33,27 +29,63 @@
  *
  *
  * TODO:
+ *  -  W| |mfd_write(mfd*, void *src, len)
+ *  -  W| |mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
  *  - Abstraction for auto-update-files from writer perspective
- *    * Gives the fd back for subsequent operations (for zerocopy ones, that is).
- *    * Gives back also a pointer and some abstractions for writing directly to
- *      the memory (which re-mmaps as appropriate etc.)
- *    * Optimize (initially) for serialized writing + updating that very first
- *      page.
- *    * Avoid syncing (under the assumption that anything that wants to see the
- *      data is using memory-mappings as well) but expose the interface for it.
  *    * Trigger for waking up waiting processes (FUTEX_WAKE on linux, nothing
  *      on mac-osx, which is going to be polling) - automatic where possible
  *      and exposed where not.
  *  - Abstraction for monitoring. i.e., the reader perspective
- *  - madv-dontneed on pages that aren't relevant anymore- maybe a madvise
- *    wrapper for quickly expressing your "state" in the rest of the
- *    memory-mapped file.
  *  - Be sure readonly stuff is set on readers
  *  - Make sure and mark variable as volatile (in the smallest appropriate
  *    scope ala wikipedia)
- *  
+ *  - Flag on init to decide if the file is going to persist. If not, when the
+ *    mfd is closed: (1) unlink, (2) msync(DIRTY), (3) close-fd, (4) munmap -
+ *    to avoid disk churn as much as possible (or RAM churn if /dev/shm)
+ *    Unfortunately going to have some churn regardless while the file is
+ *    building or else new processes wouldn't be able to find it.
+ *  - Turn off atime modifications for readers and possibly st_ctime/st_mtime
+ *    for writer to avoid unnecessary IO.
  *
- *  - Possibly lock first page of every mfd into RAM?
+ *
+ * IMPLEMENTATION:
+ *  ** /SEQUENTIAL/ vs. RANDOM-ACCESS
+ *  ** /PERSISTENT/ vs. TRANSIENT vs. INVISIBLE
+ *  ** Can atomically read/write at most (reliably) 1/2 the size of the premapping
+ *
+ *  - Open mfd file
+ *  - If a writer, lock the file (other writer attempts then will fail)
+ *  - TODO: If writer and filesize > initial premapping...
+ *  - Premap = map MAX(pages_at_a_time, 2) pages worth of the file (guarantees space available)
+ *  - Verify that, if there is already some data, it's a valid mfd
+ *  - Lock 1st page into RAM
+ *  - (do remaining pages work as if they were a separate mapping? I assume so)
+ *  - Advise first page as random-access
+ *  - Advise rest of pages as sequential
+ *  - If rest of pages are more than 1 page past actual filesize & writer
+ *    context, ftruncate/lseek+write to the very end, creating a (filesystem)
+ *    hole.
+ *  - If writer, fill in mfd-header if necessary
+ *  - Set reading or writing cursor (reading after mfd-header, writer at end of current data).
+ *
+ *  - When advancing write cursor, if past the 
+ *
+ *
+ *  mremap: need to make sure it plays nicely with futexes if we simply remap
+ *  the entire thing... OR, can we just mremap starting with the last one?
+ *  NOPE, at least, not reliably without it having to change the position.
+ *
+ * MAP FIRST PAGE TWICE- second one grows and is invalidated as usual, first
+ * one gets pinned to memory and is used for futexes etc. Shouldn't use up any
+ * extra physical memory and there should be more than enough addressable
+ * virtual memory.
+ *
+ * RELEVANT SYSTEM LIMITATIONS:
+ *  - vm.max_map_count  (65530)
+ *  - vm.swappiness (60 - should be more ~ 20)
+ *  - ulimit / open file descriptors
+ *  - virtual memory available per process (RLIMIT_AS)
+ *  - RLIMIT_MEMLOCK (needs one per writer-mfd at least)
  *
  */
 #ifndef GX_MFD_H
@@ -84,6 +116,7 @@ typedef struct gx_mfd {
     int             fd;            ///< File descriptor, ready for IO operations
     size_t          c;             ///< Current pointer (write or read position depending on context)
     size_t          map_size;      ///< Current allocated map-len- usually >= filesize
+    size_t          fsize;         ///< File currently truncated to this size
     void           *full_map;      ///< For remapping etc.
     gx_mfd_head    *head;          ///< Points to the very front of the mapped file
     void           *dat;           ///< Points to the data- just after the head
@@ -125,50 +158,48 @@ static int gx_mfd_create_w(gx_mfd *mfd, const char *path) {
     return mfd->fd;
 }
 
-/// Preferred method for reading/writing. Returns a pointer to the "current"
-/// position after preparing for user to read or write 'length' bytes of data.
+/*
+ *  - madv-dontneed on pages that aren't relevant anymore- maybe a madvise
+ *    wrapper for quickly expressing your "state" in the rest of the
+ *    memory-mapped file.
+ *  - Possibly lock first page of every mfd into RAM?
+ *  - Always keep at least a couple of blank pages in front so that a
+ *    spontaneous write or read is guaranteed to be able to do at least
+ *    page-size (and/or 4096 bytes).
+ *  - Ask for average throughput when initializing to optimize "pages at a
+ *    time" so it's not doing a mremap every 4096 bytes shovelled...
+ *
+ */
+
+static int _gx_mfd_adjust_map(gx_mfd *mfd, size_t needed_size) {
+    // TODO:
+    //   (1) round up needed_size to nearest page-size -> to_map
+    //   (2) remap to the size of to_map
+    //   (3) (ensure that page 1 is locked into RAM?)
+    //   (4) mark any pages > first but < page_of(mfd->c) as DONT_NEED or FREE
+    //   (5) 
+    return 0;
+}
+
+/// Returns a pointer to the "current" position after preparing for user to
+/// read or write 'length' bytes of data.
 static GX_INLINE void *mfd_c_adv(gx_mfd *mfd, size_t length) {
 
 }
-
-// TODO: (if needed)  mfd_seek(...) - does lseek to move actual fd
-// filepointer to the current cursor before normal IO reads/writes.
-
 
 
 /// Address for current cursor
 static GX_INLINE void *mfd_c(gx_mfd *mfd) {return mfd->dat + mfd->c;}
 
 /// Advance the read/write cursor
-/// TODO: Always keep at least a couple of blank pages in front so that a
-///       spontaneous write or read is guaranteed to be able to do at least
-///       page-size (and/or 4096 bytes).
-/// TODO: Ask for average throughput when initializing to optimize "pages at a
-///       time" so it's not doing a mremap every 4096 bytes shovelled...
 static GX_INLINE int mfd_adv(gx_mfd *mfd, size_t len) {
     // TODO:
     //  - If @ mmap boundary:
-    //    - If write-context, ftruncate (can be avoided w/o sigbus?)
+    //    - If write-context, ftruncate (can be avoided w/o sigbus?) (OR lseek OR pwrite? to keep file sparse)
     //    - Remap
     //    - madvise on new & older pages
     //  - On Linux, trigger a FUTEX_WAKE
 }
-
-// TODO: (as needed)
-//  mfd_write(mfd*, void *src, len)
-//  mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
-
-
-/** Tell system that a write (using some standard IO or zerocopy) occurred so
- * it can notify readers.
- *
-static GX_INLINE int gx_mfd_did_write(gx_mfd *mfd, size_t just_wrote) {
-
-    return 0;
-}
-
-//static GX_INLINE int gx_mfd_write(gx_mfd *mfd, 
-*/
 
 
 
