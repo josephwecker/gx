@@ -55,11 +55,10 @@
  *  - (optimized for data persistence, but can easily add unlinking and use
  *     ram-based filesystems if needed).
  *
- *  - Open mfd file or (WRITER) create one
- *  - Turn off atime modifications for readers and possibly st_ctime/st_mtime
- *    for writer to avoid unnecessary IO. (possibly future)
- *  - If a writer, lock the file (other writer attempts will fail)
- *  - Map only the first page, lock it in RAM, and point the header structure
+ *  - [D] Open mfd file or (WRITER) create one
+ *  - [D] Turn off atime modifications to avoid unnecessary IO
+ *  - [D] If a writer, lock the file (other writer attempts will fail)
+ *  - [D] Map only the first page, lock it in RAM, and point the header structure
  *    to it. It will be redundant but only use up (essentially limitless)
  *    virtual memory. Must be locked into RAM for futexes / notifications to
  *    work well etc.
@@ -121,6 +120,9 @@
  *    to avoid disk churn as much as possible (or RAM churn if /dev/shm)
  *    Unfortunately going to have some churn regardless while the file is
  *    building or else new processes wouldn't be able to find it.
+ *  - Also, possibly for non-persistent/non-random-access mfds: on Linux we can
+ *    possibly madvise pages to be completely freed when they're on a ram-based
+ *    filesystem
  *
  */
 #ifndef GX_MFD_H
@@ -141,40 +143,53 @@
 #define GX_MFD_WO 1
 
 typedef struct gx_mfd_head {
-    uint64_t        sig;           ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this.
-    uint64_t        size;          ///< Data size (not including header). Host-endian and not necessarily accurate; used as a kind of semaphore.
+    uint64_t  sig;   ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this.
+    uint64_t  size;  ///< Data size (not including header). Host-endian and not necessarily accurate; used as a kind of semaphore.
 } gx_mfd_head;
 
 typedef struct gx_mfd {
-    struct gx_mfd  *_next, *_prev; ///< For resource pooling
-    int             type;          ///< Readonly or writeonly at the moment
-    int             fd;            ///< File descriptor, ready for IO operations
-    size_t          c;             ///< Current pointer (write or read position depending on context)
-    size_t          map_size;      ///< Current allocated map-len- usually >= filesize
-    size_t          fsize;         ///< File currently truncated to this size
-    void           *full_map;      ///< For remapping etc.
-    gx_mfd_head    *head;          ///< Points to the very front of the mapped file
-    void           *dat;           ///< Points to the data- just after the head
+    struct gx_mfd    *_next, *_prev; ///< For resource pooling
+    int               type;          ///< Readonly or writeonly at the moment
+    int               premap;        ///< Pages at a time to map- higher avoids more remapping+syscalls
+    int               fd;            ///< File descriptor, ready for IO operations
+    size_t            real_fsize;    ///< File is currently truncated to this size
+    union {
+        void         *head_map;      ///< Same as first page of map, but locked into RAM
+        gx_mfd_head  *header;        ///< Alternative perspective for accessing futex etc.
+    }
+    void             *map;           ///< Full mapping- may change locations as data grows
+    size_t            map_size;      ///< Current end of map. Usually >= filesize
+
+    void             *data;          ///< Points into map just after header- used for read/write
+    size_t            r;             ///< Current read cursor = offset into data (which may, change locations)
+    size_t            w;             ///< Current write cursor, also offset into data
 } gx_mfd;
 
 gx_pool_init(gx_mfd);
 
 
-/** Initialize an mfd struct for a given file, mapping the file for writes etc. */
-static int gx_mfd_create_w(gx_mfd *mfd, const char *path) {
-    struct stat  filestat;
-    off_t        curr_size;
+/** Initialize an mfd struct for a given file, mapping the file for writes etc.
+ * Pages-at-a-time should be large enough to avoid remapping a fast-growing
+ * file constantly. Set to roughly throughput in bytes/per-second time 3 or 4
+ * divided by page-size (usually 4096)- then bring it lower if too much virtual
+ * memory is being sucked up (will help, at the expense of speed & processor
+ * resources and slightly more churn earlier on).
+ */
+static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+    #ifdef __LINUX__
+      int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND | O_NOATIME | O_NOCTTY;
+    #else
+      int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND;
+    #endif
 
-    X(  mfd->fd=open(path,O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) X_RAISE(-1);
-    X(  flock(mfd->fd, LOCK_EX | LOCK_NB)                                                     ) X_RAISE(-1);
-    X(  fstat(mfd->fd, &filestat)                                                             ) X_RAISE(-1);
-    curr_size = filestat.st_size;
-    mfd->map_size = MAX(curr_size, gx_pagesize);
-    Xm( mfd->full_map = mmap(NULL, mfd->map_size, PROT_READ|PROT_WRITE, MAP_SHARED, mfd->fd,0)) X_RAISE(-1);
-    mfd->head = (gx_mfd_head *)(mfd->full_map);
-    mfd->dat  = mfd->head + sizeof(gx_mfd_head);
-    mfd->type = GX_MFD_WO;
-    if(curr_size > 0) {
+    mfd->type   = GX_MFD_WO;
+    mfd->premap = pages_at_a_time;
+    X(  mfd->fd=open(path, open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) X_RAISE(-1);
+    X(  flock(mfd->fd, LOCK_EX | LOCK_NB)                              ) X_RAISE(-1);
+    X(  _gx_initial_mapping(mfd)                                       ) X_RAISE(-1);
+
+    // TODO: header stuff
+    /*if(curr_size > 0) {
         // There should be a valid header in place then.
         if(mfd->head->sig != _GX_MFD_FILESIG) _GX_MFD_ERR_IF;
         if(curr_size < sizeof(gx_mfd_head))   _GX_MFD_ERR_IF;
@@ -188,16 +203,47 @@ static int gx_mfd_create_w(gx_mfd *mfd, const char *path) {
         write(mfd->fd, &sig, sizeof(uint64_t));
         sig = 0;
         write(mfd->fd, &sig, sizeof(uint64_t));
+    }*/
+
+    // TODO: set mfd->data, mfd->r, mfd->w
+    return 0;
+}
+
+static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
+    struct stat filestat;
+    off_t  fsz;
+    size_t map_size;
+    #ifdef __LINUX__
+      int  head_flags = MADV_RANDOM | MADV_WILLNEED | MADV_DONTFORK;
+    #else
+      int  head_flags = MADV_RANDOM | MADV_WILLNEED;
+    #endif
+      int  protection = PROT_READ;
+
+    X(  fstat(mfd->fd, &filestat) ) X_RAISE(-1);
+    mfd->real_fsize = fsz = filestat.st_size;
+    mfd->map_size = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
+    if(mfd->type == GX_MFD_WO) {
+        protection |= PROT_WRITE;
+        // Truncates just within last page to avoid sigbus but not to the very
+        // end to avoid intermediate disk flushes (at least on the last page)
+        // before it's really ready. Feel free to just ftruncate it to map_size
+        // if this seems to be causing strangeness.
+        ftruncate(mfd->fd, mfd->map_size - gx_pagesize + 2);
     }
-    mfd->c = 0;
-    return mfd->fd;
+    Xm( mfd->head_map=mmap(NULL,gx_pagesize,protection,MAP_SHARED,mfd->fd,0)) X_RAISE(-1);
+    X ( madvise(mfd->head_map, gx_pagesize, head_flags)                     ) X_RAISE(-1);
+    X ( mlock(mfd->head_map, gx_pagesize)                                   ) X_RAISE(-1);
+    Xm( mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) X_RAISE(-1);
+    return _gx_advise_map(mfd);
+}
+
+static GX_INLINE int _gx_advise_map(gx_mfd *mfd) {
+    // TODO: mark DONTNEEDs & SEQUENTIALs based on current cursor position
+    return 0;
 }
 
 /*
- *  - madv-dontneed on pages that aren't relevant anymore- maybe a madvise
- *    wrapper for quickly expressing your "state" in the rest of the
- *    memory-mapped file.
- *  - Possibly lock first page of every mfd into RAM?
  *  - Always keep at least a couple of blank pages in front so that a
  *    spontaneous write or read is guaranteed to be able to do at least
  *    page-size (and/or 4096 bytes).
