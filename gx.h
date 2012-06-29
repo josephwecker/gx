@@ -241,6 +241,7 @@
    *---------------------------------------------------------------------------*/
   #define gx_pos_ceil(x) (((x)-(int)(x)) > 0 ? (int)((x)+1) : (int)(x))
   #define gx_fits_in(container_size, x) gx_pos_ceil((float)(x) / (float)(container_size))
+  #define gx_in_pages(SIZE) (((SIZE) & ~(gx_pagesize - 1)) + gx_pagesize)
 
   /*=============================================================================
    * OS PARAMETERS
