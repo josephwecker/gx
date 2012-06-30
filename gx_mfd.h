@@ -152,20 +152,28 @@ typedef struct gx_mfd {
     int               type;          ///< Readonly or writeonly at the moment
     int               premap;        ///< Pages at a time to map- higher avoids more remapping+syscalls
     int               fd;            ///< File descriptor, ready for IO operations
-    size_t            real_fsize;    ///< File is currently truncated to this size
+    size_t            off_eof;       ///< Offset to underlying file's EOF == currently truncated size
     union {
         void         *head_map;      ///< Same as first page of map, but locked into RAM
-        gx_mfd_head  *header;        ///< Alternative perspective for accessing futex etc.
-    }
+        gx_mfd_head  *head;          ///< Alternative perspective for accessing futex etc.
+    };
     void             *map;           ///< Full mapping- may change locations as data grows
-    size_t            map_size;      ///< Current end of map. Usually >= filesize
+    size_t            off_eom;       ///< Offset to current end of map. Usually >= filesize
 
     void             *data;          ///< Points into map just after header- used for read/write
-    size_t            r;             ///< Current read cursor = offset into data (which may, change locations)
-    size_t            w;             ///< Current write cursor, also offset into data
+    size_t            off_r;         ///< Current read cursor = offset into data (which may, change locations)
+    size_t            off_w;         ///< Current write cursor, also offset into data
 } gx_mfd;
 
 gx_pool_init(gx_mfd);
+
+/// Some forward declarations
+static           int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
+static GX_INLINE int _gx_initial_mapping (gx_mfd *mfd);
+static GX_INLINE int _gx_advise_map      (gx_mfd *mfd);
+static GX_INLINE int _gx_update_eof      (gx_mfd *mfd);
+static GX_INLINE int _gx_update_fpos     (gx_mfd *mfd);
+
 
 
 /** Initialize an mfd struct for a given file, mapping the file for writes etc.
@@ -181,38 +189,40 @@ static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     #else
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND;
     #endif
+    int initial_size;
 
+    //_GX_MEMOIZED_PS = getpagesize();
     mfd->type   = GX_MFD_WO;
     mfd->premap = pages_at_a_time;
-    X(  mfd->fd=open(path, open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) X_RAISE(-1);
-    X(  flock(mfd->fd, LOCK_EX | LOCK_NB)                              ) X_RAISE(-1);
-    X(  _gx_initial_mapping(mfd)                                       ) X_RAISE(-1);
+    X(  mfd->fd=open(path, open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {X_FATAL; X_RAISE(-1);}
+    X(  flock(mfd->fd, LOCK_EX | LOCK_NB)                              ) {X_FATAL; X_RAISE(-1);}
+    X(  initial_size = _gx_initial_mapping(mfd)                        ) {X_FATAL; X_RAISE(-1);}
 
-    // TODO: header stuff
-    /*if(curr_size > 0) {
+    if(initial_size > 0) {
         // There should be a valid header in place then.
-        if(mfd->head->sig != _GX_MFD_FILESIG) _GX_MFD_ERR_IF;
-        if(curr_size < sizeof(gx_mfd_head))   _GX_MFD_ERR_IF;
-        // TODO: possibly warn if curr_size is very wrong indicating some kind
-        //       of inconsistent state last time this stuff was run...
-        mfd->head->size = curr_size - sizeof(gx_mfd_head);
+        if(mfd->head->sig != _GX_MFD_FILESIG)  _GX_MFD_ERR_IF;
+        if(initial_size < sizeof(gx_mfd_head)) _GX_MFD_ERR_IF;
+        if((uint64_t)(initial_size) != mfd->head->size)
+            X_LOG_WARN("%s in a possibly inconsistent state.", path);
+        mfd->head->size = initial_size - sizeof(gx_mfd_head);
+        mfd->off_w      = initial_size - sizeof(gx_mfd_head);
     } else {
-        // Using write so that the calling process has the offset pointer
-        // pointing to the actual data section.
-        uint64_t sig = _GX_MFD_FILESIG;
-        write(mfd->fd, &sig, sizeof(uint64_t));
-        sig = 0;
-        write(mfd->fd, &sig, sizeof(uint64_t));
-    }*/
-
-    // TODO: set mfd->data, mfd->r, mfd->w
+        mfd->head->sig  = _GX_MFD_FILESIG;
+        mfd->head->size = 0;
+        mfd->off_w      = 0;
+    }
+    mfd->data  = mfd->map + sizeof(gx_mfd_head);
+    mfd->off_r = 0;
+    //_gx_update_eof(mfd);
+    _gx_update_fpos(mfd);
     return 0;
 }
 
+
+/** Will be similar to remapping- DOESN'T TRUNCATE */
 static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
     struct stat filestat;
     off_t  fsz;
-    size_t map_size;
     #ifdef __LINUX__
       int  head_flags = MADV_RANDOM | MADV_WILLNEED | MADV_DONTFORK;
     #else
@@ -221,21 +231,16 @@ static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
       int  protection = PROT_READ;
 
     X(  fstat(mfd->fd, &filestat) ) X_RAISE(-1);
-    mfd->real_fsize = fsz = filestat.st_size;
-    mfd->map_size = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
-    if(mfd->type == GX_MFD_WO) {
-        protection |= PROT_WRITE;
-        // Truncates just within last page to avoid sigbus but not to the very
-        // end to avoid intermediate disk flushes (at least on the last page)
-        // before it's really ready. Feel free to just ftruncate it to map_size
-        // if this seems to be causing strangeness.
-        ftruncate(mfd->fd, mfd->map_size - gx_pagesize + 2);
-    }
-    Xm( mfd->head_map=mmap(NULL,gx_pagesize,protection,MAP_SHARED,mfd->fd,0)) X_RAISE(-1);
-    X ( madvise(mfd->head_map, gx_pagesize, head_flags)                     ) X_RAISE(-1);
-    X ( mlock(mfd->head_map, gx_pagesize)                                   ) X_RAISE(-1);
-    Xm( mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) X_RAISE(-1);
-    return _gx_advise_map(mfd);
+    mfd->off_eof = fsz = filestat.st_size;
+    mfd->off_eom = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
+    if(mfd->type == GX_MFD_WO) protection |= PROT_WRITE;
+    Xm(mfd->head_map=mmap(NULL,gx_pagesize,protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
+    X (_gx_update_eof(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
+    X (madvise(mfd->head_map, gx_pagesize, head_flags)                     ) {X_FATAL; X_RAISE(-1);}
+    X (mlock(mfd->head_map, gx_pagesize)                                   ) {X_FATAL; X_RAISE(-1);}
+    Xm(mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
+    X (_gx_advise_map(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
+    return fsz;
 }
 
 static GX_INLINE int _gx_advise_map(gx_mfd *mfd) {
@@ -243,44 +248,49 @@ static GX_INLINE int _gx_advise_map(gx_mfd *mfd) {
     return 0;
 }
 
-/*
- *  - Always keep at least a couple of blank pages in front so that a
- *    spontaneous write or read is guaranteed to be able to do at least
- *    page-size (and/or 4096 bytes).
- *  - Ask for average throughput when initializing to optimize "pages at a
- *    time" so it's not doing a mremap every 4096 bytes shovelled...
- *
- */
+static GX_INLINE int _gx_update_eof(gx_mfd *mfd) {
+    // Truncates just within last page to avoid sigbus but not to the very
+    // end to avoid intermediate disk flushes (at least on the last page)
+    // before it's really ready. Feel free to just ftruncate it to off_eom
+    // size if this seems to be causing strangeness.
+    size_t new_pos = mfd->off_eom - gx_pagesize + 2;
+    if(mfd->off_eof < new_pos) {
+        X(ftruncate(mfd->fd, new_pos)) X_RAISE(-1);
+        mfd->off_eof = new_pos;
+    }
+    return 0;
+}
 
-static int _gx_mfd_adjust_map(gx_mfd *mfd, size_t needed_size) {
-    // TODO:
-    //   (1) round up needed_size to nearest page-size -> to_map
-    //   (2) remap to the size of to_map
-    //   (3) (ensure that page 1 is locked into RAM?)
-    //   (4) mark any pages > first but < page_of(mfd->c) as DONT_NEED or FREE
-    //   (5) 
+/// Gets the file position cursor (used for normal IO) synced up with the
+/// position indicated by the mfd structure- when off_w or off_r has changed,
+/// etc.
+static GX_INLINE int _gx_update_fpos(gx_mfd *mfd) {
+    if(mfd->type == GX_MFD_WO) {
+        X( lseek(mfd->fd, mfd->off_w + sizeof(gx_mfd_head), SEEK_SET) ) X_RAISE(-1);
+    } else {
+        X( lseek(mfd->fd, mfd->off_r + sizeof(gx_mfd_head), SEEK_SET) ) X_RAISE(-1);
+    }
     return 0;
 }
 
 /// Returns a pointer to the "current" position after preparing for user to
 /// read or write 'length' bytes of data.
-static GX_INLINE void *mfd_c_adv(gx_mfd *mfd, size_t length) {
-
-}
+//static GX_INLINE void *mfd_c_adv(gx_mfd *mfd, size_t length) {
+//}
 
 
 /// Address for current cursor
-static GX_INLINE void *mfd_c(gx_mfd *mfd) {return mfd->dat + mfd->c;}
+//static GX_INLINE void *mfd_c(gx_mfd *mfd) {return mfd->dat + mfd->c;}
 
 /// Advance the read/write cursor
-static GX_INLINE int mfd_adv(gx_mfd *mfd, size_t len) {
+//static GX_INLINE int mfd_adv(gx_mfd *mfd, size_t len) {
     // TODO:
     //  - If @ mmap boundary:
     //    - If write-context, ftruncate (can be avoided w/o sigbus?) (OR lseek OR pwrite? to keep file sparse)
     //    - Remap
     //    - madvise on new & older pages
     //  - On Linux, trigger a FUTEX_WAKE
-}
+//}
 
 
 
