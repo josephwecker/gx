@@ -248,13 +248,14 @@
    * gx_pagesize                   - Gets OS kernel page size
    * Yeah, needs to coordinate somewhat w/ a config file or something...
    *---------------------------------------------------------------------------*/
-  static int _GX_MEMOIZED_PS=0;
+  //int _GX_MEMOIZED_PS=0;
+  static int _GXPS=0;
   #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
-    #define gx_pagesize ((_GX_MEMOIZED_PS) ? (_GX_MEMOIZED_PS) : (_GX_MEMOIZED_PS=sysconf(_SC_PAGE_SIZE)))
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
   #elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
-    #define gx_pagesize ((_GX_MEMOIZED_PS) ? (_GX_MEMOIZED_PS) : (_GX_MEMOIZED_PS=sysconf(_SC_PAGESIZE)))
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
   #else
-    #define gx_pagesize ((_GX_MEMOIZED_PS) ? (_GX_MEMOIZED_PS) : (_GX_MEMOIZED_PS=getpagesize()))
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
   #endif
 
 
