@@ -91,13 +91,36 @@ typedef struct gx_tcp_sess {
     gx_rb                *snd_buf;
     int                 (*fn_handler)    (struct gx_tcp_sess *, gx_rb *);
     void                (*fn_disconnect) (struct gx_tcp_sess *);
-    //char                 *fn_handler_name;
     void                 *udata;
+    #ifdef DEBUG_EVENTS
+    char                 *fn_handler_name;
+    #endif
 } gx_tcp_sess;
 gx_pool_init(gx_tcp_sess);
 
+#define gx_eventloop_declare(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)          \
+    extern struct GX_EVENT_STRUCT   NAME ## _events[EVENTS_AT_A_TIME];           \
+    extern int                      NAME ## _events_at_a_time;                   \
+    extern int                      NAME ## _events_fd;                          \
+    extern int                      NAME ## _expected_sessions;                  \
+    extern gx_tcp_sess_pool       * NAME ## _sess_pool_inst;                     \
+    extern gx_rb_pool             * NAME ## _rb_pool;                            \
+    extern gx_rb                  * NAME ## _rcvrb;                              \
+    extern int                      NAME ## _acceptor_fd;                        \
+    extern int                   (* NAME ## _accept_handler)(gx_tcp_sess *);     \
+                                                                                 \
+    int GX_INLINE NAME ## _add_sess(int peer_fd,                                 \
+            void *misc,                                                          \
+            void (*disc_handler)(gx_tcp_sess *),                                 \
+            int dest,                                                            \
+            int (*handler)(gx_tcp_sess *, gx_rb *),                              \
+            size_t bytes_expected, int do_readahead);                            \
+    int GX_INLINE NAME ## _add_misc(int peer_fd, void *misc);                    \
+    int GX_INLINE NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
+    int GX_INLINE NAME ## _wait(int timeout,                                     \
+            int (*misc_handler)(gx_tcp_sess *, uint32_t));                       \
 
-#define gx_eventloop_prepare(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)          \
+#define gx_eventloop_implement(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)        \
     struct GX_EVENT_STRUCT   NAME ## _events[EVENTS_AT_A_TIME];                  \
     int                      NAME ## _events_at_a_time     = EVENTS_AT_A_TIME;   \
     int                      NAME ## _events_fd;                                 \
@@ -197,11 +220,22 @@ gx_pool_init(gx_tcp_sess);
 }
 
 #define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
-#define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
-    sess->fn_handler = &HANDLER;                        \
-    sess->rcv_dest = DESTINATION;                       \
-    sess->rcv_expected = EXPECTED;                      \
-} while (0)
+#ifdef DEBUG_EVENTS
+    #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
+        sess->fn_handler = &HANDLER;                        \
+        sess->rcv_dest = DESTINATION;                       \
+        sess->rcv_expected = EXPECTED;                      \
+        sess->fn_handler_name = #NAME                       \
+    } while (0)
+#else
+    #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
+        sess->fn_handler = &HANDLER;                        \
+        sess->rcv_dest = DESTINATION;                       \
+        sess->rcv_expected = EXPECTED;                      \
+    } while (0)
+#endif
+
+#define gx_call_handle
 
 //#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
 
