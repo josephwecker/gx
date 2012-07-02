@@ -241,18 +241,21 @@
    *---------------------------------------------------------------------------*/
   #define gx_pos_ceil(x) (((x)-(int)(x)) > 0 ? (int)((x)+1) : (int)(x))
   #define gx_fits_in(container_size, x) gx_pos_ceil((float)(x) / (float)(container_size))
+  #define gx_in_pages(SIZE) (((SIZE) & ~(gx_pagesize - 1)) + gx_pagesize)
 
   /*=============================================================================
    * OS PARAMETERS
    * gx_pagesize                   - Gets OS kernel page size
    * Yeah, needs to coordinate somewhat w/ a config file or something...
    *---------------------------------------------------------------------------*/
+  //int _GX_MEMOIZED_PS=0;
+  static int _GXPS=0;
   #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
-    #define gx_pagesize sysconf(_SC_PAGE_SIZE)
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
   #elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
-    #define gx_pagesize sysconf(_SC_PAGESIZE)
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
   #else
-    #define gx_pagesize getpagesize()
+    #define gx_pagesize ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
   #endif
 
 
