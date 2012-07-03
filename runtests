@@ -14,5 +14,9 @@ dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
 gcc -I ../ test/test_mmap.c -o tmp/tst && tmp/tst
 echo ""
 echo ""
+echo "---> Testing futexes (in gx_mfd.h)"
+gcc -Wall -I ../ test/test_futex.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
 echo "Done. Apparently passed."
 rm -rf ./tmp
