@@ -134,12 +134,54 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#ifdef __LINUX__
+  #ifndef _GNU_SOURCE
+    #define _GNU_SOURCE
+  #endif
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <sys/types.h>
+  #include <linux/futex.h>
+  #include <sys/time.h>
+#endif
 
 #define _GX_MFD_ERR_IF  {X_LOG_ERROR("Not a properly formatted mfd file (misc data inside)."); X_RAISE(-1);}
 #define _GX_MFD_FILESIG UINT64_C(0x1c1c1c1c1c1c1c1c)
 
 #define GXMFDR 0
 #define GXMFDW 1
+
+
+static GX_INLINE int _gx_futex(int *f, int op, int val) {
+    #ifdef __LINUX__
+      return syscall(SYS_futex, f, op, val, (void *)NULL, (int *)NULL, 0);
+    #else
+      return 0; // NOP
+    #endif
+}
+
+static GX_INLINE int gx_futex_wake(int *f) {
+    return _gx_futex(f, FUTEX_WAKE, 0xFFFF);
+}
+
+static GX_INLINE int gx_futex_wait(int *f, int curr_val) {
+    register int volatile * const p = (int volatile *)f;
+    for(;;) {
+        register int v = *p;
+        if(v != curr_val) return v;
+        #ifdef __LINUX__
+            if(gx_unlikely(_gx_futex(f, FUTEX_WAIT, v) < 0)) {
+                int errn = errno;
+                if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return errn;
+                errno = 0;
+            }
+        #else
+            // Going to sleep for a little bit
+        #endif
+    }
+}
+
+
 
 typedef struct gx_mfd_head {
     uint64_t  sig;   ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this
@@ -211,7 +253,23 @@ static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     }
     mfd->data  = mfd->map + sizeof(gx_mfd_head);
     mfd->off_r = 0;
-    _gx_update_fpos(mfd);
+    _gx_update_fpos(mfd); // Seek to current write position for standard IO
+    return 0;
+}
+
+static int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+    #ifdef __LINUX__
+      int open_flags = O_RDONLY | O_NONBLOCK | O_NOATIME | O_NOCTTY;
+    #else
+      int open_flags = O_RDONLY | O_NONBLOCK;
+    #endif
+
+    mfd->type   = GXMFDR;
+    mfd->premap = pages_at_a_time;
+    X( mfd->fd  = open(path, open_flags)) {X_FATAL; X_RAISE(-1);}
+    X( _gx_initial_mapping(mfd)         ) {X_FATAL; X_RAISE(-1);}
+
+
     return 0;
 }
 
@@ -219,17 +277,18 @@ static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
 static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
     struct stat filestat;
     off_t  fsz;
+    int    protection = PROT_READ;
     #ifdef __LINUX__
       int  head_flags = MADV_RANDOM | MADV_WILLNEED | MADV_DONTFORK;
     #else
       int  head_flags = MADV_RANDOM | MADV_WILLNEED;
     #endif
-      int  protection = PROT_READ;
 
     X (fstat(mfd->fd, &filestat) ) X_RAISE(-1);
     mfd->off_eof = fsz = filestat.st_size;
     mfd->off_eom = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
-    if(mfd->type == GXMFDW) protection |= PROT_WRITE;
+    if(mfd->type == GXMFDW) protection |= PROT_WRITE; // Otherwise will stay read-only for performance
+
     Xm(mfd->head_map=mmap(NULL,gx_pagesize,protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
     X (_gx_update_eof(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
     X (madvise(mfd->head_map, gx_pagesize, head_flags)                     ) {X_FATAL; X_RAISE(-1);}
@@ -261,9 +320,14 @@ static GX_INLINE int _gx_update_eof(gx_mfd *mfd) {
 /// position indicated by the mfd structure- when off_w or off_r has changed,
 /// etc.
 static GX_INLINE int _gx_update_fpos(gx_mfd *mfd) {
-    size_t used_offset = mfd->type == GXMFDW ? m->off_w : m->off_r;
+    size_t used_offset = mfd->type == GXMFDW ? mfd->off_w : mfd->off_r;
     X(lseek(mfd->fd,used_offset+sizeof(gx_mfd_head),SEEK_SET)) X_RAISE(-1);
     return 0;
 }
+
+
+//static GX_INLINE void gx_futex_wait
+
+
 
 #endif
