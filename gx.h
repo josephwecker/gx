@@ -54,6 +54,7 @@
   #include <sys/stat.h>
   #include <fcntl.h>
   #include <string.h>
+  #include <pthread.h> // For pool mutexes
 
   /// Types
   #include <stdint.h>
@@ -134,15 +135,16 @@
   #define gx_pool_init(TYPE)                                                             \
                                                                                          \
     typedef struct pool_memory_segment ## TYPE {                                         \
-        struct pool_memory_segment ## TYPE *next;                                        \
-        TYPE         *segment;                                                           \
+        struct pool_memory_segment ## TYPE  *next;                                       \
+        TYPE                                *segment;                                    \
     } pool_memory_segment ## TYPE;                                                       \
                                                                                          \
-    typedef struct TYPE ## _pool {                                                \
-        size_t total_items;                                                              \
-        TYPE *available_head;                                                            \
-        TYPE *active_head, *active_tail;                                                 \
-        pool_memory_segment ## TYPE *memseg_head;                                        \
+    typedef struct TYPE ## _pool {                                                       \
+        pthread_mutex_t                     *mutex;                                      \
+        size_t                               total_items;                                \
+        TYPE                                *available_head;                             \
+        TYPE                                *active_head, *active_tail;                  \
+        pool_memory_segment ## TYPE         *memseg_head;                                \
     } TYPE ## _pool;                                                                     \
                                                                                          \
     static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
@@ -233,6 +235,29 @@
         while (*in++ & 128);
         return r;
     }
+
+    /// "Lightweight" fork, calls given function in child. Falls back to fork on
+    /// systems that don't have anything lighter. Otherwise tries to create a new
+    /// process with everything shared with the parent except a new, _small_
+    /// stack. The parent is not signaled when the child finishes.
+    ///
+    /// TODO: Take care of the stack with a clone-stack-pool- allocate if not
+    ///       allocated yet. First need a mutex on pools (and, while we're at
+    ///       it, probably ringbuffer pools as well).
+
+    //static GX_INLINE gx_clone(void *child_stack, size_t stack_size, int (*fn)(void *), void *arg) {
+    /*
+    static GX_INLINE gx_clone(int (*fn)(void *), void *arg) {
+      #ifdef __LINUX__
+        int flags = CLONE_FILES   | CLONE_FS     | CLONE_IO      | CLONE_PTRACE |
+                    CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND | CLONE_VM     ;
+        return __clone2(fn, child_stack, stack_size, flags, arg);
+      #else
+        // exit(fn(arg)); // (in child)  wait- also release the stack here.
+      #endif
+    }
+    */
+
 
   /*=============================================================================
    * MISC MATH
