@@ -31,7 +31,6 @@
  * @todo  gx_prefetch_(rw_keep|rw_toss|ro_keep|ro_toss)
  *
  */
-
 #ifndef   GX_H
   #define GX_H
 
@@ -140,7 +139,7 @@
     } pool_memory_segment ## TYPE;                                                       \
                                                                                          \
     typedef struct TYPE ## _pool {                                                       \
-        pthread_mutex_t                     *mutex;                                      \
+        pthread_mutex_t                      mutex;                                      \
         size_t                               total_items;                                \
         TYPE                                *available_head;                             \
         TYPE                                *active_head, *active_tail;                  \
@@ -153,6 +152,7 @@
         Xn(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) X_RAISE(NULL);            \
         memset(res, 0, sizeof(TYPE ## _pool));                                           \
         TYPE ## _pool_extend(res, initial_number);                                       \
+        X (pthread_mutex_init(&(res->mutex), NULL)) X_RAISE(NULL);                          \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
@@ -196,20 +196,25 @@
     }                                                                                    \
                                                                                          \
     static GX_INLINE TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                       \
-        TYPE *res;                                                                       \
+        TYPE *res = NULL;                                                                \
+        /*pthread_mutex_lock(&(pool->mutex));*/                                                 \
         if(gx_unlikely(!pool->available_head))                                           \
-            if(TYPE ## _pool_extend(pool, pool->total_items) == -1) return NULL;         \
+            if(TYPE ## _pool_extend(pool, pool->total_items) == -1) goto fin;            \
         res = pool->available_head;                                                      \
         pool->available_head = res->_next;                                               \
         memset(res, 0, sizeof(TYPE));                                                    \
         _prepend_ ## TYPE(pool, res);                                                    \
+      fin:                                                                               \
+        /*pthread_mutex_unlock(&(pool->mutex));*/                                               \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
     static GX_INLINE void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
+        /*pthread_mutex_lock(&(pool->mutex)); */                                                \
         _remove_ ## TYPE(pool, entry);                                                   \
         entry->_next = pool->available_head;                                             \
         pool->available_head = entry;                                                    \
+        /*pthread_mutex_unlock(&(pool->mutex)); */                                              \
     }                                                                                    \
     static GX_INLINE void move_to_front_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {     \
         /* move an object to the front of the active list */                             \
@@ -235,28 +240,6 @@
         while (*in++ & 128);
         return r;
     }
-
-    /// "Lightweight" fork, calls given function in child. Falls back to fork on
-    /// systems that don't have anything lighter. Otherwise tries to create a new
-    /// process with everything shared with the parent except a new, _small_
-    /// stack. The parent is not signaled when the child finishes.
-    ///
-    /// TODO: Take care of the stack with a clone-stack-pool- allocate if not
-    ///       allocated yet. First need a mutex on pools (and, while we're at
-    ///       it, probably ringbuffer pools as well).
-
-    //static GX_INLINE gx_clone(void *child_stack, size_t stack_size, int (*fn)(void *), void *arg) {
-    /*
-    static GX_INLINE gx_clone(int (*fn)(void *), void *arg) {
-      #ifdef __LINUX__
-        int flags = CLONE_FILES   | CLONE_FS     | CLONE_IO      | CLONE_PTRACE |
-                    CLONE_SYSVSEM | CLONE_THREAD | CLONE_SIGHAND | CLONE_VM     ;
-        return __clone2(fn, child_stack, stack_size, flags, arg);
-      #else
-        // exit(fn(arg)); // (in child)  wait- also release the stack here.
-      #endif
-    }
-    */
 
 
   /*=============================================================================
@@ -285,4 +268,74 @@
 
 
   #include <gx/gx_error.h>
+
+    /// Very "lightweight" fork, calls given function in child. Falls back to
+    /// fork on systems that don't have anything lighter. Otherwise tries to
+    /// create a new process with everything shared with the parent except a
+    /// new, _small_ stack. The parent is not signaled when the child
+    /// finishes [at least on linux... don't know yet for other...]
+    #ifdef __LINUX__
+      #ifndef _GNU_SOURCE
+        #define _GNU_SOURCE
+      #endif
+      #include <sched.h>
+      #include <sys/prctl.h>
+      #include <signal.h>
+
+      typedef struct _gx_clone_stack {
+          struct _gx_clone_stack *_next, *_prev;
+          int (*child_fn)(void *);
+          void *child_fn_arg;
+          int stack[0xffff]; // Yeah, pretty small for now. We'll see if we need them bigger at some point
+      } __attribute__((aligned)) _gx_clone_stack;
+
+      gx_pool_init(_gx_clone_stack);
+      static _gx_clone_stack_pool *_gx_csp __attribute__ ((unused)) = NULL;
+
+      /// Wraps the clone target function so we can release the stack
+      static int _gx_clone_launch(void *arg) {
+          _gx_clone_stack *csp = (_gx_clone_stack *)arg;
+          prctl(PR_SET_PDEATHSIG, SIGKILL);
+          int res = csp->child_fn(csp->child_fn_arg);
+          //char msg[1];
+
+          //pthread_mutex_lock(&(_gx_csp->mutex));
+          //release__gx_clone_stack(_gx_csp, csp);
+          //pthread_mutex_unlock(&(_gx_csp->mutex));
+
+          //write(STDOUT_FILENO, msg, 0);
+          // There's an as-yet unverified chance that the return statement
+          // below may cause some sort of wonkiness if the released stack in
+          // the previous line is immediately acquired and used before this
+          // function returns. Then again, everything may be fine...
+          exit(res);
+      }
+
+      static GX_INLINE int gx_clone(int (*fn)(void *), void *arg) {
+          //int flags =  CLONE_VM;
+          int flags = SIGCHLD | CLONE_FILES   | CLONE_FS      | CLONE_IO      | CLONE_PTRACE |
+                      CLONE_SYSVSEM | CLONE_VM      | CLONE_SIGHAND;
+          _gx_clone_stack *cstack;
+
+          if(gx_unlikely(!_gx_csp)) {
+              Xn(_gx_csp = new__gx_clone_stack_pool(1)) X_RAISE(-1);
+          }
+          pthread_mutex_lock(&(_gx_csp->mutex));
+          Xn(cstack = acquire__gx_clone_stack(_gx_csp)  ) X_RAISE(-1);
+          cstack->child_fn = fn;
+          cstack->child_fn_arg = arg;
+          //printf("%p / %p / %d / %p\n", &_gx_clone_launch, cstack->stack + sizeof(cstack->stack), flags, (void *)cstack);
+          int cres;
+          X(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) X_RAISE(-1);
+          pthread_mutex_unlock(&(_gx_csp->mutex));
+          return cres;
+          //return _clone2(_gx_clone_launch, cstack->stack, sizeof(cstack->stack), flags, (void *)cstack);
+      }
+    #else
+        // exit(fn(arg)); // (in child)  wait- also release the stack here.
+    #endif
+
+
+
+
 #endif

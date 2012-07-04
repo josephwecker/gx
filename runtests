@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 mkdir -p ./tmp
+echo "---> Testing gx_clone (in gx.h)"
+gcc -Wall -g -O0 -I ../ test/test_clone.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
 echo "---> Testing gx_mfd"
 gcc -Wall -I ../ test/test_gx_mfd.c -o tmp/tst && tmp/tst
 echo ""
