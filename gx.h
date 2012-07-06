@@ -365,4 +365,22 @@
     #else
         // exit(fn(arg)); // (in child)  wait- also release the stack here.
     #endif
+
+
+    static GX_INLINE int gx_sleep(time_t seconds, long nanoseconds) {
+        int s;
+        struct timespec ts;
+        ts.tv_sec  = seconds;
+        ts.tv_nsec = nanoseconds;
+        for(;;) {
+            Xs(s = nanosleep(&ts, &ts)) {
+                case EINTR: break;
+                default:    X_RAISE(-1);
+            }
+            if(!s) break;
+        }
+        return 0;
+    }
+
+
 #endif
