@@ -341,7 +341,7 @@
 
       static GX_INLINE int gx_clone(int (*fn)(void *), void *arg) {
           int flags = SIGCHLD | CLONE_FILES   | CLONE_FS      | CLONE_IO      | CLONE_PTRACE |
-                                CLONE_SYSVSEM | CLONE_VM;//      | CLONE_SIGHAND;
+                                CLONE_SYSVSEM | CLONE_VM;
           _gx_clone_stack *cstack;
 
           if(gx_unlikely(!_gx_csp)) {
