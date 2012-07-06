@@ -3,24 +3,24 @@ set -e
 mkdir -p ./tmp
 echo "---> Testing gx_clone (in gx.h)"
 gcc -Wall -g -O0 -I ../ test/test_clone.c -o tmp/tst && tmp/tst
-#echo ""
-#echo ""
-#echo "---> Testing gx_mfd"
-#gcc -Wall -I ../ test/test_gx_mfd.c -o tmp/tst && tmp/tst
-#echo ""
-#echo ""
-#echo "---> Testing gx_pagesize (in gx.h)"
-#gcc -Wall -I ../ test/test_pagesize.c -o tmp/tst && tmp/tst
-#echo ""
-#echo ""
-#echo "---> Testing some memorymapping stuff"
-#dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
-#gcc -I ../ test/test_mmap.c -o tmp/tst && tmp/tst
-#echo ""
-#echo ""
-#echo "---> Testing futexes (in gx_mfd.h)"
-#gcc -Wall -I ../ test/test_futex.c -o tmp/tst && tmp/tst
-#echo ""
-#echo ""
-#echo "Done. Apparently passed."
-#rm -rf ./tmp
+echo ""
+echo ""
+echo "---> Testing gx_mfd"
+gcc -Wall -I ../ test/test_gx_mfd.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
+echo "---> Testing gx_pagesize (in gx.h)"
+gcc -Wall -I ../ test/test_pagesize.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
+echo "---> Testing some memorymapping stuff"
+dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
+gcc -I ../ test/test_mmap.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
+echo "---> Testing futexes (in gx_mfd.h)"
+gcc -Wall -I ../ test/test_futex.c -o tmp/tst && tmp/tst
+echo ""
+echo ""
+echo "Done. Apparently passed."
+rm -rf ./tmp
