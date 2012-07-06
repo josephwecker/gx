@@ -84,12 +84,12 @@
  *    the last page instead of the beginning of it), etc.
  *
  *  (READER only)
- *  - Map the entire file + page_precache pages - but all PROT_READ / RONLY,
+ *  - [D] Map the entire file + page_precache pages - but all PROT_READ / RONLY,
  *    etc. to cause very efficient kernel optimizations. (possibly same w/
  *    memory-locked header page, but only if it doesn't interfere with the
  *    futex).
- *  - Create a new pipe pair
- *  - Do the cheapest sys_clone possible (vfork on mac, alas), and have one
+ *  - [D] Create a new pipe pair
+ *  - [D] Do the cheapest sys_clone possible (vfork on mac, alas), and have one
  *    branch return the read-end of the pipe (or have it as part of the mfd
  *    structure that will be referenced).
  *  - Have the other end do the following:
@@ -165,6 +165,9 @@ static GX_INLINE int gx_futex_wake(int *f) {
 }
 
 static GX_INLINE int gx_futex_wait(int *f, int curr_val) {
+    // TODO, add a little timeout, just for kicks, so that it kind of
+    // automatically has a (low frequency) spinlock-like mechanism in case the
+    // futex messes up.
     register int volatile * const p = (int volatile *)f;
     for(;;) {
         register int v = *p;
@@ -172,7 +175,7 @@ static GX_INLINE int gx_futex_wait(int *f, int curr_val) {
         #ifdef __LINUX__
             if(gx_unlikely(_gx_futex(f, FUTEX_WAIT, v) < 0)) {
                 int errn = errno;
-                if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return errn;
+                if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return -1;
                 errno = 0;
             }
         #else
@@ -193,6 +196,7 @@ typedef struct gx_mfd {
     int               type;          ///< Readonly or writeonly at the moment
     int               premap;        ///< Pages at a time to map- higher avoids more remapping+syscalls
     int               fd;            ///< File descriptor, ready for IO operations
+    int               fdh;           ///< Reader temporarily opens a write fd so that the futex works
     size_t            off_eof;       ///< Offset to underlying file's EOF == currently truncated size
     union {
         void         *head_map;      ///< Same as first page of map, but locked into RAM
@@ -204,6 +208,9 @@ typedef struct gx_mfd {
     void             *data;          ///< Points into map just after header- used for read/write
     size_t            off_r;         ///< Current read cursor = offset into data (which may, change locations)
     size_t            off_w;         ///< Current write cursor, also offset into data
+
+    int               npipe_in;
+    int               npipe_out;
 } gx_mfd;
 
 gx_pool_init(gx_mfd);
@@ -257,18 +264,53 @@ static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     return 0;
 }
 
+static int _gx_mfd_readloop(void *vmfd) {
+    gx_mfd *mfd = (gx_mfd *)vmfd;
+    uint64_t size = mfd->head->size;
+    int res;
+    for(;;) {
+        // TODO: remove X_WARN when appropriate...- got to keep this as
+        // lightweight as possible to reduce stack size once it's been tested
+        // well.
+        Xs(res = gx_futex_wait((int *)&(mfd->head->size), (int)size)) {
+            case EFAULT: X_FATAL; return -1;
+            default:     X_WARN;  return 0;
+        }
+        size = mfd->head->size;
+        write(mfd->npipe_in, &size, sizeof(size));
+    }
+    return 0;
+}
+
 static int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+    int pipes[2];
     #ifdef __LINUX__
-      int open_flags = O_RDONLY | O_NONBLOCK | O_NOATIME | O_NOCTTY;
+      int h_open_flags = O_RDWR   | O_NONBLOCK | O_NOATIME | O_NOCTTY;
+      int open_flags   = O_RDONLY | O_NONBLOCK | O_NOATIME | O_NOCTTY;
     #else
-      int open_flags = O_RDONLY | O_NONBLOCK;
+      int h_open_flags = O_RDWR   | O_NONBLOCK;
+      int open_flags   = O_RDONLY | O_NONBLOCK;
     #endif
 
     mfd->type   = GXMFDR;
     mfd->premap = pages_at_a_time;
-    X( mfd->fd  = open(path, open_flags)) {X_FATAL; X_RAISE(-1);}
-    X( _gx_initial_mapping(mfd)         ) {X_FATAL; X_RAISE(-1);}
-
+    X( mfd->fd  = open(path, open_flags)    ) {X_FATAL; X_RAISE(-1);}
+    X( mfd->fdh = open(path, h_open_flags)  ) {X_FATAL; X_RAISE(-1);}
+    X( _gx_initial_mapping(mfd)             ) {X_FATAL; X_RAISE(-1);}
+    X( close(mfd->fdh)                      )  X_WARN;
+    #ifdef __LINUX__
+      X( pipe2(pipes, O_NONBLOCK)           ) {X_FATAL; X_RAISE(-1);}
+    #else
+      X( pipe(pipes)                        ) {X_FATAL; X_RAISE(-1);}
+      // TODO: probably fcntl to make it nonblocking
+    #endif
+    // TODO: possible race condition (kind of) - should possibly get the
+    // current "size" stored seperately here to feed in and make sure that the
+    // fd is added to some event loop _before_ activating the futex etc... As
+    // it is currently, it may miss a change event as it's getting initialized-
+    // but as a practical matter I don't think it'll mean much for the current
+    // application...
+    X(gx_clone(_gx_mfd_readloop,(void *)mfd)) {X_FATAL; X_RAISE(-1);}
 
     return 0;
 }
@@ -278,19 +320,20 @@ static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
     struct stat filestat;
     off_t  fsz;
     int    protection = PROT_READ;
-    #ifdef __LINUX__
-      int  head_flags = MADV_RANDOM | MADV_WILLNEED | MADV_DONTFORK;
-    #else
-      int  head_flags = MADV_RANDOM | MADV_WILLNEED;
-    #endif
+    int    head_flags = MADV_RANDOM | MADV_WILLNEED;
 
     X (fstat(mfd->fd, &filestat) ) X_RAISE(-1);
     mfd->off_eof = fsz = filestat.st_size;
     mfd->off_eom = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
-    if(mfd->type == GXMFDW) protection |= PROT_WRITE; // Otherwise will stay read-only for performance
-
-    Xm(mfd->head_map=mmap(NULL,gx_pagesize,protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
-    X (_gx_update_eof(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
+    if(mfd->type == GXMFDW) {
+        protection |= PROT_WRITE; // Otherwise will stay read-only for performance
+        Xm(mfd->head_map=mmap(NULL,gx_pagesize,
+                    protection,MAP_SHARED,mfd->fd,0)                       ) {X_FATAL; X_RAISE(-1);}
+        X(_gx_update_eof(mfd)                                              ) {X_FATAL; X_RAISE(-1);}
+    } else {
+        Xm(mfd->head_map=mmap(NULL,gx_pagesize,
+                    protection|PROT_WRITE,MAP_SHARED,mfd->fdh,0)           ) {X_FATAL; X_RAISE(-1);}
+    }
     X (madvise(mfd->head_map, gx_pagesize, head_flags)                     ) {X_FATAL; X_RAISE(-1);}
     X (mlock(mfd->head_map, gx_pagesize)                                   ) {X_FATAL; X_RAISE(-1);}
     Xm(mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
