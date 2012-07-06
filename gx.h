@@ -268,7 +268,6 @@
         return r;
     }
 
-
   /*=============================================================================
    * MISC MATH
    * gx_pos_ceil(x)                - Integer ceiling (for positive values)
@@ -309,12 +308,14 @@
       #include <sys/prctl.h>
       #include <signal.h>
 
+      #define _GX_STKSZ 0xffff
+
       typedef struct _gx_clone_stack {
           struct _gx_clone_stack *_next, *_prev;
           int (*child_fn)(void *);
           void *child_fn_arg;
           // Will be able to reduce the stack when we've solidified the clone's actions...
-          char stack[0x1fff];
+          char stack[_GX_STKSZ];
       } __attribute__((aligned)) _gx_clone_stack;
 
       gx_pool_init(_gx_clone_stack);
@@ -357,7 +358,8 @@
           cstack->child_fn = fn;
           cstack->child_fn_arg = arg;
           int cres;
-          X(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
+          X(cres = clone(&_gx_clone_launch, (void *)&(cstack->stack[_GX_STKSZ - 1]), flags, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
+          //X(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
           return cres;
       }
     #else
