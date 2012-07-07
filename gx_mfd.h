@@ -31,6 +31,7 @@
  *
  *
  * TODO:
+ *  - Add an easy "add" hook to gx_event for utilizing notify_fd
  *  - Abstraction for auto-update-files from writer perspective
  *    * Trigger for waking up waiting processes (FUTEX_WAKE on linux, nothing
  *      on mac-osx, which is going to be polling) - automatic where possible
@@ -209,8 +210,8 @@ typedef struct gx_mfd {
     size_t            off_r;         ///< Current read cursor = offset into data (which may, change locations)
     size_t            off_w;         ///< Current write cursor, also offset into data
 
-    int               npipe_in;
-    int               npipe_out;
+    int               n_in_fd;
+    int               notify_fd;
 } gx_mfd;
 
 gx_pool_init(gx_mfd);
@@ -270,15 +271,15 @@ static int _gx_mfd_readloop(void *vmfd) {
     int res;
     for(;;) {
         // TODO: remove X_WARN when appropriate...- got to keep this as
-        // lightweight as possible to reduce stack size once it's been tested
-        // well.
+        // lightweight as possible to reduce stack size once it's been tested well.
         Xs(res = gx_futex_wait((int *)&(mfd->head->size), (int)size)) {
             case EFAULT: X_FATAL; return -1;
             default:     X_WARN;  return 0;
         }
-        size = mfd->head->size;
-        fprintf(stderr, "new size detected: %llu\n", (long long unsigned int)size);
-        //write(mfd->npipe_in, &size, sizeof(size));
+        size = mfd->offw = mfd->head->size;
+
+        // TODO: completely inline this syscall so we can have an even smaller stack.
+        write(mfd->n_in_fd, &size, sizeof(size));
     }
     return 0;
 }
@@ -305,6 +306,8 @@ static int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
       X( pipe(pipes)                        ) {X_FATAL; X_RAISE(-1);}
       // TODO: probably fcntl to make it nonblocking
     #endif
+    mfd->notify_fd = pipes[0];
+    mfd->n_in_fd   = pipes[1];
     // TODO: possible race condition (kind of) - should possibly get the
     // current "size" stored seperately here to feed in and make sure that the
     // fd is added to some event loop _before_ activating the futex etc... As

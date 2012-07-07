@@ -24,15 +24,22 @@ void writer() {
     gx_sleep(1,0);
 }
 
+gx_eventloop_declare  (mfd_events, 1, 1);
+gx_eventloop_implement(mfd_events, 1, 1);
+
+int on_readfile_changed(gx_tcp_sess *s, uint32_t event) {
+    X_LOG_INFO("Eventloop told me the file has new data.");
+    return 0;
+}
+
 void reader() {
     gx_mfd                 *mfd_r;
-    //struct GX_EVENT_STRUCT  events[5];
-    //int                     evfd = gx_event_newset(5);
+    gx_eventloop_init (mfd_events);
+    gx_sleep(0,500000000);  // Give the writer enough time to get the file set up.
     Xn( mfd_r = acquire_gx_mfd(mfd_pool)               ){X_ERROR; X_EXIT;}
     X ( gx_mfd_create_r(mfd_r,10,"tmp/writer-file.dat")){X_ERROR; X_EXIT;}
-    gx_sleep(2,0);
-    printf("reader: %llX\n", (unsigned long long int)(mfd_r->head->sig));
-    gx_sleep(3,0);
+    X ( mfd_events_add_misc(mfd_r->notify_fd, mfd_r)   ){X_ERROR; X_EXIT;}
+    X ( mfd_events_wait(-1, on_readfile_changed)       ){X_ERROR; X_EXIT;}
 }
 
 

@@ -308,7 +308,7 @@
       #include <sys/prctl.h>
       #include <signal.h>
 
-      #define _GX_STKSZ 0xffff
+      #define _GX_STKSZ 0xfff  // For anything much more than what gx_mfd is doing, use ~ 0x1ffff
 
       typedef struct _gx_clone_stack {
           struct _gx_clone_stack *_next, *_prev;
