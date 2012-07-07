@@ -17,7 +17,7 @@ void writer() {
     gx_sleep(1,0);
     for(i=0; i < 5; i++) {
         gx_sleep(0,500000000);
-        X_LOG_INFO("Writing some stuff");
+        X_LOG_INFO("CHILD:    Writing some stuff");
         mfd_write(mfd_w, msg, sizeof(msg));
     }
     //printf("writer: %llX\n", (unsigned long long int)(mfd_w->head->sig));
@@ -28,7 +28,7 @@ gx_eventloop_declare  (mfd_events, 1, 1);
 gx_eventloop_implement(mfd_events, 1, 1);
 
 int on_readfile_changed(gx_tcp_sess *s, uint32_t event) {
-    X_LOG_INFO("Eventloop told me the file has new data.");
+    X_LOG_INFO("PARENT:   Eventloop told me the file has new data.");
     return 0;
 }
 
