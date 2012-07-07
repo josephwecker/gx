@@ -5,14 +5,23 @@
 gx_error_initialize(GX_DEBUG);
 
 
-gx_mfd_pool                *mfd_pool;
+gx_mfd_pool *mfd_pool;
 
 void writer() {
-    gx_mfd                 *mfd_w;
+    int     i;
+    gx_mfd *mfd_w;
+    char    msg[] = "something blah blah";
+
     Xn( mfd_w = acquire_gx_mfd(mfd_pool)               ){X_ERROR; X_EXIT;}
     X ( gx_mfd_create_w(mfd_w,10,"tmp/writer-file.dat")){X_ERROR; X_EXIT;}
-    printf("writer: %llX\n", (unsigned long long int)(mfd_w->head->sig));
-    gx_sleep(10,0);
+    gx_sleep(1,0);
+    for(i=0; i < 5; i++) {
+        gx_sleep(0,500000000);
+        X_LOG_INFO("Writing some stuff");
+        mfd_write(mfd_w, msg, sizeof(msg));
+    }
+    //printf("writer: %llX\n", (unsigned long long int)(mfd_w->head->sig));
+    gx_sleep(1,0);
 }
 
 void reader() {
@@ -33,7 +42,7 @@ int main(int argc, char **argv) {
 
     Xn( mfd_pool = new_gx_mfd_pool(2) ) {X_ERROR; X_EXIT;}
     X (pid = fork()                   ) {X_ERROR; X_EXIT;}
-    if(pid) writer();
-    else    {reader(); waitpid(pid, &status, 0);}
+    if(pid) /* child  */ writer();
+    else    /* parent */ {reader(); waitpid(pid, &status, 0);}
     return status;
 }

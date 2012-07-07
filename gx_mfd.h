@@ -277,7 +277,8 @@ static int _gx_mfd_readloop(void *vmfd) {
             default:     X_WARN;  return 0;
         }
         size = mfd->head->size;
-        write(mfd->npipe_in, &size, sizeof(size));
+        fprintf(stderr, "new size detected: %llu\n", (long long unsigned int)size);
+        //write(mfd->npipe_in, &size, sizeof(size));
     }
     return 0;
 }
@@ -368,8 +369,14 @@ static GX_INLINE int _gx_update_fpos(gx_mfd *mfd) {
     return 0;
 }
 
+static GX_INLINE void *mfd_w(gx_mfd *mfd) { return mfd->data + mfd->off_w; }
 
-//static GX_INLINE void gx_futex_wait
+static GX_INLINE int mfd_write(gx_mfd *mfd, const void *buf, size_t len) {
+    Xn(memcpy(mfd_w(mfd), buf, len)) X_RAISE(-1);
+    mfd->off_w += len;
+    mfd->head->size = mfd->off_w;
+    return gx_futex_wake((int *)&(mfd->head->size));
+}
 
 
 
