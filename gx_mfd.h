@@ -286,7 +286,7 @@ static int _gx_mfd_readloop(void *vmfd) {
             case EFAULT: X_FATAL; return -1;
             default:     X_WARN;  return 0;
         }
-        size = mfd->offw = mfd->head->size;
+        size = mfd->off_w = mfd->head->size;
 
         // TODO: completely inline this syscall so we can have an even smaller stack.
         write(mfd->n_in_fd, &size, sizeof(size));
