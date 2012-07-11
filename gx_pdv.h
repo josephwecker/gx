@@ -31,8 +31,20 @@
 
 #include <gx/gx.h>
 #include <gx/gx_error.h>
+#include <gx/gx_mfd.h>
 
 #define GX_PATHSIZE 0x400
+
+
+// TODO:
+//   - Simple writer-pdv definition/implementation
+//   - Simple reader-pdv definition/implementation with callbacks
+//
+//
+
+
+
+
 
 /*
 // Metainfo: stuff to be read from or written to 
@@ -50,7 +62,6 @@ typedef struct gx_pdv_map {
     gx_pdv_meta *meta_info;
     //void        *curr;        ///< Pointer to the next available slot for writing
 } gx_pdv_map;
-*/
 
 
 char gx_pdv_base[GX_PATHSIZE];
@@ -66,6 +77,7 @@ typedef struct gx_input_port {
     gx_port_meta *meta;                   ///< Will point to the first part of the memory-mapped file.
 } gx_input_port;
 
+*/
 
 
 

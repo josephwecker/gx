@@ -31,6 +31,8 @@
  *
  *
  * TODO:
+ *  - Memory-map resizing as appropriate
+ *  - Page advising on "used" pages
  *  - Add an easy "add" hook to gx_event for utilizing notify_fd
  *  - Abstraction for auto-update-files from writer perspective
  *    * Trigger for waking up waiting processes (FUTEX_WAKE on linux, nothing
@@ -188,8 +190,16 @@ static GX_INLINE int gx_futex_wait(int *f, int curr_val) {
 
 
 typedef struct gx_mfd_head {
-    uint64_t  sig;   ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this
-    uint64_t  size;  ///< Data size (not including header). Host-endian and not necessarily accurate
+    uint64_t  sig;    ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this
+    uint64_t  size;   ///< Data size (not including header). Host-endian and not necessarily accurate- futex points here
+
+    uint64_t  h1;     ///< User-defined - there should be a better way to do this...
+    uint64_t  h2;     ///< User-defined
+    uint64_t  h3;     ///< User-defined
+    uint64_t  h4;     ///< User-defined
+    uint64_t  h5;     ///< User-defined
+    uint64_t  h6;     ///< User-defined
+    uint64_t  h7;     ///< User-defined
 } gx_mfd_head;
 
 typedef struct gx_mfd {
