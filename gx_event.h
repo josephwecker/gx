@@ -79,6 +79,8 @@
 
 #define GX_CONTINUE           0  // TODO: For handler return values- change from 1/0
 #define GX_ABORT             -1
+#define gx_continue()         return GX_CONTINUE
+#define gx_discontinue()      return GX_ABORT
 
 typedef struct gx_tcp_sess {
     struct gx_tcp_sess   *_next, *_prev;
@@ -397,7 +399,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     goto done_with_reading; // Not enough thrown away yet.
                 } else {
                     sess->rcvd_so_far = 0;
-                    if(!sess->fn_handler(sess, NULL)) goto done_with_reading;
+                    if(gx_unlikely(sess->fn_handler(sess, NULL))) goto done_with_reading;
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
@@ -462,11 +464,11 @@ static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool,
         if (sess->rcv_dest == GX_DEST_BUF) {
             size_t old_write_head = rcvrb->w;
             rcvrb->w = rcvrb->r + sess->rcv_expected;
-            if(!sess->fn_handler(sess, rcvrb)) return;
+            if(gx_unlikely(sess->fn_handler(sess, rcvrb))) return;
             rcvrb->w = old_write_head;
             rb_advr(rcvrb, sess->rcv_expected);
         } else {
-            if(!sess->fn_handler(sess, NULL)) return;
+            if(gx_unlikely(sess->fn_handler(sess, NULL))) return;
         }
     }
 }
