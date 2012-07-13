@@ -55,7 +55,11 @@
   #include <string.h>
   #include <pthread.h> // For pool mutexes
   #include <sys/wait.h>
-  #include <syscall.h>
+  #ifdef __LINUX__
+    #include <syscall.h>
+  #else
+    #include <sys/syscall.h>
+  #endif
 
   /// Types
   #include <stdint.h>
