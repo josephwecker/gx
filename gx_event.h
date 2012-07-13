@@ -80,9 +80,6 @@
 #define GX_CONTINUE           0  // TODO: For handler return values- change from 1/0
 #define GX_SKIP               1  ///< Not quite abort... just stops processing this connection
 
-#define gx_continue()         return GX_CONTINUE
-#define gx_discontinue()      return GX_SKIP
-
 //-------------------------------------------------------------
 /// Some standard reasons passed to the disconnect callback- also use GX_ABORT
 /// Feel free to define more (ideally > 0).
