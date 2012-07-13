@@ -248,7 +248,7 @@ static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     #else
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND;
     #endif
-    int initial_size;
+    size_t initial_size;
 
     mfd->type   = GXMFDW;
     mfd->premap = pages_at_a_time;
