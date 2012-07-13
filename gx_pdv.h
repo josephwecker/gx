@@ -10,22 +10,6 @@
  * on them and assume that they'll fill up / get solid in time that anything in
  * the rest of the sequence can treat them simply.
  *
- * (mremap implementation for mac osx that does munmap+mmap)
- *
- * check for lock, error if there is one
- * open and lock file (ensure 64-bit / largefile)
- * stat file for current size
- * mmap file, pointer to actual end.
- * mremap file when it runs out of room.
- * 
- * size_t ps = sysconf (_SC_PAGESIZE);
- * size_t ns = (at + size + ps - 1) & ~(ps - 1);
- *
- * 
- * b/a, d(b/a), f(b/a) :: int32 (except maybe f(sig) for some of the bigger original signals?)
- *      d(b/a) could stay integer even w/ half-diffs assuming a constant x2 factor...
- * 
- *
  *
  */
 
