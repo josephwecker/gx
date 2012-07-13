@@ -231,17 +231,29 @@ gx_pool_init(gx_tcp_sess);
 
 #define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
 #ifdef DEBUG_EVENTS
+    #define gx_next_rbhandle(HANDLER, EXPECTED) do {           \
+        sess->fn_handler = &HANDLER;                           \
+        sess->rcv_dest = GX_DEST_BUF;                          \
+        sess->rcv_expected = EXPECTED;                         \
+        sess->fn_handler_name = #NAME                          \
+    } while (0)
+
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
-        sess->fn_handler = &HANDLER;                        \
-        sess->rcv_dest = DESTINATION;                       \
-        sess->rcv_expected = EXPECTED;                      \
-        sess->fn_handler_name = #NAME                       \
+        sess->fn_handler = &HANDLER;                           \
+        sess->rcv_dest = DESTINATION;                          \
+        sess->rcv_expected = EXPECTED;                         \
+        sess->fn_handler_name = #NAME                          \
     } while (0)
 #else
+    #define gx_next_rbhandle(HANDLER, EXPECTED) do {           \
+        sess->fn_handler = &HANDLER;                           \
+        sess->rcv_dest = GX_DEST_BUF;                          \
+        sess->rcv_expected = EXPECTED;                         \
+    } while (0)
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
-        sess->fn_handler = &HANDLER;                        \
-        sess->rcv_dest = DESTINATION;                       \
-        sess->rcv_expected = EXPECTED;                      \
+        sess->fn_handler = &HANDLER;                           \
+        sess->rcv_dest = DESTINATION;                          \
+        sess->rcv_expected = EXPECTED;                         \
     } while (0)
 #endif
 
