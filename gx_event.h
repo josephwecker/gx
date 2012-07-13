@@ -235,14 +235,14 @@ gx_pool_init(gx_tcp_sess);
         sess->fn_handler = &HANDLER;                           \
         sess->rcv_dest = GX_DEST_BUF;                          \
         sess->rcv_expected = EXPECTED;                         \
-        sess->fn_handler_name = #NAME                          \
+        sess->fn_handler_name = #HANDLER ;                     \
     } while (0)
 
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
         sess->fn_handler = &HANDLER;                           \
         sess->rcv_dest = DESTINATION;                          \
         sess->rcv_expected = EXPECTED;                         \
-        sess->fn_handler_name = #NAME                          \
+        sess->fn_handler_name = #HANDLER ;                     \
     } while (0)
 #else
     #define gx_next_rbhandle(HANDLER, EXPECTED) do {           \
@@ -257,7 +257,15 @@ gx_pool_init(gx_tcp_sess);
     } while (0)
 #endif
 
-#define gx_call_handle
+#ifdef DEBUG_EVENTS
+#define _gx_call_handler(SESS,RB) ( {     \
+    X_LOG_DEBUG("HANDLER: %s | exp: %lu", \
+        SESS->fn_handler_name,            \
+        SESS->rcv_expected);              \
+    SESS->fn_handler(SESS, RB); } )
+#else
+#define _gx_call_handler(SESS,RB) SESS->fn_handler(SESS, RB)
+#endif
 
 //#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
 
@@ -419,7 +427,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     goto done_with_reading; // Not enough thrown away yet.
                 } else {
                     sess->rcvd_so_far = 0;
-                    if(gx_unlikely(sess->fn_handler(sess, NULL))) goto done_with_reading;
+                    if(gx_unlikely(_gx_call_handler(sess, NULL))) goto done_with_reading;
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
@@ -488,7 +496,7 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
             rcvrb->w = old_write_head;
             rb_advr(rcvrb, sess->rcv_expected);
         } else {
-            if(gx_unlikely(sess->fn_handler(sess, NULL))) return;
+            if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) return;
         }
     }
 }
