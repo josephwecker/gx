@@ -384,7 +384,7 @@ gx_pool_init(gx_tcp_sess);
 /// current handler in which case we keep looping until the buffer is drained.
 ///
 
-static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp); // Forward declaration
+static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp); // Forward declaration
 static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     if(gx_likely(events & GX_EVENT_READABLE)) {
         gx_rb   *rcvrb = *rcvrbp;
@@ -454,7 +454,7 @@ done_with_writing:
     return;
 }
 
-static GX_INLINE void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
+static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     // policy is to advance for anything but GX_DEST_BUF immediately
     // but wait till handler call to advance GX_DEST_BUF
     gx_rb   *rcvrb = *rcvrbp;
