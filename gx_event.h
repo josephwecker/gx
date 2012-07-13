@@ -486,15 +486,25 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
             X_LOG_ERROR("Not yet implemented");
         }
         // Looks like we have a full chunk / full expected length available.
-        sess->rcvd_so_far = 0; // Clear it out
+        sess->rcvd_so_far = 0; // Clear it out so the next part is processed correctly
 
-        // advance ringbuffer after calling handler if GX_DEST_BUF
-        if (sess->rcv_dest == GX_DEST_BUF) {
-            size_t old_write_head = rcvrb->w;
-            rcvrb->w = rcvrb->r + sess->rcv_expected;
-            if(gx_unlikely(sess->fn_handler(sess, rcvrb))) return;
-            rcvrb->w = old_write_head;
-            rb_advr(rcvrb, sess->rcv_expected);
+        if(sess->rcv_dest == GX_DEST_BUF) {
+            //-------- Alter ringbuffer so it only looks at the part the handler cares about currently.
+            size_t old_write_head = rcvrb->w;           // True write position
+            size_t old_expected   = sess->rcv_expected; // To advance read pointer after handler is done
+            int    handle_res;                          // Temporarily hold result of the handler
+            rcvrb->w              = rcvrb->r + sess->rcv_expected;
+            uint8_t old_nextbyte  = rb_uintw(rcvrb)[0];
+            rb_uintw(rcvrb)[0]    = '\0';               // So rb_uintr(rb) can be treated as a string if desired
+
+            //-------- Callback on fn_handler
+            handle_res            = _gx_call_handler(sess, rcvrb);
+
+            //-------- Restore ringbuffer & advance read-pointer
+            rb_uintw(rcvrb)[0]    = old_nextbyte;
+            rcvrb->w              = old_write_head;
+            rb_advr(rcvrb, old_expected);
+            if(gx_unlikely(handle_res != GX_CONTINUE)) return;
         } else {
             if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) return;
         }
