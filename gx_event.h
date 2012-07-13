@@ -177,7 +177,6 @@ gx_pool_init(gx_tcp_sess);
         NAME ## _accept_handler = ahandler;                                      \
         return gx_event_add(NAME ## _events_fd, afd,                             \
                 (void *) & NAME ## _acceptor_fd);                                \
-      /*return NAME ## _add_sess(afd,(void *)&afd,NULL,GX_DEST_UNDEF,NULL,0,0);*/\
     }                                                                            \
                                                                                  \
     GX_INLINE int NAME ## _wait(int timeout,                                     \
