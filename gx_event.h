@@ -127,6 +127,8 @@ gx_pool_init(gx_tcp_sess);
     GX_INLINE int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
     GX_INLINE int NAME ## _wait(int timeout,                                     \
             int (*misc_handler)(gx_tcp_sess *, uint32_t));                       \
+    GX_INLINE int NAME ## _abort_sess(gx_tcp_sess *sess);                        \
+    GX_INLINE int NAME ## _abort_sess2(gx_tcp_sess *sess,int);                   \
 
 #define gx_eventloop_implement(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)        \
     struct GX_EVENT_STRUCT   NAME ## _events[EVENTS_AT_A_TIME];                  \
