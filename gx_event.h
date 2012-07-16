@@ -429,7 +429,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     goto done_with_reading; // Not enough thrown away yet.
                 } else {
                     sess->rcvd_so_far = 0;
-                    if(gx_unlikely(_gx_call_handler(sess, NULL))) goto done_with_reading;
+                    if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) goto done_with_reading;
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
