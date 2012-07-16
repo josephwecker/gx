@@ -172,9 +172,6 @@ static GX_INLINE int gx_futex_wake(uint64_t *f) {
 }
 
 static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
-    // TODO, add a little timeout, just for kicks, so that it kind of
-    // automatically has a (low frequency) spinlock-like mechanism in case the
-    // futex messes up.
     register int volatile * const p = (int volatile *)f;
     for(;;) {
         register int v = *p;
@@ -185,12 +182,11 @@ static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
                 if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return -1;
                 errno = 0;
             }
-        #else
-            // Going to sleep for a little bit
         #endif
+        if(v != curr_val) return v;
+        gx_sleep(0,2000); // Works for generic case and as a callback for linux
     }
 }
-
 
 
 typedef struct gx_mfd_head {
