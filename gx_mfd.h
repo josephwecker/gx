@@ -289,7 +289,7 @@ static int _gx_mfd_readloop(void *vmfd) {
         size = mfd->off_w = mfd->head->size;
 
         // TODO: completely inline this syscall so we can have an even smaller stack.
-        write(mfd->n_in_fd, &size, sizeof(size));
+        X(write(mfd->n_in_fd, &size, sizeof(size))) X_RAISE(-1);
     }
     return 0;
 }
