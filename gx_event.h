@@ -88,6 +88,11 @@
 #define GX_ABORT             -1
 #define GX_INTERNAL_ERR      -2
 
+static char *_gx_closed_reason[] = {
+    /* 0 */ "Closed by peer.",
+    /* 1 */ "Aborted by us.",
+    /* 2 */ "Internal error."};
+
 typedef struct gx_tcp_sess {
     struct gx_tcp_sess   *_next, *_prev;
     int                   rcv_dest;
@@ -401,6 +406,10 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
         ssize_t  rcvd, curr_remaining;
         int      can_rcv_more;
         do {
+            if(gx_unlikely(sess->peer_fd < 2)) {
+                X_LOG_FATAL("Somehow a closed peer got in the inner eventloop.");
+                return;
+            }
             can_rcv_more = 0;
             curr_remaining = sess->rcv_expected - sess->rcvd_so_far;
 
@@ -414,6 +423,8 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     sess->rcv_buf = NULL;
                 } else rb_clear(rcvrb);
 
+                // TODO: !!! if curr_remaining > rb_available, going to have to do
+                // the lesser and set can_rcv_more to true.
                 if(sess->rcv_do_readahead) bytes_attempted = rb_available(rcvrb);
                 else bytes_attempted = curr_remaining;
 
@@ -517,14 +528,19 @@ static int _gx_close_sess(gx_tcp_sess *sess, gx_tcp_sess_pool *cespool, int reas
     int res=0;
     if(sess->fn_disconnect) res = sess->fn_disconnect(sess, reason);
 
-    if(sess->peer_fd > 2) {
+    if(sess->peer_fd > 1) {
 try_close:
-        Xs(close(sess->peer_fd)) {
-            case EBADF: break;
-            case EINTR: goto try_close;
-            default:    res = -1;
+        // Explicitly close down both parts of the socket, working directly on
+        // the _open file description_ instead of the file descriptor.
+        Xs(shutdown(sess->peer_fd, SHUT_RDWR)) {
+            case EINTR:    goto try_close;
+            case ENOTCONN:
+            case EBADF:    break;
+            default:       res = -1;
         }
-    }
+        close(sess->peer_fd); // Do this as well to auto-remove from event struct etc.
+        sess->peer_fd = -1;
+    } else return 0; // Was already aborted earlier
     if(sess->rcv_buf) {
         gx_rb_release(rbp, sess->rcv_buf);
         sess->rcv_buf = NULL;
@@ -533,10 +549,13 @@ try_close:
         gx_rb_release(rbp, sess->snd_buf);
         sess->snd_buf = NULL;
     }
-    sess->peer_fd = -1;
     sess->udata   = NULL;  // Sure hope you freed it etc. in the disconnect handler...
     release_gx_tcp_sess(cespool, sess);
     return res;
+}
+
+static GX_INLINE char *gx_closed_reason_txt(int reason) {
+    return _gx_closed_reason[- reason];
 }
 
 
