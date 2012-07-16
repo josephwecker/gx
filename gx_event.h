@@ -191,10 +191,13 @@ gx_pool_init(gx_tcp_sess);
                         NAME ## _events_fd, NAME ## _rb_pool,                    \
                         &NAME ## _rcvrb);                                        \
             /* TODO: a bunch of accepts here first if applicable */              \
-            X (nfds = gx_event_wait(NAME ## _events_fd,                          \
+            Xs(nfds = gx_event_wait(NAME ## _events_fd,                          \
                         NAME ## _events,                                         \
-                        EVENTS_AT_A_TIME, timeout)) X_RAISE(-1);                 \
-            if(!nfds) return 0;                                                  \
+                        EVENTS_AT_A_TIME, timeout)) {                            \
+                case EINTR: continue;                                            \
+                default: X_FATAL; X_RAISE(-1);                                   \
+            }                                                                    \
+            if(!nfds && timeout != -1) return 0;                                 \
             for(i=0; i < nfds; ++i) {                                            \
                 if(gx_unlikely(gx_event_data(NAME ## _events[i]) ==              \
                             (void *) &NAME ## _acceptor_fd)) {                   \
