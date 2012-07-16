@@ -122,7 +122,7 @@ static GX_INLINE void rb_wbe32(gx_rb *rb, uint32_t data) {
 
 static GX_INLINE void rb_wse32(gx_rb *rb, uint32_t data) {
     if(gx_unlikely(gx_is_big_endian())) {
-        X_LOG_ERROR("Small endian conversion not implemented.");
+        X_LOG_FATAL("Small endian conversion not implemented.");
         return;
     }
     rb_write(rb, &data, 4);

@@ -126,9 +126,9 @@ gx_pool_init(gx_tcp_sess);
     GX_INLINE int NAME ## _add_misc(int peer_fd, void *misc);                    \
     GX_INLINE int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
     GX_INLINE int NAME ## _wait(int timeout,                                     \
-            int (*misc_handler)(gx_tcp_sess *, uint32_t));                       \
-    GX_INLINE int NAME ## _abort_sess(gx_tcp_sess *sess);                        \
-    GX_INLINE int NAME ## _abort_sess2(gx_tcp_sess *sess,int);                   \
+                                int (*misc_handler)(gx_tcp_sess *, uint32_t));   \
+              int NAME ## _abort_sess(gx_tcp_sess *sess);                        \
+              int NAME ## _abort_sess2(gx_tcp_sess *sess,int);                   \
 
 #define gx_eventloop_implement(NAME, EXPECTED_SESSIONS, EVENTS_AT_A_TIME)        \
     struct GX_EVENT_STRUCT   NAME ## _events[EVENTS_AT_A_TIME];                  \
@@ -161,10 +161,10 @@ gx_pool_init(gx_tcp_sess);
         sess->rcvd_so_far      = 0;                                              \
         return gx_event_add(NAME ## _events_fd, peer_fd,(void *)sess);           \
     }                                                                            \
-    GX_INLINE int NAME ## _abort_sess(gx_tcp_sess *sess) {                       \
+    int NAME ## _abort_sess(gx_tcp_sess *sess) {                       \
         return _gx_close_sess(sess, NAME ## _sess_pool_inst, GX_ABORT, NAME ## _rb_pool); \
     }                                                                            \
-    GX_INLINE int NAME ## _abort_sess2(gx_tcp_sess *sess, int reason) {          \
+    int NAME ## _abort_sess2(gx_tcp_sess *sess, int reason) {          \
         return _gx_close_sess(sess, NAME ## _sess_pool_inst, reason, NAME ## _rb_pool);   \
     }                                                                            \
     /* TODO: <name>_add_misc possibly not needed at all */                       \
@@ -177,7 +177,6 @@ gx_pool_init(gx_tcp_sess);
         NAME ## _accept_handler = ahandler;                                      \
         return gx_event_add(NAME ## _events_fd, afd,                             \
                 (void *) & NAME ## _acceptor_fd);                                \
-      /*return NAME ## _add_sess(afd,(void *)&afd,NULL,GX_DEST_UNDEF,NULL,0,0);*/\
     }                                                                            \
                                                                                  \
     GX_INLINE int NAME ## _wait(int timeout,                                     \
