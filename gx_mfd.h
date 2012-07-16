@@ -227,8 +227,8 @@ typedef struct gx_mfd {
 gx_pool_init(gx_mfd);
 
 /// Some forward declarations
-static           int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
-static           int _gx_initial_mapping (gx_mfd *mfd);
+static __attribute__ ((unused)) int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
+static __attribute__ ((unused)) int _gx_initial_mapping (gx_mfd *mfd);
 static GX_INLINE int _gx_advise_map      (gx_mfd *mfd);
 static GX_INLINE int _gx_update_eof      (gx_mfd *mfd);
 static GX_INLINE int _gx_update_fpos     (gx_mfd *mfd);
@@ -242,7 +242,7 @@ static GX_INLINE int _gx_update_fpos     (gx_mfd *mfd);
  * memory is being sucked up (will help, at the expense of speed & processor
  * resources and slightly more churn earlier on).
  */
-static int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+static __attribute__ ((unused)) int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     #ifdef __LINUX__
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND | O_NOATIME | O_NOCTTY;
     #else
@@ -294,7 +294,7 @@ static int _gx_mfd_readloop(void *vmfd) {
     return 0;
 }
 
-static int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+static __attribute__ ((unused)) int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     int pipes[2];
     #ifdef __LINUX__
       int h_open_flags = O_RDWR   | O_NONBLOCK | O_NOATIME | O_NOCTTY;
