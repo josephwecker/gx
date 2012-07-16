@@ -163,11 +163,15 @@ static GX_INLINE int _gx_futex(int *f, int op, int val) {
     #endif
 }
 
-static GX_INLINE int gx_futex_wake(int *f) {
-    return _gx_futex(f, FUTEX_WAKE, 0xFFFF);
+static GX_INLINE int gx_futex_wake(uint64_t *f) {
+    #ifdef __LINUX__
+      return _gx_futex((int *)f, FUTEX_WAKE, 0xFFFF);
+    #else
+      return 0; // NOP
+    #endif
 }
 
-static GX_INLINE int gx_futex_wait(int *f, int curr_val) {
+static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
     // TODO, add a little timeout, just for kicks, so that it kind of
     // automatically has a (low frequency) spinlock-like mechanism in case the
     // futex messes up.
@@ -228,7 +232,7 @@ gx_pool_init(gx_mfd);
 
 /// Some forward declarations
 static           int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
-static GX_INLINE int _gx_initial_mapping (gx_mfd *mfd);
+static           int _gx_initial_mapping (gx_mfd *mfd);
 static GX_INLINE int _gx_advise_map      (gx_mfd *mfd);
 static GX_INLINE int _gx_update_eof      (gx_mfd *mfd);
 static GX_INLINE int _gx_update_fpos     (gx_mfd *mfd);
@@ -282,7 +286,7 @@ static int _gx_mfd_readloop(void *vmfd) {
     for(;;) {
         // TODO: remove X_WARN when appropriate...- got to keep this as
         // lightweight as possible to reduce stack size once it's been tested well.
-        Xs(res = gx_futex_wait((int *)&(mfd->head->size), (int)size)) {
+        Xs(res = gx_futex_wait((void *)&(mfd->head->size), (int)size)) {
             case EFAULT: X_FATAL; return -1;
             default:     X_WARN;  return 0;
         }
@@ -330,7 +334,7 @@ static int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
 }
 
 /// Will be just like remapping but afaict this is easier for now
-static GX_INLINE int _gx_initial_mapping(gx_mfd *mfd) {
+static int _gx_initial_mapping(gx_mfd *mfd) {
     struct stat filestat;
     off_t  fsz;
     int    protection = PROT_READ;
@@ -388,7 +392,7 @@ static GX_INLINE int mfd_write(gx_mfd *mfd, const void *buf, size_t len) {
     Xn(memcpy(mfd_w(mfd), buf, len)) X_RAISE(-1);
     mfd->off_w += len;
     mfd->head->size = mfd->off_w;
-    return gx_futex_wake((int *)&(mfd->head->size));
+    return gx_futex_wake(&(mfd->head->size));
 }
 
 
