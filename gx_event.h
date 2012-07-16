@@ -407,7 +407,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
         int      can_rcv_more;
         do {
             if(gx_unlikely(sess->peer_fd < 2)) {
-                X_LOG_FATAL("Somehow a closed peer got in the inner eventloop.");
+                X_LOG_WARN("Somehow a closed peer got in the inner eventloop.");
                 return;
             }
             can_rcv_more = 0;
