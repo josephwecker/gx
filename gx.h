@@ -53,7 +53,7 @@
   #include <sys/stat.h>
   #include <fcntl.h>
   #include <string.h>
-  #include <pthread.h> // For pool mutexes
+  #include <pthread.h> // For pool mutexes / gx_clone
   #include <sys/wait.h>
   #ifdef __LINUX__
     #include <syscall.h>
@@ -351,14 +351,14 @@
 
           if(gx_unlikely(!_gx_csp)) {
               // "Global" setup
-              Xn(_gx_csp = new__gx_clone_stack_pool(1)) {X_FATAL; X_RAISE(-1);}
+              Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
               struct sigaction sa;
               sigemptyset(&sa.sa_mask);
               sa.sa_flags = 0;
               sa.sa_handler = sigchld_clone_handler;
               X (sigaction(SIGCHLD, &sa, NULL)) {X_FATAL; X_RAISE(-1);}
           }
-          Xn(cstack = acquire__gx_clone_stack(_gx_csp)  ) {X_FATAL; X_RAISE(-1);}
+          Xn(cstack = acquire__gx_clone_stack(_gx_csp)) {X_FATAL; X_RAISE(-1);}
           cstack->child_fn = fn;
           cstack->child_fn_arg = arg;
           int cres;
@@ -367,6 +367,42 @@
           return cres;
       }
     #else
+      typedef struct _gx_clone_stack {
+          struct _gx_clone_stack  *_next, *_prev;
+          pthread_t                tid;
+          int                    (*child_fn)(void *);
+          void                    *child_fn_arg;
+          // NO EXPLICIT STACK FOR NOW IN GENERAL CASE
+      } __attribute__((aligned)) _gx_clone_stack;
+      gx_pool_init(_gx_clone_stack);
+      static _gx_clone_stack_pool *_gx_csp __attribute__ ((unused)) = NULL;
+
+      static void *_gx_clone_launch(void *arg) {
+          // Yes, a rather complex way to essentially change a void * callback
+          // into an int callback.
+          _gx_clone_stack *cs                      = (_gx_clone_stack *)arg;
+          int            (*local_child_fn)(void *) = cs->child_fn;
+          void            *local_child_fn_arg      = cs->child_fn_arg;
+          release__gx_clone_stack(_gx_csp, cs);
+
+          //-------- Actual callback
+          local_child_fn(local_child_fn_arg); // TODO: can't do much of anything with the return value...
+
+          return NULL;
+      }
+
+      static GX_INLINE int gx_clone(int (*fn)(void *), void *arg) {
+          pthread_t tid;
+          _gx_clone_stack *cstack; // Not really needed for the stack in this context, but for the callbacks
+          if(gx_unlikely(!_gx_csp))
+              Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
+
+          Xn(cstack = acquire__gx_clone_stack(_gx_csp)) {X_FATAL; X_RAISE(-1);}
+          cstack->child_fn = fn;
+          cstack->child_fn_arg = arg;
+          Xz(pthread_create(&tid, NULL, _gx_clone_launch, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
+          return 0;
+      }
         // exit(fn(arg)); // (in child)  wait- also release the stack here.
     #endif
 
