@@ -133,6 +133,11 @@
 #define Xm(expr) if( ({errno=0; (gx_unlikely((expr) == MAP_FAILED)) ?    \
     ({_GX_X(NULL,errno,2,NULL,__FILE__,__LINE__,__FUNCTION__,#expr);1;}):0;}))
 
+/// For functions that return zero on success, and errno on error
+#define Xz(expr) if( ({int _gx_tmp_errno=0; errno=0; (gx_unlikely((_gx_tmp_errno = (int)(expr)) != 0)) ? \
+    ({errno=_gx_tmp_errno; _GX_X(NULL,_gx_tmp_errno,2,NULL,__FILE__,__LINE__,__FUNCTION__,#expr);1;}):0;}))
+
+
 /// Checks for system errors, but drops you into a switch statement
 #define Xs(expr) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?       \
     ({_GX_X(NULL,errno,0,NULL,__FILE__,__LINE__,__FUNCTION__,#expr);1;}):0;})) \
