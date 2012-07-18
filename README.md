@@ -23,7 +23,7 @@ The general philosophy here is:
 Some of the important current modules:
 
 | Header        | Summary                                                                          |
-|===============|==================================================================================|
+| ------------- | -------------------------------------------------------------------------------- |
 | gx            | Lots of small stuff. Resource pools. Clone wrapper...                            |
 | gx\_error     | Awesome error handling/logging idioms & macros to make code look good.           |
 | gx\_event     | Very highly tuned event-loop. Like a faster and feature-reduced libev w/ special tcp tuning |
@@ -44,7 +44,7 @@ Some of the important current modules:
 Lesser modules:
 
 | Header        | Summary                                                                          |
-|===============|==================================================================================|
+| ------------- | -------------------------------------------------------------------------------- |
 | gx\_net       | Wrappers for common network/socket needs.                                        |
 | gx\_cpus      | (Semi)-portable wrapper for determining # of cpus, cpu-affiliation, timing, etc. |
 | gx\_endian    | Runtime-endianness detection and eventually a bunch of utilities...              |
