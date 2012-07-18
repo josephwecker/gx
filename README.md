@@ -1,14 +1,19 @@
-GX - Generic eXtra library
-===========================
+GX - Generic eXtra library for C
+=================================
 
-Some of the header files are generally awesome and may find general appeal.
-We're using lots of this in some mission-critical systems stuff at Justin.tv/Twitch.tv.
-Some of the header files are probably only interesting to me.
 This repository is public but "unknown" at the moment. I intend to blog about
 it / present it / submit to reddit & hacker news etc. later. If you're reading
 this, you're early.
 
-The general philosophy here is:
+Some of the header files are generally awesome and may find general appeal.
+
+We're using lots of this in some mission-critical systems stuff at Justin.tv/Twitch.tv.
+
+Some of the header files are probably only interesting to me.
+
+
+### General philosophy:
+
 * Optimized for Linux (2.6.33 +), but compiles/runs well enough on Mac OS.
 * Header-files only- no compiled libraries etc.
 * Interfaces generally laid out, but specific optimizations and sometimes
@@ -20,7 +25,7 @@ The general philosophy here is:
   to porting to other compilers as needed.
 * MIT licensed
 
-Some of the important current modules:
+### Some of the important current modules:
 
 | Header        | Summary                                                                          |
 | ------------- | -------------------------------------------------------------------------------- |
@@ -41,7 +46,7 @@ Some of the important current modules:
   implemented when a specific fd-fd combination is first needed, and then
   optimize later.
 
-Lesser modules:
+### Lesser modules:
 
 | Header        | Summary                                                                          |
 | ------------- | -------------------------------------------------------------------------------- |
