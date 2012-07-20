@@ -140,6 +140,44 @@
  */
 
 #include <gx/gx.h>
-#include "ae.h"
+//#include "ae.h"
+
+/*static int gx_initialize_nonce() {
+
+    return 0;
+}*/
 
 
+
+/// This will give high quality non-deterministic random data.
+/// BUT it may block a bit on Linux, so use it only where needed.
+static int _gx_devrandom_fd = -1;
+static int gx_dev_random(void *dest, size_t len) {
+    int     tries = 0;
+    ssize_t rcv_count;
+    if(gx_unlikely(len == 0 || dest == NULL)) {
+        errno = EINVAL;
+        return -1;
+    }
+init:
+    if(gx_unlikely(_gx_devrandom_fd == -1))
+        Xs( _gx_devrandom_fd = open("/dev/random", O_RDONLY)) {
+            case EINTR: goto init;
+            default:    X_RAISE(-1);
+        }
+exec:
+    Xs(rcv_count = read(_gx_devrandom_fd, dest, len)) {
+        case EINTR: goto exec;
+        default:    _gx_devrandom_fd = -1;
+                    if(tries++ < 2) goto init;
+                    else X_RAISE(-1);
+    }
+    if(rcv_count < len) {
+        if(tries++ < 2) goto exec;
+        else {
+            errno = EIO;
+            return -1;
+        }
+    }
+    return 0;
+}
