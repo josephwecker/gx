@@ -469,7 +469,8 @@ static GX_INLINE void log_inner(context *ctx, int level, size_t kv_argc, const c
     //sort of sketchy--we expect here that vsnprintf calls va_arg(argp) the right number of times
     //but works here and is the way the implementation works from what i've seen
     vsnprintf(message, MESSAGE_MAX, printf_str, argp);
-    snprintf(buffer, BUFFER_MAX, "%s%s%s", logger->color, message, C_N);
+    if (isatty(logger->handle)) snprintf(buffer, BUFFER_MAX, "%s%s%s", logger->color, message, C_N);
+    else snprintf(buffer, BUFFER_MAX, "%s", message);
     strncpy(message, buffer, MESSAGE_MAX);
     strncat(line, formats[logger->format].begin, LINE_MAX);
     snprintf(buffer, BUFFER_MAX, formats[logger->format].kvformat, "mesg", message);
@@ -525,27 +526,19 @@ static void _GX_ERROR_LOG(int severity) {
         }
         strncat(rp->function, expr_part, 255 - len_fun - 2);
 
-        if(full_flen <= 17) fname = rp->function;
-        else {
-            fname = rp->function + full_flen - 17;
-            fname[2] = fname[3] = '.';
-            fname[1] = rp->function[1];
-            fname[0] = rp->function[0];
-        }
-
         if (rp->sys_errno != 0) {
             log_inner(NULL, severity, 10, sys_errormsg, 
                 "levl", _gx_eloglvl[severity],
                 "name", _gx_ename[rp->sys_errno], 
                 "file", basename, 
-                "line", rp->linenum,
+                "line", rp->function,
                 "func", fname);
         } else {
             log_inner(NULL, severity, 8, sys_errormsg, 
                 "levl", _gx_eloglvl[severity],
                 "file", basename, 
                 "line", rp->linenum,
-                "func", fname);
+                "func", rp->function);
         }
     }
 }
