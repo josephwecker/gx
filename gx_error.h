@@ -507,7 +507,6 @@ static void _GX_ERROR_LOG(int severity) {
         char expr_part[20];
         char sys_errormsg[1024];
         //char final_logline[4096];
-        char *fname;
         _gx_get_basename(rp->filename, basename);
         _gx_get_expr_part(rp->expression, expr_part);
 
@@ -531,8 +530,8 @@ static void _GX_ERROR_LOG(int severity) {
                 "levl", _gx_eloglvl[severity],
                 "name", _gx_ename[rp->sys_errno], 
                 "file", basename, 
-                "line", rp->function,
-                "func", fname);
+                "line", rp->linenum,
+                "func", rp->function);
         } else {
             log_inner(NULL, severity, 8, sys_errormsg, 
                 "levl", _gx_eloglvl[severity],
