@@ -114,6 +114,8 @@
  *      anything like locking or other blocking operations.
  *  [ ] X_IGNORE as NOOP on error-check block to explicitely state that an
  *      error/warning there is not a problem but check the return value anyway.
+ *  [ ] Replace pragma GCC diagnostic ignored with function attributes as
+ *      appropriate.
  *
  */
 #ifndef GX_ERROR_H
