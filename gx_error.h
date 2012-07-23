@@ -70,6 +70,33 @@
  *  - discover: source function
  *
  *
+ * # Configuration Options
+ *  ### Custom Errors
+ *    Probably not high enough priority to implement quite yet.
+ *  ### Message Families
+ *    (for example)
+ *    - SYSTEM_FATAL        (FATAL)
+ *    - WORKER_FATAL        (FATAL)
+ *    - PROCESS_FATAL       (FATAL)
+ *    - SESSION_FATAL       (FATAL)
+ *    - CONNECTION_FATAL    (FATAL)
+ *    - IRRECOVERABLE_ERROR (ERROR)   (puts system in undefined state- probably becomes fatal)
+ *    - RECOVERABLE_ERROR   (ERROR)   (but someone still didn't get what they wanted)
+ *    - ALERTABLE_WARNING   (WARNING) (recovered, but please investigate immediately)
+ *    - AGGREGATED_WARNING  (WARNING) (volume of these informs analysis)
+ *    - SYSTEM_STATUS       (INFO)
+ *    - PRODUCER_STATUS     (INFO)    (for example)
+ *    - CONSUMER_STATUS     (INFO)    (for example)
+ *  ### Loggers
+ *    - Message families accepted
+ *    - Format
+ *    - Version
+ *    - Destination (filename, port, etc.)
+ *    - Initialization callback
+ *    - Handler callback
+ *    - Teardown callback
+ *    - Misc. logger-specific information
+ *
  *
  * TODO:
  *  [ ] Update the examples / documentation with all the new logging and any
@@ -84,7 +111,10 @@
  *  [ ] Get context thought through and implemented correctly. (And tested
  *      thoroughly in existing projects. Look at how ffmpeg/libav do it).
  *  [ ] Slightly more sophisticated colorschemes
- *  [ ] Plugin-able devices/formats/mechanisms/etc.
+ *  [ ] Plugin-able devices/formats/mechanisms/etc. - ideally truly pluginable
+ *      using a header file and separate compilation.
+ *  [ ] Better test w/ actual configurations etc.- from less to more
+ *      complicated.
  *  [ ] Runtime log-level detection.
  *  [ ] Verify that coloration only happens when appropriate (to a tty)
  *  [ ] Ability to turn off coloration in config and via env. variable.
