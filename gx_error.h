@@ -94,6 +94,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <unistd.h> /* TODO: pipe logger for atomic msgs to stdout */
+#include <sys/file.h>
 
 
 /// Place this somewhere in global scope
@@ -457,7 +458,7 @@ static log_format formats[] = {
 #define LINE_MAX 1024
 #define BUFFER_MAX 1024
 #define MESSAGE_MAX 512
-static GX_INLINE void log_inner(context *ctx, int level, size_t kv_argc, const char* printf_str, ...) {
+static void log_inner(context *ctx, int level, size_t kv_argc, const char* printf_str, ...) {
     unsigned int n;
     char line[LINE_MAX] = "";
     char buffer[BUFFER_MAX] = "";
@@ -471,10 +472,10 @@ static GX_INLINE void log_inner(context *ctx, int level, size_t kv_argc, const c
     vsnprintf(message, MESSAGE_MAX, printf_str, argp);
     if (isatty(logger->handle)) snprintf(buffer, BUFFER_MAX, "%s%s%s", logger->color, message, C_N);
     else snprintf(buffer, BUFFER_MAX, "%s", message);
-    strncpy(message, buffer, MESSAGE_MAX);
-    strncat(line, formats[logger->format].begin, LINE_MAX);
+    strncpy(message, buffer, MESSAGE_MAX - 1);
+    strncat(line, formats[logger->format].begin, LINE_MAX - 1);
     snprintf(buffer, BUFFER_MAX, formats[logger->format].kvformat, "mesg", message);
-    strncat(line, buffer, LINE_MAX - strlen(line));
+    strncat(line, buffer, LINE_MAX - strlen(line) - 1);
     for (n = 0; n < kv_argc; n += 2) {
         const char* key   = va_arg(argp, const char*);
         const char* value = va_arg(argp, const char*);
@@ -495,8 +496,9 @@ static GX_INLINE void log_inner(context *ctx, int level, size_t kv_argc, const c
     strncat(line, formats[logger->format].end, LINE_MAX - strlen(line));
 
     flock(logger->handle, LOCK_EX);
-    write(logger->handle, line, strlen(line));
-    write(logger->handle, "\n", 1);
+    X(write(logger->handle, line, strlen(line))) goto write_done;
+    X(write(logger->handle, "\n", 1)) goto write_done;
+write_done:
     flock(logger->handle, LOCK_UN);
 }
 
