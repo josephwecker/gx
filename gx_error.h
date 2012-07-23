@@ -7,7 +7,8 @@
  * For example:
  *     gx_error_initialize(GX_DEBUG);
  *
- * @author    Joseph A Wecker
+ * @author    Joseph A Wecker <joseph.wecker@gmail.com>
+ * @author    Jeff Garneau
  * @copyright
  *   Except where otherwise noted, Copyright (C) 2012 Joseph A Wecker
  *
