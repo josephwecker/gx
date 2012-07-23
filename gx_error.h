@@ -33,59 +33,88 @@
  *   DEALINGS IN THE SOFTWARE.
  *
  *
+ * ### System Error
+ * Allows for arbitrary actions, flow control, and logging. If logging for an
+ * error (or raising) is envoked, it gathers the following information before
+ * passing control to the main log-record constructor.
+ *  - discover: errno-based label
+ *  - discover: errno-based error message
+ *  - implicit: msg-type (usually severity)
+ *  - discover: source expression (usually cut up so it's just the function called)
+ *  - discover: stack trace information
+ *  - discover: linkages to any upstream log-records that are related
+ *
+ * ### Custom Error
+ * Uses negative return values as errors, which it reverses and looks up in a
+ * user-defined table before essentially creating the same parts of the data as
+ * System Error (when logging is envoked):
+ *  - lookup-user: custom config-based label
+ *  - lookup-user: custom config-based error message
+ *  - implicit: msg-type (usually severity)
+ *  - discover: source expression (usually cut up a bit)
+ *  - discover: stack trace information
+ *  - discover: linkages to any upstream log-records that are related
+ *
+ * ### Log Command
+ * Invoked independently, it has the following information:
+ *  - implicit: msg-type
+ *  - supplied: custom message
+ *  - supplied: ... ad-hoc key/value pairs ...
+ *
+ * ### LOG-RECORD-CONSTRUCTOR
+ * The following are automatically added to all log messages coming from the
+ * three sources above:
+ *  - supplied: context, if defined
+ *  - discover: source file
+ *  - discover: source line
+ *  - discover: source function
+ *
+ *
  *
  * TODO:
- *  [ ] gx_elog allowed to accept another qualifier (similar to how perror is
- *      usually used)
- *  [ ] Configuration or maybe even runtime log-level detection.
- *  [ ] Configuration or env flag for colors
- *  [ ] Only emit colorcodes when stderr is going to a terminal
- *  [ ] Separate color terminal printing macros into gx_tty or something
- *  [ ] Send to pipe so that messages are atomic in multi-worker situations
- *  [ ] Macro wraps up macro specific stuff quickly and uses a function for
- *      the rest, reducing size and increasing speed due to instruction
- *      cache.
- *  [ ] Look up and display the error names instead of numbers (ala linux
- *      programming book)
- *  [ ] E_RAISE should propagate (possibly) some current-location information
- *      - link together so a problem can be dug into deeper.
- *  [ ] Some quick macros: D(...) and GOT_HERE for quick spot debugging
- *  [ ] Add __function__ to the data collected
- *  [ ] Indicate verbosity of the error - per message or runtime setting or
- *      compile setting.
- *  [ ] Ability to hook in other logging mechanisms
- *  [ ] (somehow) Better message alignment
- *  [ ] Contexts, ala libav/ffmpeg
- *  [ ] (possibly not necessary) - call stack info
- *  [ ] Fix info color- more green
+ *  [ ] Update the examples / documentation with all the new logging and any
+ *      updated error handling.
+ *  [ ] Memoize-cache gx_error_curr_report stuff instead of requiring the
+ *      initial init (especially since it's currently required for _anything_
+ *      that includes gx.h) (i.e., no more GX_ERROR_INITIALIZE();)
+ *  [ ] Prefix a bunch of the constants etc. so that they don't accidentally
+ *      pollute an apps namespace.
+ *  [ ] External configuration and compile-time culling
+ *  [ ] Configurable log-level-types
+ *  [ ] Get context thought through and implemented correctly. (And tested
+ *      thoroughly in existing projects. Look at how ffmpeg/libav do it).
+ *  [ ] Slightly more sophisticated colorschemes
+ *  [ ] Plugin-able devices/formats/mechanisms/etc.
+ *  [ ] Runtime log-level detection.
+ *  [ ] Verify that coloration only happens when appropriate (to a tty)
+ *  [ ] Ability to turn off coloration in config and via env. variable.
+ *  [ ] Refactor ansi terminal stuff (gx_tty?)
+ *  [ ] Script in ext or something to automatically update unix error code
+ *      strings.
+ *  [ ] UDP based log destination / device implementation
+ *  [ ] Actually queue up several log-messages when RAISE is issued and
+ *      correctly display them at the toplevel's discretion. May involve
+ *      correctly resetting the rotating struct or correctly linking them. Also
+ *      means the error message needs to be generated- just placed elsewhere.
+ *  [ ] Verbosity levels in config/runtime...
+ *  [ ] Better tty driver with good column alignment (possibly by doing its own
+ *      scan in the build process... crazy but doable...)
+ *  [ ] Call-stack information when appropriate
+ *  [ ] Ensure that errorno and other parts are robust against multi-threaded
+ *      abuse and interrupt reentrance etc.
+ *  [ ] Consider ffmpeg/libav style error returns- allowing user-defined
+ *      unix-fault like constants (e.g.,  EBADNAME etc.)- in other words, if
+ *      a function wants to return a somewhat standard error that doesn't have
+ *      a unix equivalent, return, for example, -4, and have 4 mapped to the
+ *      desired error-type/string. -1 of course would rely on perror etc.
+ *  [ ] Consider using carefully placed longjumps instead of normal calls in
+ *      order to avoid changing callstacks.
+ *  [ ] Consider passing all log messages to a logger running in its own
+ *      thread / lightweight clone, at least whenever there's going to be
+ *      anything like locking or other blocking operations.
+ *  [ ] X_IGNORE as NOOP on error-check block to explicitely state that an
+ *      error/warning there is not a problem but check the return value anyway.
  *
- *   compile-time-reporting-level
- *   runtime-reporting-level
- *   logging-mechanism/file
- *
- *    __FUNCTION__
- *    __LINE__
- *    __FILE__
- *    expression
- *    errorno
- *      actual-constant-name
- *      os-defined-message
- *    user error-message
- *
- *    severity
- *
- *    actions
- *      logging
- *      control-flow
- *
- *      (ideally have these as a block instead of the current weird syntax)
- *
- *
- *  - GX_ERROR_INITIALIZE(); - global macro for initializing global variables
- *    etc. so they can be declared extern in the header.
- *  - E_RAISE action should put the log message that would have been printed
- *    onto a special stack.
- *  
  */
 #ifndef GX_ERROR_H
 #define GX_ERROR_H
@@ -300,7 +329,9 @@ extern int             gx_error_loglevel;
 #define __STR2(x) #x
 #define __STR(x) __STR2(x)
 
-//a trick to get the number of args passed to a variadic macro
+/// A trick to get the number of args passed to a variadic macro
+/// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
+/// @todo   Abstract this back into gx.h and rename so it's generally usable
 #define PP_NARG(...) \
          PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
 #define PP_NARG_(...) \
