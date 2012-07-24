@@ -142,6 +142,20 @@
 #include <gx/gx.h>
 //#include "ae.h"
 
+
+
+/**
+ * GUID:
+ *  initialize once:
+ *    - gx_node_uid   --> unique per network configuration (mac addrs / ip addrs)
+ *    - gx_dev_random --> some intrinsic randomness for vm rollbacks
+ *    - pid
+ *    - thread-id
+ *    - cpu-timestamp
+ *
+ */
+
+
 /*static int gx_initialize_nonce() {
 
     return 0;
@@ -181,3 +195,21 @@ exec:
     }
     return 0;
 }
+
+#if __INTEL_COMPILER
+  #define GX_CPUSTAMP ((unsigned)__rdtsc())
+#elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
+  #define GX_CPUSTAMP ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
+#elif (_M_IX86)
+  #include <intrin.h>
+  #pragma intrinsic(__rdtsc)
+  #define GX_CPUSTAMP ((unsigned)__rdtsc())
+#else
+  #error Architechture not supported! No native construct for rdtsc
+#endif
+
+
+
+//static uint64_t gx_cputime() {
+
+//}

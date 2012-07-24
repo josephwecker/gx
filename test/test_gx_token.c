@@ -20,6 +20,9 @@ int main(int argc, char **argv) {
     X (gx_node_uid(nuid)) X_ERROR;
     X_LOG_INFO("Returned network UID (pass 2): %s", nuid);
 
+    uint64_t ts;
+    X_LOG_INFO("CPU timestamp: %llX", GX_CPUSTAMP);
+    X_LOG_INFO("CPU timestamp: %llX", GX_CPUSTAMP);
 
     return 0;
 }
