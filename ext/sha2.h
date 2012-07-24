@@ -128,65 +128,65 @@ typedef SHA512_CTX SHA384_CTX;
 #ifndef NOPROTO
 #ifdef SHA2_USE_INTTYPES_H
 
-static void SHA256_Init(SHA256_CTX *);
-static void SHA256_Update(SHA256_CTX*, const uint8_t*, size_t);
-static void SHA256_Final(uint8_t[SHA256_DIGEST_LENGTH], SHA256_CTX*);
-static char* SHA256_End(SHA256_CTX*, char[SHA256_DIGEST_STRING_LENGTH]);
-static char* SHA256_Data(const uint8_t*, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA256_Init(SHA256_CTX *);
+static GX_OPTIONAL void SHA256_Update(SHA256_CTX*, const uint8_t*, size_t);
+static GX_OPTIONAL void SHA256_Final(uint8_t[SHA256_DIGEST_LENGTH], SHA256_CTX*);
+static GX_OPTIONAL char* SHA256_End(SHA256_CTX*, char[SHA256_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA256_Data(const uint8_t*, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
 
-static void SHA384_Init(SHA384_CTX*);
-static void SHA384_Update(SHA384_CTX*, const uint8_t*, size_t);
-static void SHA384_Final(uint8_t[SHA384_DIGEST_LENGTH], SHA384_CTX*);
-static char* SHA384_End(SHA384_CTX*, char[SHA384_DIGEST_STRING_LENGTH]);
-static char* SHA384_Data(const uint8_t*, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA384_Init(SHA384_CTX*);
+static GX_OPTIONAL void SHA384_Update(SHA384_CTX*, const uint8_t*, size_t);
+static GX_OPTIONAL void SHA384_Final(uint8_t[SHA384_DIGEST_LENGTH], SHA384_CTX*);
+static GX_OPTIONAL char* SHA384_End(SHA384_CTX*, char[SHA384_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA384_Data(const uint8_t*, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
 
-static void SHA512_Init(SHA512_CTX*);
-static void SHA512_Update(SHA512_CTX*, const uint8_t*, size_t);
-static void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
-static char* SHA512_End(SHA512_CTX*, char[SHA512_DIGEST_STRING_LENGTH]);
-static char* SHA512_Data(const uint8_t*, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA512_Init(SHA512_CTX*);
+static GX_OPTIONAL void SHA512_Update(SHA512_CTX*, const uint8_t*, size_t);
+static GX_OPTIONAL void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
+static GX_OPTIONAL char* SHA512_End(SHA512_CTX*, char[SHA512_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA512_Data(const uint8_t*, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
 
 #else /* SHA2_USE_INTTYPES_H */
 
-static void SHA256_Init(SHA256_CTX *);
-static void SHA256_Update(SHA256_CTX*, const u_int8_t*, size_t);
-static void SHA256_Final(u_int8_t[SHA256_DIGEST_LENGTH], SHA256_CTX*);
-static char* SHA256_End(SHA256_CTX*, char[SHA256_DIGEST_STRING_LENGTH]);
-static char* SHA256_Data(const u_int8_t*, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA256_Init(SHA256_CTX *);
+static GX_OPTIONAL void SHA256_Update(SHA256_CTX*, const u_int8_t*, size_t);
+static GX_OPTIONAL void SHA256_Final(u_int8_t[SHA256_DIGEST_LENGTH], SHA256_CTX*);
+static GX_OPTIONAL char* SHA256_End(SHA256_CTX*, char[SHA256_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA256_Data(const u_int8_t*, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
 
-static void SHA384_Init(SHA384_CTX*);
-static void SHA384_Update(SHA384_CTX*, const u_int8_t*, size_t);
-static void SHA384_Final(u_int8_t[SHA384_DIGEST_LENGTH], SHA384_CTX*);
-static char* SHA384_End(SHA384_CTX*, char[SHA384_DIGEST_STRING_LENGTH]);
-static char* SHA384_Data(const u_int8_t*, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA384_Init(SHA384_CTX*);
+static GX_OPTIONAL void SHA384_Update(SHA384_CTX*, const u_int8_t*, size_t);
+static GX_OPTIONAL void SHA384_Final(u_int8_t[SHA384_DIGEST_LENGTH], SHA384_CTX*);
+static GX_OPTIONAL char* SHA384_End(SHA384_CTX*, char[SHA384_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA384_Data(const u_int8_t*, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
 
-static void SHA512_Init(SHA512_CTX*);
-static void SHA512_Update(SHA512_CTX*, const u_int8_t*, size_t);
-static void SHA512_Final(u_int8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
-static char* SHA512_End(SHA512_CTX*, char[SHA512_DIGEST_STRING_LENGTH]);
-static char* SHA512_Data(const u_int8_t*, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL void SHA512_Init(SHA512_CTX*);
+static GX_OPTIONAL void SHA512_Update(SHA512_CTX*, const u_int8_t*, size_t);
+static GX_OPTIONAL void SHA512_Final(u_int8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
+static GX_OPTIONAL char* SHA512_End(SHA512_CTX*, char[SHA512_DIGEST_STRING_LENGTH]);
+static GX_OPTIONAL char* SHA512_Data(const u_int8_t*, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
 
 #endif /* SHA2_USE_INTTYPES_H */
 
 #else /* NOPROTO */
 
-static void SHA256_Init();
-static void SHA256_Update();
-static void SHA256_Final();
-static char* SHA256_End();
-static char* SHA256_Data();
+static GX_OPTIONAL void SHA256_Init();
+static GX_OPTIONAL void SHA256_Update();
+static GX_OPTIONAL void SHA256_Final();
+static GX_OPTIONAL char* SHA256_End();
+static GX_OPTIONAL char* SHA256_Data();
 
-static void SHA384_Init();
-static void SHA384_Update();
-static void SHA384_Final();
-static char* SHA384_End();
-static char* SHA384_Data();
+static GX_OPTIONAL void SHA384_Init();
+static GX_OPTIONAL void SHA384_Update();
+static GX_OPTIONAL void SHA384_Final();
+static GX_OPTIONAL char* SHA384_End();
+static GX_OPTIONAL char* SHA384_Data();
 
-static void SHA512_Init();
-static void SHA512_Update();
-static void SHA512_Final();
-static char* SHA512_End();
-static char* SHA512_Data();
+static GX_OPTIONAL void SHA512_Init();
+static GX_OPTIONAL void SHA512_Update();
+static GX_OPTIONAL void SHA512_Final();
+static GX_OPTIONAL char* SHA512_End();
+static GX_OPTIONAL char* SHA512_Data();
 
 #endif /* NOPROTO */
 
@@ -411,14 +411,14 @@ typedef u_int64_t sha2_word64;	/* Exactly 8 bytes */
  * library -- they are intended for private internal visibility/use
  * only.
  */
-static void SHA512_Last(SHA512_CTX*);
-static void SHA256_Transform(SHA256_CTX*, const sha2_word32*);
-static void SHA512_Transform(SHA512_CTX*, const sha2_word64*);
+static GX_OPTIONAL void SHA512_Last(SHA512_CTX*);
+static GX_OPTIONAL void SHA256_Transform(SHA256_CTX*, const sha2_word32*);
+static GX_OPTIONAL void SHA512_Transform(SHA512_CTX*, const sha2_word64*);
 
 
 /*** SHA-XYZ INITIAL HASH VALUES AND CONSTANTS ************************/
 /* Hash constant words K for SHA-256: */
-const static sha2_word32 K256[64] = {
+const static GX_OPTIONAL sha2_word32 K256[64] = {
 	0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL,
 	0x3956c25bUL, 0x59f111f1UL, 0x923f82a4UL, 0xab1c5ed5UL,
 	0xd807aa98UL, 0x12835b01UL, 0x243185beUL, 0x550c7dc3UL,
@@ -438,7 +438,7 @@ const static sha2_word32 K256[64] = {
 };
 
 /* Initial hash value H for SHA-256: */
-const static sha2_word32 sha256_initial_hash_value[8] = {
+const static GX_OPTIONAL sha2_word32 sha256_initial_hash_value[8] = {
 	0x6a09e667UL,
 	0xbb67ae85UL,
 	0x3c6ef372UL,
@@ -450,7 +450,7 @@ const static sha2_word32 sha256_initial_hash_value[8] = {
 };
 
 /* Hash constant words K for SHA-384 and SHA-512: */
-const static sha2_word64 K512[80] = {
+const static GX_OPTIONAL sha2_word64 K512[80] = {
 	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL,
 	0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
 	0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL,
@@ -494,7 +494,7 @@ const static sha2_word64 K512[80] = {
 };
 
 /* Initial hash value H for SHA-384 */
-const static sha2_word64 sha384_initial_hash_value[8] = {
+const static GX_OPTIONAL sha2_word64 sha384_initial_hash_value[8] = {
 	0xcbbb9d5dc1059ed8ULL,
 	0x629a292a367cd507ULL,
 	0x9159015a3070dd17ULL,
@@ -506,7 +506,7 @@ const static sha2_word64 sha384_initial_hash_value[8] = {
 };
 
 /* Initial hash value H for SHA-512 */
-const static sha2_word64 sha512_initial_hash_value[8] = {
+const static GX_OPTIONAL sha2_word64 sha512_initial_hash_value[8] = {
 	0x6a09e667f3bcc908ULL,
 	0xbb67ae8584caa73bULL,
 	0x3c6ef372fe94f82bULL,
@@ -521,11 +521,11 @@ const static sha2_word64 sha512_initial_hash_value[8] = {
  * Constant used by SHA256/384/512_End() functions for converting the
  * digest to a readable hexadecimal character string:
  */
-static const char *sha2_hex_digits = "0123456789abcdef";
+static const GX_OPTIONAL char *sha2_hex_digits = "0123456789abcdef";
 
 
 /*** SHA-256: *********************************************************/
-static void SHA256_Init(SHA256_CTX* context) {
+static GX_OPTIONAL void SHA256_Init(SHA256_CTX* context) {
 	if (context == (SHA256_CTX*)0) {
 		return;
 	}
@@ -571,7 +571,7 @@ static void SHA256_Init(SHA256_CTX* context) {
 	(h) = T1 + Sigma0_256(a) + Maj((a), (b), (c)); \
 	j++
 
-static void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
+static GX_OPTIONAL void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
 	sha2_word32	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word32	T1, *W256;
 	int		j;
@@ -629,7 +629,7 @@ static void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
 
 #else /* SHA2_UNROLL_TRANSFORM */
 
-static void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
+static GX_OPTIONAL void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
 	sha2_word32	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word32	T1, T2, *W256;
 	int		j;
@@ -709,7 +709,7 @@ static void SHA256_Transform(SHA256_CTX* context, const sha2_word32* data) {
 
 #endif /* SHA2_UNROLL_TRANSFORM */
 
-static void SHA256_Update(SHA256_CTX* context, const sha2_byte *data, size_t len) {
+static GX_OPTIONAL void SHA256_Update(SHA256_CTX* context, const sha2_byte *data, size_t len) {
 	unsigned int	freespace, usedspace;
 
 	if (len == 0) {
@@ -757,7 +757,7 @@ static void SHA256_Update(SHA256_CTX* context, const sha2_byte *data, size_t len
 	usedspace = freespace = 0;
 }
 
-static void SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
+static GX_OPTIONAL void SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
 	sha2_word32	*d = (sha2_word32*)digest;
 	unsigned int	usedspace;
 
@@ -820,7 +820,7 @@ static void SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
 	usedspace = 0;
 }
 
-static char *SHA256_End(SHA256_CTX* context, char buffer[]) {
+static GX_OPTIONAL char *SHA256_End(SHA256_CTX* context, char buffer[]) {
 	sha2_byte	digest[SHA256_DIGEST_LENGTH], *d = digest;
 	int		i;
 
@@ -843,7 +843,7 @@ static char *SHA256_End(SHA256_CTX* context, char buffer[]) {
 	return buffer;
 }
 
-static char* SHA256_Data(const sha2_byte* data, size_t len, char digest[SHA256_DIGEST_STRING_LENGTH]) {
+static GX_OPTIONAL char* SHA256_Data(const sha2_byte* data, size_t len, char digest[SHA256_DIGEST_STRING_LENGTH]) {
 	SHA256_CTX	context;
 
 	SHA256_Init(&context);
@@ -853,7 +853,7 @@ static char* SHA256_Data(const sha2_byte* data, size_t len, char digest[SHA256_D
 
 
 /*** SHA-512: *********************************************************/
-static void SHA512_Init(SHA512_CTX* context) {
+static GX_OPTIONAL void SHA512_Init(SHA512_CTX* context) {
 	if (context == (SHA512_CTX*)0) {
 		return;
 	}
@@ -898,7 +898,7 @@ static void SHA512_Init(SHA512_CTX* context) {
 	(h) = T1 + Sigma0_512(a) + Maj((a), (b), (c)); \
 	j++
 
-static void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
+static GX_OPTIONAL void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word64	T1, *W512 = (sha2_word64*)context->buffer;
 	int		j;
@@ -953,7 +953,7 @@ static void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 
 #else /* SHA2_UNROLL_TRANSFORM */
 
-static void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
+static GX_OPTIONAL void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word64	T1, T2, *W512 = (sha2_word64*)context->buffer;
 	int		j;
@@ -1031,7 +1031,7 @@ static void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 
 #endif /* SHA2_UNROLL_TRANSFORM */
 
-static void SHA512_Update(SHA512_CTX* context, const sha2_byte *data, size_t len) {
+static GX_OPTIONAL void SHA512_Update(SHA512_CTX* context, const sha2_byte *data, size_t len) {
 	unsigned int	freespace, usedspace;
 
 	if (len == 0) {
@@ -1079,7 +1079,7 @@ static void SHA512_Update(SHA512_CTX* context, const sha2_byte *data, size_t len
 	usedspace = freespace = 0;
 }
 
-static void SHA512_Last(SHA512_CTX* context) {
+static GX_OPTIONAL void SHA512_Last(SHA512_CTX* context) {
 	unsigned int	usedspace;
 
 	usedspace = (context->bitcount[0] >> 3) % SHA512_BLOCK_LENGTH;
@@ -1120,7 +1120,7 @@ static void SHA512_Last(SHA512_CTX* context) {
 	SHA512_Transform(context, (sha2_word64*)context->buffer);
 }
 
-static void SHA512_Final(sha2_byte digest[], SHA512_CTX* context) {
+static GX_OPTIONAL void SHA512_Final(sha2_byte digest[], SHA512_CTX* context) {
 	sha2_word64	*d = (sha2_word64*)digest;
 
 	/* Sanity check: */
@@ -1149,7 +1149,7 @@ static void SHA512_Final(sha2_byte digest[], SHA512_CTX* context) {
 	MEMSET_BZERO(context, sizeof(context));
 }
 
-static char *SHA512_End(SHA512_CTX* context, char buffer[]) {
+static GX_OPTIONAL char *SHA512_End(SHA512_CTX* context, char buffer[]) {
 	sha2_byte	digest[SHA512_DIGEST_LENGTH], *d = digest;
 	int		i;
 
@@ -1172,7 +1172,7 @@ static char *SHA512_End(SHA512_CTX* context, char buffer[]) {
 	return buffer;
 }
 
-static char* SHA512_Data(const sha2_byte* data, size_t len, char digest[SHA512_DIGEST_STRING_LENGTH]) {
+static GX_OPTIONAL char *SHA512_Data(const sha2_byte* data, size_t len, char digest[SHA512_DIGEST_STRING_LENGTH]) {
 	SHA512_CTX	context;
 
 	SHA512_Init(&context);
@@ -1182,7 +1182,7 @@ static char* SHA512_Data(const sha2_byte* data, size_t len, char digest[SHA512_D
 
 
 /*** SHA-384: *********************************************************/
-static void SHA384_Init(SHA384_CTX* context) {
+static GX_OPTIONAL void SHA384_Init(SHA384_CTX* context) {
 	if (context == (SHA384_CTX*)0) {
 		return;
 	}
@@ -1191,11 +1191,11 @@ static void SHA384_Init(SHA384_CTX* context) {
 	context->bitcount[0] = context->bitcount[1] = 0;
 }
 
-static void SHA384_Update(SHA384_CTX* context, const sha2_byte* data, size_t len) {
+static GX_OPTIONAL void SHA384_Update(SHA384_CTX* context, const sha2_byte* data, size_t len) {
 	SHA512_Update((SHA512_CTX*)context, data, len);
 }
 
-static void SHA384_Final(sha2_byte digest[], SHA384_CTX* context) {
+static GX_OPTIONAL void SHA384_Final(sha2_byte digest[], SHA384_CTX* context) {
 	sha2_word64	*d = (sha2_word64*)digest;
 
 	/* Sanity check: */
@@ -1224,7 +1224,7 @@ static void SHA384_Final(sha2_byte digest[], SHA384_CTX* context) {
 	MEMSET_BZERO(context, sizeof(context));
 }
 
-static char *SHA384_End(SHA384_CTX* context, char buffer[]) {
+static GX_OPTIONAL char *SHA384_End(SHA384_CTX* context, char buffer[]) {
 	sha2_byte	digest[SHA384_DIGEST_LENGTH], *d = digest;
 	int		i;
 
@@ -1247,7 +1247,7 @@ static char *SHA384_End(SHA384_CTX* context, char buffer[]) {
 	return buffer;
 }
 
-static char* SHA384_Data(const sha2_byte* data, size_t len, char digest[SHA384_DIGEST_STRING_LENGTH]) {
+static GX_OPTIONAL char* SHA384_Data(const sha2_byte* data, size_t len, char digest[SHA384_DIGEST_STRING_LENGTH]) {
 	SHA384_CTX	context;
 
 	SHA384_Init(&context);

@@ -222,8 +222,8 @@ do_file_write:
 }
 
 #ifdef __LINUX__
-static __attribute__ ((unused)) int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
-static __attribute__ ((unused)) int zc_devnull_fd = -1;
+static GX_OPTIONAL int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
+static GX_OPTIONAL int zc_devnull_fd = -1;
 #endif
 
 /// Discard len bytes from a socket. Who would have thought it would be so much

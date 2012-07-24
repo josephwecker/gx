@@ -104,6 +104,7 @@
         #define  GX_INLINE   inline __attribute__((always_inline))
       #endif
     #endif
+    #define    GX_OPTIONAL    __attribute__((unused))
   #else
     #ifndef    gx_likely
       #define  gx_likely(x)   (x)
@@ -286,7 +287,7 @@
    * gx_pagesize                   - Gets OS kernel page size
    * Yeah, needs to coordinate somewhat w/ a config file or something...
    *---------------------------------------------------------------------------*/
-  static int _GXPS __attribute__ ((unused)) = 0;
+  static int _GXPS GX_OPTIONAL = 0;
 
   #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
     #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
@@ -323,7 +324,7 @@
       } __attribute__((aligned)) _gx_clone_stack;
 
       gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp __attribute__ ((unused)) = NULL;
+      static _gx_clone_stack_pool *_gx_csp GX_OPTIONAL = NULL;
 
       static void sigchld_clone_handler(int sig) {
           int status, saved_errno;
@@ -375,7 +376,7 @@
           // NO EXPLICIT STACK FOR NOW IN GENERAL CASE
       } __attribute__((aligned)) _gx_clone_stack;
       gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp __attribute__ ((unused)) = NULL;
+      static _gx_clone_stack_pool *_gx_csp GX_OPTIONAL = NULL;
 
       static void *_gx_clone_launch(void *arg) {
           // Yes, a rather complex way to essentially change a void * callback

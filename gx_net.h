@@ -126,7 +126,7 @@ static GX_INLINE int gx_node_uid(char *buf) {
             }
           #else
             if ((ifa->ifa_addr->sa_family == AF_LINK) && ifa->ifa_addr) {
-                sockaddr_dl* sdl = (sockaddr_dl*)cur->ifa_addr;
+                struct sockaddr_dl* sdl = (struct sockaddr_dl*)ifa->ifa_addr;
                 memcpy(rawdat + len, LLADDR(sdl), sdl->sdl_alen);
                 len += sdl->sdl_alen;
                 rawdat[len++] = '|';
@@ -148,6 +148,7 @@ static GX_INLINE int gx_node_uid(char *buf) {
         }
         rawdat[len] = '\0';
         freeifaddrs(ifaddr);
+        gx_hexdump(rawdat, len);
         SHA256_Data((sha2_byte *)rawdat, len, _gx_node_uid_memoized);
         _gx_node_uid_memoized[GX_NODE_UID_LEN-1] = '\0';
         _gx_node_uid_is_memoized = 1;
