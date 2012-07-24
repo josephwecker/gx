@@ -140,20 +140,75 @@
  */
 
 #include <gx/gx.h>
+#include <gx/gx_net.h>
 //#include "ae.h"
 
 
+/// Will have to fetch more random data after this many nonces have been generated.
+#define _GX_RPSIZE 128
 
-/**
- * GUID:
- *  initialize once:
- *    - gx_node_uid   --> unique per network configuration (mac addrs / ip addrs)
- *    - gx_dev_random --> some intrinsic randomness for vm rollbacks
- *    - pid
- *    - thread-id
- *    - cpu-timestamp
- *
- */
+typedef struct gx_nonce_machine {
+    uint64_t          rand1;                    ///< Entropic random data as part of the signature
+    char              node_uid[GX_NODE_UID_LEN];///< Unique per network config (ip-addrs + hdwr-addrs)
+    uint64_t          ts1;                      ///< CPU timestamp when first allocated
+    int               tid;                      ///< Result of gettid - like pid but unique when threaded
+    volatile uint64_t counter;                  ///< Our final bit of information- atomically incremented
+
+    uint8_t           rand_pool[_GX_RPSIZE];    ///< Used for increment values
+    int               rand_pool_pos;            ///< Points to current randpool pos
+} gx_nonce_machine;
+
+
+static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
+    43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113,
+    127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197,
+    199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
+    283, 293, 307, 311, 313, 317, 331, 313};
+
+#if __INTEL_COMPILER
+  #define GX_CPU_TS ((unsigned)__rdtsc())
+#elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
+  #define GX_CPU_TS ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
+#elif (_M_IX86)
+  #include <intrin.h>
+  #pragma intrinsic(__rdtsc)
+  #define GX_CPU_TS ((unsigned)__rdtsc())
+#else
+  #error Architechture not supported! No native construct for rdtsc
+#endif
+
+/// Forward Declarations
+static int gx_nonce_init(gx_nonce_machine *nm);
+static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm);
+static int gx_dev_random(void *dest, size_t len, int is_strict);
+static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
+static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
+
+
+static int gx_nonce_init(gx_nonce_machine *nm) {
+    X (gx_node_uid  (nm->node_uid)                            ) X_RAISE(-1);
+    X (gx_dev_random(&(nm->rand1),  sizeof(nm->rand1),     1) ) X_RAISE(-1);
+    X (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0) ) X_RAISE(-1);
+    nm->ts1 = GX_CPU_TS;
+    #ifdef __LINUX__
+      nm->tid = syscall(SYS_gettid);
+    #else
+      nm->tid = syscall(SYS_thread_selfid);
+    #endif
+    nm->counter = 0;
+    return 0;
+}
+
+static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm) {
+    /*uint8_t      rnd   = nm->rand_pool[nm->rand_pool_pos++];
+    unsigned int incby = _gx_misc_primes[rnd & 0x3f] * ((rnd & 0xc0) >> 6);
+
+    if(gx_unlikely(nm->rand_pool_pos >= _GX_RPSIZE)) {
+        // TODO: Suck in some more random data and reset pos (non-strict)
+    }*/
+
+    return 0;
+}
 
 
 /*static int gx_initialize_nonce() {
@@ -216,19 +271,6 @@ exec:
     return 0;
 }
 
-#if __INTEL_COMPILER
-  #define GX_CPUSTAMP ((unsigned)__rdtsc())
-#elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
-  #define GX_CPUSTAMP ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
-#elif (_M_IX86)
-  #include <intrin.h>
-  #pragma intrinsic(__rdtsc)
-  #define GX_CPUSTAMP ((unsigned)__rdtsc())
-#else
-  #error Architechture not supported! No native construct for rdtsc
-#endif
-
-
 /**
  * gx_base64_urlencode_m3()
  *
@@ -253,4 +295,84 @@ static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insiz
     }
     outp[0] = '\0';
     return outp + 1 - outdata;
+}
+
+
+/// Very fast 64 bit hash of misc data with good properties. Only works on 64-bit machines.
+/// Based on CrapWow64 - http://www.team5150.com/~andrew/noncryptohashzoo/CrapWow64.html
+/// Unknown license.
+static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
+    const uint64_t m = 0x95b47aa3355ba1a1, n = 0x8a970be7488fda55;
+    uint64_t hash;
+    // 3 = m, 4 = n
+    // r12 = h, r13 = k, ecx = seed, r12 = key
+    asm(
+        "leaq (%%rcx,%4), %%r13\n"
+        "movq %%rdx, %%r14\n"
+        "movq %%rcx, %%r15\n"
+        "movq %%rcx, %%r12\n"
+        "addq %%rax, %%r13\n"
+        "andq $0xfffffffffffffff0, %%rcx\n"
+        "jz QW%=\n"
+        "addq %%rcx, %%r14\n\n"
+        "negq %%rcx\n"
+    "XW%=:\n"
+        "movq %4, %%rax\n"
+        "mulq (%%r14,%%rcx)\n"
+        "xorq %%rax, %%r12\n"
+        "xorq %%rdx, %%r13\n"
+        "movq %3, %%rax\n"
+        "mulq 8(%%r14,%%rcx)\n"
+        "xorq %%rdx, %%r12\n"
+        "xorq %%rax, %%r13\n"
+        "addq $16, %%rcx\n"
+        "jnz XW%=\n"
+    "QW%=:\n"
+        "movq %%r15, %%rcx\n"
+        "andq $8, %%r15\n"
+        "jz B%=\n"
+        "movq %4, %%rax\n"
+        "mulq (%%r14)\n"
+        "addq $8, %%r14\n"
+        "xorq %%rax, %%r12\n"
+        "xorq %%rdx, %%r13\n"
+    "B%=:\n"
+        "andq $7, %%rcx\n"
+        "jz F%=\n"
+        "movq $1, %%rdx\n"
+        "shlq $3, %%rcx\n"
+        "movq %3, %%rax\n"
+        "shlq %%cl, %%rdx\n"
+        "addq $-1, %%rdx\n"
+        "andq (%%r14), %%rdx\n"
+        "mulq %%rdx\n"
+        "xorq %%rdx, %%r12\n"
+        "xorq %%rax, %%r13\n"
+    "F%=:\n"
+        "leaq (%%r13,%4), %%rax\n"
+        "xorq %%r12, %%rax\n"
+        "mulq %4\n"
+        "xorq %%rdx, %%rax\n"
+        "xorq %%r12, %%rax\n"
+        "xorq %%r13, %%rax\n"
+        : "=a"(hash), "=c"(key), "=d"(key)
+        : "r"(m), "r"(n), "a"(seed), "c"(len), "d"(key)
+        : "%r12", "%r13", "%r14", "%r15", "cc");
+    return hash;
+/*#elif !defined(INTEL)
+   #define cwfold(a, b, lo, hi) { p = (uint64_t)(a) * (u128)(b); lo ^= (uint64_t)p; hi ^= (uint64_t)(p >> 64); }
+   #define cwmixa( in ) { cwfold( in, m, k, h ); }
+   #define cwmixb( in ) { cwfold( in, n, h, k ); }
+
+    const uint64_t *key8 = (const uint64_t *)key;
+    uint64_t h = len, k = len + seed + n;
+    u128 p;
+
+    while ( len >= 16 ) { cwmixb(key8[0]) cwmixa(key8[1]) key8 += 2; len -= 16; }
+    if ( len >= 8 ) { cwmixb(key8[0]) key8 += 1; len -= 8; }
+    if ( len ) { cwmixa( key8[0] & ( ( (uint64_t)1 << ( len * 8 ) ) - 1 ) ) }
+    cwmixb( h ^ (k + n) )
+        return k ^ h;
+#endif
+*/
 }
