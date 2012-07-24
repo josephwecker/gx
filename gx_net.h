@@ -1,3 +1,6 @@
+/**
+ * @todo  binary version of gx_node_uid
+ */
 #ifndef GX_NET_H
 #define GX_NET_H
 
