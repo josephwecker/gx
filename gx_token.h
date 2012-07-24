@@ -164,9 +164,11 @@
 
 
 /// This will give high quality non-deterministic random data.
-/// BUT it may block a bit on Linux, so use it only where needed.
-static int _gx_devrandom_fd = -1;
-static int gx_dev_random(void *dest, size_t len) {
+/// BUT it may block a bit on Linux, so use it only where needed or set
+/// is_strict to false.
+static int _gx_devrandom_fd  = -1;
+static int _gx_devurandom_fd = -1;
+static int gx_dev_random(void *dest, size_t len, int is_strict) {
     int     tries = 0;
     ssize_t rcv_count;
     if(gx_unlikely(len == 0 || dest == NULL)) {
@@ -175,23 +177,41 @@ static int gx_dev_random(void *dest, size_t len) {
     }
 init:
     if(gx_unlikely(_gx_devrandom_fd == -1))
-        Xs( _gx_devrandom_fd = open("/dev/random", O_RDONLY)) {
+        Xs( _gx_devrandom_fd = open("/dev/random", O_RDONLY | O_NONBLOCK)) {
+            case EINTR: goto init;
+            default:    X_RAISE(-1);
+        }
+    if(gx_unlikely(is_strict && (_gx_devurandom_fd == -1)))
+        Xs( _gx_devurandom_fd = open("/dev/urandom", O_RDONLY)) {
             case EINTR: goto init;
             default:    X_RAISE(-1);
         }
 exec:
     Xs(rcv_count = read(_gx_devrandom_fd, dest, len)) {
-        case EINTR: goto exec;
-        default:    _gx_devrandom_fd = -1;
-                    if(tries++ < 2) goto init;
-                    else X_RAISE(-1);
+        case EINTR:   goto exec;
+        case EAGAIN:  if(is_strict) {
+                          if(tries++ < 4) {
+                              gx_sleep(0,100);
+                              goto exec;
+                          } else {errno = EAGAIN; return -1;}
+                      } else {
+                          Xs(rcv_count = read(_gx_devurandom_fd, dest, len)) {
+                              case EINTR: goto exec;
+                              default:    close(_gx_devurandom_fd);
+                                          _gx_devurandom_fd = -1;
+                                          if(tries++ < 2) goto init;
+                                          else X_RAISE(-1);
+                          }
+                      }
+                      break;
+        default:      close(_gx_devrandom_fd);
+                      _gx_devrandom_fd = -1;
+                      if(tries++ < 2) goto init;
+                      else X_RAISE(-1);
     }
     if(rcv_count < len) {
         if(tries++ < 2) goto exec;
-        else {
-            errno = EIO;
-            return -1;
-        }
+        else {errno = EIO; return -1;}
     }
     return 0;
 }

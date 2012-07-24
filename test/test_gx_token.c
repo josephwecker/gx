@@ -9,9 +9,9 @@ int main(int argc, char **argv) {
     uint64_t r3;
     char nuid[GX_NODE_UID_LEN] = "";
 
-    X (gx_dev_random(&r1, sizeof(r1))) X_ERROR;
-    X (gx_dev_random(&r2, sizeof(r2))) X_ERROR;
-    X (gx_dev_random(&r3, sizeof(r3))) X_ERROR;
+    X (gx_dev_random(&r1, sizeof(r1), 1)) X_ERROR;
+    X (gx_dev_random(&r2, sizeof(r2), 1)) X_ERROR;
+    X (gx_dev_random(&r3, sizeof(r3), 0)) X_ERROR;
 
     X_LOG_INFO("Some true randomness: r1: %x | r2: %x | r3: %llx", r1, r2, r3);
 
