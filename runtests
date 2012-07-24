@@ -6,7 +6,7 @@
 
 set -e
 mkdir -p ./tmp
-CARGS="-Wall -ggdb -O0 -I ../ -o tmp/tst"
+CARGS="-Wall -ggdb -O2 -I ../ -o tmp/tst"
 echo "---> Testing gx_pagesize (in gx.h)"
 gcc $CARGS test/test_pagesize.c && tmp/tst
 echo ""
