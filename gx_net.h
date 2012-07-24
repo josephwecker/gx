@@ -8,9 +8,11 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <gx/gx.h>
+#include <gx/ext/sha2.h>
 
 
 static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {
@@ -90,60 +92,69 @@ static GX_INLINE int gx_net_daemonize(void) {
 }
 
 
-#if 0
-static char _gx_node_agg_id_memoized[12] = {'\0'};
+#ifdef __LINUX__
+#include <sys/ioctl.h>
+#include <net/if.h>
+#else
+#include <net/if_dl.h>
+#endif
 
-static GX_INLINE int gx_node_agg_id(char *buf, size_t len) {
-    if(gx_likely(_gx_node_agg_id_memoized[0])) {
-        memcpy
-    }
+#define GX_NODE_UID_LEN (SHA256_DIGEST_STRING_LENGTH+1)
+static char _gx_node_uid_memoized[GX_NODE_UID_LEN] = "";
+static int  _gx_node_uid_is_memoized = 0;
 
+static GX_INLINE int gx_node_uid(char *buf) {
+    if(gx_unlikely(!_gx_node_uid_is_memoized)) {
+        char             rawdat[1024];
+        size_t           len = 0;
+        struct ifaddrs  *ifaddr, *ifa;
 
-    struct ifaddrs *ifaddr, *ifa;
-    int family, s;
-    char host[NI_MAXHOST];
+        X_LOG_DEBUG("Constructing node uid for the first time.");
+        X (getifaddrs(&ifaddr)) X_RAISE(-1);
+        for(ifa=ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+          #ifdef __LINUX__
+            struct ifreq ifinfo;
+            int sd, res;
+            strcpy(ifinfo.ifr_name, ifa->ifa_name);
+            X (sd = socket(AF_INET, SOCK_DGRAM, 0)   ) X_WARN;
+            X (res= ioctl(sd, SIOCGIFHWADDR, &ifinfo)) X_WARN;
+            close(sd);
 
-    if (getifaddrs(&ifaddr) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Walk through linked list, maintaining head pointer so we
-       can free list later */
-
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL)
-            continue;
-
-        family = ifa->ifa_addr->sa_family;
-
-        /* Display interface name and family (including symbolic
-           form of the latter for the common families) */
-
-        printf("%s  address family: %d%s\n",
-                ifa->ifa_name, family,
-                //(family == AF_PACKET) ? " (AF_PACKET)" :
-                (family == AF_INET) ?   " (AF_INET)" :
-                (family == AF_INET6) ?  " (AF_INET6)" : "");
-
-        /* For an AF_INET* interface address, display the address */
-
-        if (family == AF_INET || family == AF_INET6) {
-            s = getnameinfo(ifa->ifa_addr,
-                    (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                    sizeof(struct sockaddr_in6),
-                    host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-            if (s != 0) {
-                printf("getnameinfo() failed: %s\n", gai_strerror(s));
-                exit(EXIT_FAILURE);
+            if ((res == 0) && (ifinfo.ifr_hwaddr.sa_family == 1)) {
+                memcpy(rawdat + len, ifinfo.ifr_hwaddr.sa_data, IFHWADDRLEN);
+                len += IFHWADDRLEN;
             }
-            printf("\taddress: <%s>\n", host);
-        }
-    }
+          #else
+            if ((ifa->ifa_addr->sa_family == AF_LINK) && ifa->ifa_addr) {
+                sockaddr_dl* sdl = (sockaddr_dl*)cur->ifa_addr;
+                memcpy(rawdat + len, LLADDR(sdl), sdl->sdl_alen);
+                len += sdl->sdl_alen;
+                rawdat[len++] = '|';
+            }
+          #endif
 
-    freeifaddrs(ifaddr);
+            int family = ifa->ifa_addr->sa_family;
+            if(family == AF_INET) {
+                size_t sz = 4;
+                memcpy(rawdat + len,
+                        &(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr.s_addr), sz);
+                len += sz;
+            } else if(family == AF_INET6) {
+                size_t sz = 16;
+                memcpy(rawdat + len,
+                        &(((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_addr.s6_addr), sz);
+                len += sz;
+            }
+        }
+        rawdat[len] = '\0';
+        freeifaddrs(ifaddr);
+        SHA256_Data((sha2_byte *)rawdat, len, _gx_node_uid_memoized);
+        _gx_node_uid_memoized[GX_NODE_UID_LEN-1] = '\0';
+        _gx_node_uid_is_memoized = 1;
+    }
+    memcpy(buf, _gx_node_uid_memoized, GX_NODE_UID_LEN);
     return 0;
 }
-#endif
+
 
 #endif
