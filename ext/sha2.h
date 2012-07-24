@@ -39,6 +39,7 @@
 extern "C" {
 #endif
 
+#define SHA2_USE_INTTYPES_H 1
 
 /*
  * Import u_intXX_t size_t type definitions from system headers.  You
@@ -1253,30 +1254,6 @@ static char* SHA384_Data(const sha2_byte* data, size_t len, char digest[SHA384_D
 	SHA384_Update(&context, data, len);
 	return SHA384_End(&context, digest);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #ifdef	__cplusplus
 }
