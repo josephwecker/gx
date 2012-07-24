@@ -229,7 +229,28 @@ exec:
 #endif
 
 
-
-//static uint64_t gx_cputime() {
-
-//}
+/**
+ * gx_base64_urlencode_m3()
+ *
+ * Encodes inp into outp, optimized for inputs that are multiples of 3 in
+ * length. Be sure that outp is allocated to be at least
+ * GX_BASE64_SIZE(sizeof(input_data));
+ *
+ */
+static const GX_OPTIONAL char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+#define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
+static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+    const char *inp  = (const char *)indata;
+    char       *outp = outdata;
+    if(gx_unlikely(insize % 3 != 0)) {errno = EINVAL; return -1;}
+    while(inp < (const char *)(indata + insize)) {
+        outp[0] = _gx_t64[((inp[0] & 0xFC) >> 2) ];
+        outp[1] = _gx_t64[((inp[0] & 0x03) << 4) | ((inp[1] & 0xF0) >> 4)];
+        outp[2] = _gx_t64[((inp[1] & 0x0F) << 2) | ((inp[2] & 0xC0) >> 6)];
+        outp[3] = _gx_t64[ (inp[2] & 0x3F)       ];
+        inp += 3;
+        outp += 4;
+    }
+    outp[0] = '\0';
+    return outp + 1 - outdata;
+}

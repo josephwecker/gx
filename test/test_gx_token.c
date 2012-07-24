@@ -20,9 +20,15 @@ int main(int argc, char **argv) {
     X (gx_node_uid(nuid)) X_ERROR;
     X_LOG_INFO("Returned network UID (pass 2): %s", nuid);
 
-    uint64_t ts;
     X_LOG_INFO("CPU timestamp: %llX", GX_CPUSTAMP);
     X_LOG_INFO("CPU timestamp: %llX", GX_CPUSTAMP);
+
+    char     thedata[] = {0x12,0xff,0x31,0x12,0x90,0x05,0x74,0x12,0x75,0x19,0x02,0x12};
+    #define  b64_len GX_BASE64_SIZE(sizeof(thedata))
+    char     thedata_b64[b64_len];
+    ssize_t  out_len;
+    X (out_len = gx_base64_urlencode_m3(thedata, sizeof(thedata), thedata_b64)) X_ERROR;
+    X_LOG_INFO("Base64-encoded data (%llu/%llu): %s", out_len, b64_len, thedata_b64);
 
     return 0;
 }
