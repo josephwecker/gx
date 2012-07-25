@@ -378,13 +378,13 @@ typedef u_int64_t sha2_word64;	/* Exactly 8 bytes */
 /*
  * Bit shifting and rotation (used by the six SHA-XYZ logical functions:
  *
- *   NOTE:  The naming of R and S appears backwards here (R is a SHIFT and
+ *   NOTE:  The naming of RSH and S appears backwards here (RSH is a SHIFT and
  *   S is a ROTATION) because the SHA-256/384/512 description document
  *   (see http://csrc.nist.gov/cryptval/shs/sha256-384-512.pdf) uses this
  *   same "backwards" definition.
  */
 /* Shift-right (used in SHA-256, SHA-384, and SHA-512): */
-#define R(b,x) 		((x) >> (b))
+#define RSH(b,x) 		((x) >> (b))
 /* 32-bit Rotate-right (used in SHA-256): */
 #define S32(b,x)	(((x) >> (b)) | ((x) << (32 - (b))))
 /* 64-bit Rotate-right (used in SHA-384 and SHA-512): */
@@ -397,14 +397,14 @@ typedef u_int64_t sha2_word64;	/* Exactly 8 bytes */
 /* Four of six logical functions used in SHA-256: */
 #define Sigma0_256(x)	(S32(2,  (x)) ^ S32(13, (x)) ^ S32(22, (x)))
 #define Sigma1_256(x)	(S32(6,  (x)) ^ S32(11, (x)) ^ S32(25, (x)))
-#define sigma0_256(x)	(S32(7,  (x)) ^ S32(18, (x)) ^ R(3 ,   (x)))
-#define sigma1_256(x)	(S32(17, (x)) ^ S32(19, (x)) ^ R(10,   (x)))
+#define sigma0_256(x)	(S32(7,  (x)) ^ S32(18, (x)) ^ RSH(3 ,   (x)))
+#define sigma1_256(x)	(S32(17, (x)) ^ S32(19, (x)) ^ RSH(10,   (x)))
 
 /* Four of six logical functions used in SHA-384 and SHA-512: */
 #define Sigma0_512(x)	(S64(28, (x)) ^ S64(34, (x)) ^ S64(39, (x)))
 #define Sigma1_512(x)	(S64(14, (x)) ^ S64(18, (x)) ^ S64(41, (x)))
-#define sigma0_512(x)	(S64( 1, (x)) ^ S64( 8, (x)) ^ R( 7,   (x)))
-#define sigma1_512(x)	(S64(19, (x)) ^ S64(61, (x)) ^ R( 6,   (x)))
+#define sigma0_512(x)	(S64( 1, (x)) ^ S64( 8, (x)) ^ RSH( 7,   (x)))
+#define sigma1_512(x)	(S64(19, (x)) ^ S64(61, (x)) ^ RSH( 6,   (x)))
 
 /*** INTERNAL FUNCTION PROTOTYPES *************************************/
 /* NOTE: These should not be accessed directly from outside this
@@ -418,7 +418,7 @@ static GX_OPTIONAL void SHA512_Transform(SHA512_CTX*, const sha2_word64*);
 
 /*** SHA-XYZ INITIAL HASH VALUES AND CONSTANTS ************************/
 /* Hash constant words K for SHA-256: */
-const static GX_OPTIONAL sha2_word32 K256[64] = {
+static const GX_OPTIONAL sha2_word32 K256[64] = {
 	0x428a2f98UL, 0x71374491UL, 0xb5c0fbcfUL, 0xe9b5dba5UL,
 	0x3956c25bUL, 0x59f111f1UL, 0x923f82a4UL, 0xab1c5ed5UL,
 	0xd807aa98UL, 0x12835b01UL, 0x243185beUL, 0x550c7dc3UL,
@@ -438,7 +438,7 @@ const static GX_OPTIONAL sha2_word32 K256[64] = {
 };
 
 /* Initial hash value H for SHA-256: */
-const static GX_OPTIONAL sha2_word32 sha256_initial_hash_value[8] = {
+static const GX_OPTIONAL sha2_word32 sha256_initial_hash_value[8] = {
 	0x6a09e667UL,
 	0xbb67ae85UL,
 	0x3c6ef372UL,
@@ -450,7 +450,7 @@ const static GX_OPTIONAL sha2_word32 sha256_initial_hash_value[8] = {
 };
 
 /* Hash constant words K for SHA-384 and SHA-512: */
-const static GX_OPTIONAL sha2_word64 K512[80] = {
+static const GX_OPTIONAL sha2_word64 K512[80] = {
 	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL,
 	0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
 	0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL,
@@ -494,7 +494,7 @@ const static GX_OPTIONAL sha2_word64 K512[80] = {
 };
 
 /* Initial hash value H for SHA-384 */
-const static GX_OPTIONAL sha2_word64 sha384_initial_hash_value[8] = {
+static const GX_OPTIONAL sha2_word64 sha384_initial_hash_value[8] = {
 	0xcbbb9d5dc1059ed8ULL,
 	0x629a292a367cd507ULL,
 	0x9159015a3070dd17ULL,
@@ -506,7 +506,7 @@ const static GX_OPTIONAL sha2_word64 sha384_initial_hash_value[8] = {
 };
 
 /* Initial hash value H for SHA-512 */
-const static GX_OPTIONAL sha2_word64 sha512_initial_hash_value[8] = {
+static const GX_OPTIONAL sha2_word64 sha512_initial_hash_value[8] = {
 	0x6a09e667f3bcc908ULL,
 	0xbb67ae8584caa73bULL,
 	0x3c6ef372fe94f82bULL,
