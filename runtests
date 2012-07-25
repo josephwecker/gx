@@ -39,7 +39,7 @@ echo ""
 echo "---> Testing tokens some more- looking for nonce collisions"
 gcc $CARGS test/test_nonce_collision.c
 echo "(Slow because of 'sort'. You should see the following after a little while: 4000000 1)"
-./tmp/tst | sort --parallel=4 | uniq -c | tr -s ' ' ' ' | cut -d' ' -f2 | sort -n | uniq -c
+./tmp/tst | sort | uniq -c | tr -s ' ' ' ' | cut -d' ' -f2 | sort -n | uniq -c
 echo "---> Now checking performance for 4,000,000 globally unique nonces being generated"
 time ./tmp/tst > /dev/null
 #echo ""
