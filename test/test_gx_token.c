@@ -1,7 +1,6 @@
 #include <gx/gx.h>
 #include <gx/gx_net.h>
 #include <gx/gx_token.h>
-#include <pthread.h>
 
 gx_error_initialize(GX_DEBUG);
 
@@ -37,7 +36,33 @@ int main(int argc, char **argv) {
     char blahblah[] = "alahblah.";
     X_LOG_DEBUG("hash of 'alahblah.': %llx", gx_hash64(blahblah, sizeof(blahblah), 0));
 
+    gx_nonce_machine nm;
+    X (gx_nonce_init(&nm, 0)) X_ERROR;
 
+
+    X_LOG_DEBUG("\nrand1:      %llx\n"
+                  "node_uid:   %s\n"
+                  "ts1:        %llx\n"
+                  "tid:        %u\n\n"
+                  "ident_hash: %llx\n"
+                  "rand2:      %02x|%02x|%02x|%02x\n",
+                nm.ident.rand1,
+                nm.ident.node_uid,
+                nm.ident.ts1,
+                nm.ident.tid,
+                nm.nonce.ident_hash,
+                nm.nonce.rand2[0], nm.nonce.rand2[1], nm.nonce.rand2[2], nm.nonce.rand2[3]);
+
+    //gx_hexdump(&(nm.nonce), sizeof(nm.nonce));
+
+    char nonce[12];
+    char nonce_base64[GX_BASE64_SIZE(12)];
+    int i;
+    for(i=0; i<10; i++) {
+        X (gx_nonce_next(&nm, nonce)) X_ERROR;
+        X (gx_base64_urlencode_m3(nonce, 12, nonce_base64)) X_ERROR;
+        X_LOG_INFO("Nonce #%d: %s", i, nonce_base64);
+    }
 
     return 0;
 }

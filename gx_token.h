@@ -137,25 +137,47 @@
  * would only leak information if the attacker had plaintexts for the tokens
  * that had the repeated nonce.
  *
- */
+ *///--------------------------------------------------------------------------
 
 #include <gx/gx.h>
 #include <gx/gx_net.h>
 //#include "ae.h"
 
-
+//-----------------------------------------------------------------------------
 /// Will have to fetch more random data after this many nonces have been generated.
-#define _GX_RPSIZE 128
+#define _GX_RPSIZE 256
 
-typedef struct gx_nonce_machine {
-    uint64_t          rand1;                    ///< Entropic random data as part of the signature
+//-----------------------------------------------------------------------------
+typedef struct _gx_nm_identcomps {
+    uint32_t          rand1;                    ///< Entropic random data as part of the signature
     char              node_uid[GX_NODE_UID_LEN];///< Unique per network config (ip-addrs + hdwr-addrs)
     uint64_t          ts1;                      ///< CPU timestamp when first allocated
     int               tid;                      ///< Result of gettid - like pid but unique when threaded
-    volatile uint64_t counter;                  ///< Our final bit of information- atomically incremented
 
-    uint8_t           rand_pool[_GX_RPSIZE];    ///< Used for increment values
-    int               rand_pool_pos;            ///< Points to current randpool pos
+} _gx_nm_identcomps;
+
+typedef union __attribute__((__packed__)) _gx_nonce {
+    // Perspective as final nonce:
+    volatile char         as_bytes[12];         ///< 12-byte nonce final value
+
+    // Perspective when intializing:
+    struct __attribute__((__packed__)) {
+        uint64_t          ident_hash;           ///< 64-bit compression of the above fields
+        uint8_t           rand2[4];             ///< Essentially the counter's starting position
+    };
+
+    // Perspective when atomically incrementing:
+    struct __attribute__((__packed__)) {
+        uint32_t          top_part;             ///< First 4 bytes of nonce don't change
+        volatile uint64_t counter;              ///< Counter that overlaps w/ ident-hash
+    };
+} _gx_nonce;
+
+typedef struct gx_nonce_machine {
+    _gx_nm_identcomps     ident;                ///< Help us to be pretty darn unique
+    volatile _gx_nonce    nonce;                ///< Actual current value
+    uint8_t               rand_pool[_GX_RPSIZE];///< Used for increment values
+    int                   rand_pool_pos;        ///< Points to current randpool pos
 } gx_nonce_machine;
 
 
@@ -165,6 +187,7 @@ static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
     199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
     283, 293, 307, 311, 313, 317, 331, 313};
 
+//-----------------------------------------------------------------------------
 #if __INTEL_COMPILER
   #define GX_CPU_TS ((unsigned)__rdtsc())
 #elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
@@ -177,47 +200,79 @@ static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
   #error Architechture not supported! No native construct for rdtsc
 #endif
 
+//-----------------------------------------------------------------------------
 /// Forward Declarations
-static int gx_nonce_init(gx_nonce_machine *nm);
-static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm);
-static int gx_dev_random(void *dest, size_t len, int is_strict);
-static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
+static           int      gx_nonce_init(gx_nonce_machine *nm, int hardened);
+static GX_INLINE int      gx_nonce_next(gx_nonce_machine *nm, char *buf);
+
+static           int      gx_dev_random(void *dest, size_t len, int is_strict);
+static GX_INLINE ssize_t  gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
 static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
 
 
-static int gx_nonce_init(gx_nonce_machine *nm) {
-    X (gx_node_uid  (nm->node_uid)                            ) X_RAISE(-1);
-    X (gx_dev_random(&(nm->rand1),  sizeof(nm->rand1),     1) ) X_RAISE(-1);
-    X (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0) ) X_RAISE(-1);
-    nm->ts1 = GX_CPU_TS;
-    #ifdef __LINUX__
-      nm->tid = syscall(SYS_gettid);
-    #else
-      nm->tid = syscall(SYS_thread_selfid);
-    #endif
-    nm->counter = 0;
+//-----------------------------------------------------------------------------
+static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
+    memset(nm, 0, sizeof(nm));
+    X (gx_node_uid  (nm->ident.node_uid)                                    ) X_RAISE(-1);
+    X (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) X_RAISE(-1);
+    X (gx_dev_random(nm->rand_pool,      sizeof(nm->rand_pool),   0)        ) X_RAISE(-1);
+    // The following are direct syscalls so that glibc etc. doesn't cache the values.
+  #ifdef __LINUX__
+    X (nm->ident.tid     = syscall(SYS_gettid)) X_RAISE(-1);
+  #else
+    X (nm->ident.tid     = syscall(SYS_thread_selfid)) X_RAISE(-1);
+  #endif
+    nm->ident.ts1        = GX_CPU_TS;
+    nm->nonce.rand2[0]   = nm->rand_pool[0];
+    nm->nonce.rand2[1]   = nm->rand_pool[1];
+    nm->nonce.rand2[2]   = nm->rand_pool[2];
+    nm->nonce.rand2[3]   = nm->rand_pool[3];
+    nm->nonce.ident_hash = gx_hash64((void *)&(nm->ident), sizeof(nm->ident), (uint64_t)nm->rand_pool[4]);
+    nm->rand_pool_pos    = 5;
     return 0;
 }
 
-static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm) {
-    /*uint8_t      rnd   = nm->rand_pool[nm->rand_pool_pos++];
-    unsigned int incby = _gx_misc_primes[rnd & 0x3f] * ((rnd & 0xc0) >> 6);
+
+//-----------------------------------------------------------------------------
+/// Defaulting to 12 byte nonces at the moment.
+static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
+    _gx_nonce res;
+
+    // Double checking for tid changes doesn't seem to add much overhead at
+    // all, so keeping it here for now to avoid collisions when the same
+    // gx_nonce_machine instance is initialized _before_ forking /
+    // thread-spawning. Feel free to remove this part for a small speed boost
+    // if you're absolutely certain that the nonce-machine is initialized
+    // _after_ any forking/cloning/spawning.
+    int new_tid;
+  #ifdef __LINUX__
+    X (new_tid = syscall(SYS_gettid)) X_RAISE(-1);
+  #else
+    X (new_tid = syscall(SYS_thread_selfid)) X_RAISE(-1);
+  #endif
+    if(gx_unlikely(new_tid != nm->ident.tid)) {
+        nm->ident.tid = new_tid;
+        nm->nonce.ident_hash = gx_hash64((void *)&(nm->ident), sizeof(nm->ident), (uint64_t)nm->rand_pool[4]);
+    }
 
     if(gx_unlikely(nm->rand_pool_pos >= _GX_RPSIZE)) {
-        // TODO: Suck in some more random data and reset pos (non-strict)
-    }*/
+        X (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0)) X_RAISE(-1);
+        nm->rand_pool_pos = 0;
+    }
 
+    uint8_t      rnd   = nm->rand_pool[nm->rand_pool_pos++];
+    unsigned int incby = _gx_misc_primes[rnd & 0x3f] * (((rnd & 0xc0) >> 6) + 1);
+
+    res.top_part = nm->nonce.top_part;
+    res.counter  = __sync_add_and_fetch(&nm->nonce.counter, incby);
+
+    memcpy(buf, (char *)res.as_bytes, sizeof(res.as_bytes));
     return 0;
 }
 
 
-/*static int gx_initialize_nonce() {
 
-    return 0;
-}*/
-
-
-
+//-----------------------------------------------------------------------------
 /// This will give high quality non-deterministic random data.
 /// BUT it may block a bit on Linux, so use it only where needed or set
 /// is_strict to false.
@@ -236,7 +291,7 @@ init:
             case EINTR: goto init;
             default:    X_RAISE(-1);
         }
-    if(gx_unlikely(is_strict && (_gx_devurandom_fd == -1)))
+    if(gx_unlikely(!is_strict && (_gx_devurandom_fd == -1)))
         Xs( _gx_devurandom_fd = open("/dev/urandom", O_RDONLY)) {
             case EINTR: goto init;
             default:    X_RAISE(-1);
@@ -245,11 +300,12 @@ exec:
     Xs(rcv_count = read(_gx_devrandom_fd, dest, len)) {
         case EINTR:   goto exec;
         case EAGAIN:  if(is_strict) {
-                          if(tries++ < 4) {
-                              gx_sleep(0,100);
+                          if(tries++ < 10) {
+                              gx_sleep(2,100);
                               goto exec;
                           } else {errno = EAGAIN; return -1;}
                       } else {
+                          X_LOG_WARN("Getting subpar random numbers.");
                           Xs(rcv_count = read(_gx_devurandom_fd, dest, len)) {
                               case EINTR: goto exec;
                               default:    close(_gx_devurandom_fd);
@@ -271,6 +327,7 @@ exec:
     return 0;
 }
 
+//-----------------------------------------------------------------------------
 /**
  * gx_base64_urlencode_m3()
  *
@@ -290,17 +347,18 @@ static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insiz
         outp[1] = _gx_t64[((inp[0] & 0x03) << 4) | ((inp[1] & 0xF0) >> 4)];
         outp[2] = _gx_t64[((inp[1] & 0x0F) << 2) | ((inp[2] & 0xC0) >> 6)];
         outp[3] = _gx_t64[ (inp[2] & 0x3F)       ];
-        inp += 3;
-        outp += 4;
+        inp    += 3;
+        outp   += 4;
     }
     outp[0] = '\0';
     return outp + 1 - outdata;
 }
 
 
+//-----------------------------------------------------------------------------
 /// Very fast 64 bit hash of misc data with good properties. Only works on 64-bit machines.
 /// Based on CrapWow64 - http://www.team5150.com/~andrew/noncryptohashzoo/CrapWow64.html
-/// Unknown license.
+/// Unknown license. It has close to ideal lack of collisions and speed.
 static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
     const uint64_t m = 0x95b47aa3355ba1a1, n = 0x8a970be7488fda55;
     uint64_t hash;
