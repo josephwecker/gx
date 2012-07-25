@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     X (gx_nonce_init(&nm, 0)) X_ERROR;
     fork();
     int i;
-    for(i=0; i<1000000; i++) {
+    for(i=0; i<100000; i++) {
         X (gx_nonce_next(&nm, nonce)) {X_FATAL; X_EXIT;}
         X (gx_base64_urlencode_m3(nonce, 12, nonce_base64)) {X_FATAL; X_EXIT;}
         flockfile(stdout);
