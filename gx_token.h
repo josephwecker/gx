@@ -6,6 +6,9 @@
  * Ideally it should cache everything it can. Possibly even cache the
  * clock-tick and reuse by all threads/processes.
  *
+ * @todo  gx_nonce_next_base64 combo function to skip all those intermediates.
+ * @todo  fix the node_uid so that it's binary to speed up initialization.
+ *
  *
  * WARNING: This isn't a standalone header yet. At the moment it requires
  * ae.h and something to be compiled against it, which in turn usually needs
@@ -138,6 +141,8 @@
  * that had the repeated nonce.
  *
  *///--------------------------------------------------------------------------
+#ifndef GX_TOKEN_H
+#define GX_TOKEN_H
 
 #include <gx/gx.h>
 #include <gx/gx_net.h>
@@ -146,6 +151,13 @@
 //-----------------------------------------------------------------------------
 /// Will have to fetch more random data after this many nonces have been generated.
 #define _GX_RPSIZE 256
+
+
+//-----------------------------------------------------------------------------
+/// Helpers for getting structure sizes
+#define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
+#define GX_NONCE_BINSIZE 12
+#define GX_NONCE_STRSIZE GX_BASE64_SIZE(GX_NONCE_BINSIZE)
 
 //-----------------------------------------------------------------------------
 typedef struct _gx_nm_identcomps {
@@ -320,7 +332,7 @@ exec:
                       if(tries++ < 2) goto init;
                       else X_RAISE(-1);
     }
-    if(rcv_count < len) {
+    if((size_t)rcv_count < len) {
         if(tries++ < 2) goto exec;
         else {errno = EIO; return -1;}
     }
@@ -434,3 +446,4 @@ static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed
 #endif
 */
 }
+#endif
