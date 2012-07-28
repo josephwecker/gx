@@ -14,6 +14,7 @@ echo ""
 echo "---> Testing some memorymapping stuff"
 dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
 gcc $CARGS test/test_mmap.c && tmp/tst
+gcc $CARGS test/test_madv_remove.c && tmp/tst
 echo ""
 echo ""
 echo "---> Testing futexes (in gx_mfd.h)"
