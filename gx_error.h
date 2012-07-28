@@ -201,6 +201,9 @@
 #define Xz(expr) if( ({int _gx_tmp_errno=0; errno=0; (gx_unlikely((_gx_tmp_errno = (int)(expr)) != 0)) ? \
     ({errno=_gx_tmp_errno; _GX_X(NULL,_gx_tmp_errno,2,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
+/// For functions that return zero on error and set errno
+#define Xnz(expr) if( ({errno=0; (gx_unlikely((expr) == 0)) ?  \
+    ({_GX_X(NULL,errno,1,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// Checks for system errors, but drops you into a switch statement
 #define Xs(expr) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?       \
