@@ -45,7 +45,7 @@ void reader() {
 
 int main(int argc, char **argv) {
     pid_t pid;
-    int   status;
+    int   status=0;
 
     Xn( mfd_pool = new_gx_mfd_pool(2) ) {X_ERROR; X_EXIT;}
     X (pid = fork()                   ) {X_ERROR; X_EXIT;}
