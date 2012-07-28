@@ -52,10 +52,11 @@ Some of the header files are probably only interesting to me.
 | ------------- | -------------------------------------------------------------------------------- |
 | gx\_net       | Wrappers for common network/socket needs.                                        |
 | gx\_cpus      | (Semi)-portable wrapper for determining # of cpus, cpu-affiliation, timing, etc. |
+| gx\_system    | (Semi)-portable wrapper for getting local & system-wide usage & performance etc. |
 | gx\_endian    | Runtime-endianness detection and eventually a bunch of utilities...              |
-| gx\_shuttle   | Eventually a generalization of some C hot-code-swapping stuff I'm doing          |
 | gx\_pdv       | (Persistent Data Vector) Will be an extension of gx\_mfd for dataflow/pipe programming |
 | gx\_token     | Plans on building secure crypto self-referencing auth tokens in a somewhat generic way. |
+| gx\_shuttle   | Eventually a generalization of some C hot-code-swapping stuff I'm doing          |
 | gx\_tcpserver | DEPRICATED - everything important already moved to gx\_event                     |
 
 
