@@ -99,6 +99,8 @@
  *
  *
  * TODO:
+ *  [ ] Automatically add key/value pairs for PID, PPID, & various other
+ *      gx_system information if feasable.
  *  [ ] Update the examples / documentation with all the new logging and any
  *      updated error handling.
  *  [ ] Memoize-cache gx_error_curr_report stuff instead of requiring the
