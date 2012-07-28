@@ -55,18 +55,25 @@ int child() {
     gx_sleep(1,0);
 
     // 3. mark first 2 pages as MADV_REMOVE, and page 3 as MADV_DONTNEED
+    unsigned char testvec[3];
+
     gx_sys_refresh();
     X_LOG_INFO("[child]  RAM in use after sleeping:               %4llu", gx_sys_ram_pages_in_use());
     p = map; len = FREE_PAGES*gx_pagesize;
     X (madvise(p, len, MADV_REMOVE)) X_WARN;
+    X (mincore(map, gx_pagesize * 3, testvec)) X_ERROR;
+    X_LOG_INFO("[child]  Residency test for removed:         %x/%x/%x/...", testvec[0], testvec[1], testvec[2]);
     X (munmap (p, len)             ) X_WARN;
     gx_sys_refresh();
     X_LOG_INFO("[child]  RAM in use after remove+unmap:           %4llu", gx_sys_ram_pages_in_use());
     p = map + (FREE_PAGES * gx_pagesize); len = DONTNEED_PAGES*gx_pagesize;
     X (madvise(p, len, MADV_DONTNEED)) X_WARN;
+    X (mincore(map + ((FREE_PAGES+1)*gx_pagesize), gx_pagesize * 3, testvec)) X_ERROR;
+    X_LOG_INFO("[child]  Residency test for dontneeds:       %x/%x/%x/...", testvec[0], testvec[1], testvec[2]);
     X (munmap (p, len)               ) X_WARN;
     gx_sys_refresh();
     X_LOG_INFO("[child]  RAM in use after dontneed+unmap:         %4llu", gx_sys_ram_pages_in_use());
+
 
     // 4. (sleep)
     gx_sleep(1,0);
@@ -124,9 +131,9 @@ int parent() {
 
     unsigned char testvec[3];
     X (mincore(map, gx_pagesize * 3, testvec)) X_ERROR;
-    X_LOG_INFO("[parent]   Residency test for removed: %x/%x/%x/...      ", testvec[0], testvec[1], testvec[2]);
+    X_LOG_INFO("[parent]   Residency test for removed:       %x/%x/%x/...", testvec[0], testvec[1], testvec[2]);
     X (mincore(map + ((FREE_PAGES+DONTNEED_PAGES)*gx_pagesize), gx_pagesize * 3, testvec)) X_ERROR;
-    X_LOG_INFO("[parent]   Residency test for actives: %x/%x/%x/...      ", testvec[0], testvec[1], testvec[2]);
+    X_LOG_INFO("[parent]   Residency test for actives:       %x/%x/%x/...", testvec[0], testvec[1], testvec[2]);
 
     for(i=0; i<FREE_PAGES; i++) {
         p = map + (i * gx_pagesize);
