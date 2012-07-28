@@ -22,6 +22,10 @@
  *        as well as the type suited for scanf/parsing.
  * @todo  Pretty much everything... almost all the main functionality.
  *
+ * @todo  Values as % of limit from processes perspective (e.g., open-files,
+ *        children, ...) and percentage of system limit (e.g.  cpu, ram,
+ *        nic-capacity, etc.)
+ *
  */
 #ifndef GX_SYSTEM_H
 #define GX_SYSTEM_H
