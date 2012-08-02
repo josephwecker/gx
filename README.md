@@ -57,7 +57,6 @@ Some of the header files are probably only interesting to me.
 | gx\_pdv       | (Persistent Data Vector) Will be an extension of gx\_mfd for dataflow/pipe programming |
 | gx\_token     | Plans on building secure crypto self-referencing auth tokens in a somewhat generic way. |
 | gx\_shuttle   | Eventually a generalization of some C hot-code-swapping stuff I'm doing          |
-| gx\_tcpserver | DEPRICATED - everything important already moved to gx\_event                     |
 
 
 TMP TODO
