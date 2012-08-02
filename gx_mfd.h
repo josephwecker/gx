@@ -30,6 +30,45 @@
  *  W|Tell readers re new data|mfd_broadcast  (mfd*)     |-1 on error
  *
  *
+ *        freed/
+ *       removed      active
+ *          v           v
+ *     =---------~~~~~~===#######
+ *     ^           ^            ^
+ *     mfd        marked       "file"-length
+ *     head       dontneed     writer-mapped
+ *                (per proc)   often reader-mapped.
+ *
+ * - Only writing process will free/remove pages under the following
+ *   conditions:
+ *    - Was previously marked dontneed by writer
+ *    - Has been in that state for at least [something] seconds
+ *    - Mincore shows that it is not in resident memory
+ *    - MFD is not marked persistent
+ * - Writer will indicate in the header the offset of the first page that is
+ *   _not_ freed/removed. This is, in effect, the earliest offset besides the
+ *   header page that a reader can operate on.
+ * - A reader has the obligation to lock a page if it really needs to hold onto
+ *   it for a while- only one reader should do this as locks don't stack.
+ * - Initial mapping / remapping should never try to map pages that are marked
+ *   free.
+ *
+ *
+ *  MFD_DEPRICATE   = MADV_FREE | MADV_REMOVE
+ *  
+ * - Header, then, needs to include
+ *    - persistence
+ *    - (start_freed is always the second page)
+ *    - start_writer_done
+ *    - start_writer_active
+ *    - file_length
+ *
+ * - Each mfd instance will, of course, keep track of its own:
+ *    - start_active (indicating that all pages before this are marked dontneed)
+ *    - map_file_offset
+ *    - mapped_pages
+ *
+ *
  * TODO:
  *  - Memory-map resizing as appropriate
  *  - Page advising on "used" pages
@@ -47,7 +86,7 @@
  *
  * RELEVANT SYSTEM LIMITATIONS:
  *  - vm.max_map_count  (65530)
- *  - vm.swappiness (60 - should be more ~ 20)
+ *  - vm.swappiness (60 - should be more ~ 20 or lower)
  *  - ulimit / open file descriptors
  *  - virtual memory available per process (RLIMIT_AS)
  *  - RLIMIT_MEMLOCK (needs one per writer-mfd at least)
@@ -217,7 +256,7 @@ typedef struct gx_mfd {
     size_t            off_eom;       ///< Offset to current end of map. Usually >= filesize
 
     void             *data;          ///< Points into map just after header- used for read/write
-    size_t            off_r;         ///< Current read cursor = offset into data (which may, change locations)
+    size_t            off_r;         ///< Current read cursor = offset into data (which may change locations)
     size_t            off_w;         ///< Current write cursor, also offset into data
 
     int               n_in_fd;
