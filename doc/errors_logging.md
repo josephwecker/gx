@@ -40,12 +40,44 @@ Thought:
 
 
 
-| macro | returnval-error-condition | pre-action     | to-err\_num       | label-trans  | msg-trans    | post-action |
-| ----- | ------------------------- | -------------- | ----------------- | ------------ | ------------ | ----------- |
-| X     | `(int)(EXPR) == -1`       | `errno=0`      | `err_num=errno`   | `errno_h`    | `strerror_r` | `errno=0`   |
-| Xn    | `(void *)(EXPR) == NULL`  | `errno=EFAULT` | `err_num=errno`   | `
+|macro| desc                           | returnval-error-condition      | pre-expression | to-err-num          | label-trans      | msg-trans    | post-action | expr example           |
+| --- | ------------------------------ | ------------------------------ | -------------- | ------------------- | ---------------- | ------------ | ----------- | ---------------------- |
+|X[s] | -1 indicates error in errno    | `(int)(EXPR) == -1`            | `errno=0`      | `_err_num=errno`    | `errno_h`        | `strerror_r` | `errno=0`   | `open(...)`            |
+|Xne  | NULL indicates error in errno  | `(void *)(EXPR) == NULL`       | `errno=EFAULT` | `_err_num=errno`    | `errno_h`        | `strerror_r` | `errno=0`   | ?                      |
+|Xn   | NULL indicates error (assert?) | `(void *)(EXPR) == NULL`       |                | `_err_num=GX_ENULL` | `errno_h`        | `strerror_r` | `errno=0`   | `malloc(...)`          |
+|Xm   | Detect mmap errors             | `(void *)(EXPR) == MAP_FAILED` | `errno=ENOMEM` | `_err_num=errno`    | `errno_h`        | `strerror_r` | `errno=0`   | `mmap(...)`            |
+|Xz   | Any nonzero is an error value  | `(_res=(EXPR)) != 0`           |                | `_err_num=_res`     | `errno_h`        | `strerror_r` |             | `pthread_create(...)`  |
+|Xnz  | Zero indicates error in errno  | `(EXPR) == 0`                  | `errno=0`      | `_err_num=errno`    | `errno_h`        | `strerror_r` | `errno=0`   | `fscanf(...)`          |
+| --- | ------------------------------ | ------------------------------ | -------------- | ------------------- | ---------------- | ------------ | ----------- | ---------------------- |
+|Xav  | Nonzero is syserror OR custom  |`(int)(_res=(EXPR)) < 0`        |                | `_err_num=-_res`    | `errno_h`        | `strerror_r` |             | libav/ffmpeg functions |
+| ... |                                |`(int)(_res) > 0`               |                | `_err_num=_res`     | `avutil_error_h` | `av_strerror`|             |                        |
+| --- | ------------------------------ | ------------------------------ | -------------- | ------------------- | ---------------- | ------------ | ----------- | ---------------------- |
+
+TODO:
+  * `hstrerror` based
+  * `gai_strerror` based
+  * etc...
 
 
+- switch-semantics vs. if-semantics orthogonal to error-check-type
+- 
+- 
+
+
+### Error Actions ###
+
+
+
+`X_IGNORE`
+
+`X_STORE` (?)
+`X_DUMP_CORE` (?)
+
+
+### Debugging ###
+
+
+completely orthogonal to these modules?
 
 
 ### message-class ###
