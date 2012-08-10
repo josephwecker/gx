@@ -6,47 +6,48 @@
 
 set -e
 mkdir -p ./tmp
-CARGS="-Wall -ggdb -O2 -I ../ -o tmp/tst"
-echo "---> Testing gx_pagesize (in gx.h)"
-gcc $CARGS test/test_pagesize.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing some memorymapping stuff"
-dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
-gcc $CARGS test/test_mmap.c && tmp/tst
-gcc $CARGS test/test_madv_remove.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing futexes (in gx_mfd.h)"
-gcc $CARGS test/test_futex.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing gx_clone (in gx.h)"
-gcc $CARGS test/test_clone.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing gx_mfd"
-gcc $CARGS test/test_gx_mfd.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing sha2"
-gcc $CARGS test/test_sha2.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing gx_token"
-gcc $CARGS test/test_gx_token.c && tmp/tst
-echo ""
-echo ""
-echo "---> Testing tokens some more- looking for nonce collisions"
-gcc $CARGS test/test_nonce_collision.c
-echo "(Slow because of 'sort'. You should see the following after a little while: 400000 1)"
-./tmp/tst | sort | uniq -c | tr -s ' ' ' ' | cut -d' ' -f2 | sort -n | uniq -c
-echo "---> Now checking performance for 400,000 globally unique nonces being generated"
-time ./tmp/tst > /dev/null
+#CARGS="-Wall -ggdb -O2 -I ../ -o tmp/tst"
+#echo "---> Testing gx_pagesize (in gx.h)"
+#gcc $CARGS test/test_pagesize.c && tmp/tst
 #echo ""
 #echo ""
-#echo "---> Testing gx_error (logging + error handling)"
-#gcc -O2 -Wall -ggdb -O0 -I ../ test/test_gx_error.c && tmp/tst
+#echo "---> Testing some memorymapping stuff"
+#dd if=/dev/urandom of=tmp/testrand.txt bs=4096 count=10
+#gcc $CARGS test/test_mmap.c && tmp/tst
+#gcc $CARGS test/test_madv_remove.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing futexes (in gx_mfd.h)"
+#gcc $CARGS test/test_futex.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing gx_clone (in gx.h)"
+#gcc $CARGS test/test_clone.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing gx_mfd"
+#gcc $CARGS test/test_gx_mfd.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing sha2"
+#gcc $CARGS test/test_sha2.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing gx_token"
+#gcc $CARGS test/test_gx_token.c && tmp/tst
+#echo ""
+#echo ""
+#echo "---> Testing tokens some more- looking for nonce collisions"
+#gcc $CARGS test/test_nonce_collision.c
+#echo "(Slow because of 'sort'. You should see the following after a little while: 400000 1)"
+#./tmp/tst | sort | uniq -c | tr -s ' ' ' ' | cut -d' ' -f2 | sort -n | uniq -c
+#echo "---> Now checking performance for 400,000 globally unique nonces being generated"
+#time ./tmp/tst > /dev/null
+#echo ""
+#echo ""
+echo "---> Testing errors & logging (gx_error/gx_log)"
+#gcc -O2 -Wall -ggdb -O0 -I ../ test/test_errors_and_logging.c && tmp/tst
+gcc $CARGS test/test_errors_and_logging.c && tmp/tst
 echo ""
 echo ""
 echo "Done. Apparently passed."
