@@ -120,6 +120,9 @@
     #endif
   #endif
 
+  #define      __packed  __attribute__ ((packed))
+
+
   static GX_INLINE void gx_hexdump(void *buf, size_t len) {
       size_t i;
       flockfile(stderr);
