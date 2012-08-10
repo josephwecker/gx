@@ -1,10 +1,38 @@
 
+
+
+(from
+http://www.trottercashion.com/2012/08/12/how-to-write-good-log-messages.html)
+
+
+ * level     (importance)
+ * time      (in UTC)
+ * host
+ * pid
+ * user      (peer, IP or session-id etc.)
+ * location  (location in the code that generated msg)
+ * version   (version of the code that generated msg)
+ * variables (k/v pairs)
+ * message   (descriptive, ideally)
+
+
+
+- - - - - - - - - - 
+
+
+
+
 * **all**
-  - context
-  - file
-  - line
-  - function
-  - stack-trace          (possibly only if class warrants it?)
+  - context (?)
+  - location
+    - source-version  (commit hash)
+    - file
+    - line
+    - function
+    - stack-trace          (possibly only if class warrants it?)
+  - utc-time (when string, in ISO 8601 format: YYY-MM-DDThh:mm:ss...Z)
+  - pid/tid
+  - ppid
 
 * **error**
   - error-value          (such as errno)
