@@ -170,4 +170,51 @@ static GX_INLINE long long int gx_sys_ram_bytes_in_use() {
 }
 
 
+#if 0
+#ifdef __LINUX__
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <linux/sockios.h>
+#include <linux/if.h>
+#include <linux/ethtool.h>
+
+static GX_INLINE int gx_nic_capacity_BitsPerSec() {
+    int sock;
+    struct ifreq ifr;
+    struct ethtool_cmd edata;
+    int rc;
+
+    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        perror("socket");
+        exit(1);
+    }
+    ifr.ifr_data = &edata;
+    edata.cmd = ETHTOOL_GSET;
+
+    // A bug in Linux's SIOCGIFCONF doesn't return the network interface card
+    // names correctly when they are bonded together, so instead we just
+    // brute-force loop. Obviously this fails when the interfaces are named
+    // something than eth0++
+    // I'm sure there's a cleaner solution if it comes to it.
+    int i=0, unfound=0;
+    long int total_mbits=0;
+    while(unfound < 3) {
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", i++);
+        rc = ioctl(sock, SIOCETHTOOL, &ifr);
+        if(rc < 0) unfound ++;
+        else {
+            fprintf(stderr, "DEBUG: %s - %d Mbps\n",ifr.ifr_name, edata.speed);
+            total_mbits += edata.speed;
+        }
+    }
+    printf("%ld Mb/s\n%ld Bytes/second\n", total_mbits, total_mbits * 1000 >> 3);
+    return (0);
+}
+#else
+
+#endif
+#endif
+
 #endif
