@@ -268,9 +268,10 @@ gx_pool_init(gx_tcp_sess);
 
 #ifdef DEBUG_EVENTS
 #define _gx_call_handler(SESS,RB) ( {     \
-    X_LOG_DEBUG("HANDLER: %s | exp: %lu", \
+    X_LOG_DEBUG("HANDLER: %s | exp: %lu | peek-avail: %lu", \
         SESS->fn_handler_name,            \
-        SESS->rcv_expected);              \
+        SESS->rcv_expected,               \
+        SESS->rcv_peek_avail);            \
     SESS->fn_handler(SESS, RB); } )
 #else
 #define _gx_call_handler(SESS,RB) SESS->fn_handler(SESS, RB)
