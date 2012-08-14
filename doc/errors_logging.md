@@ -1,4 +1,14 @@
 
+Error-logging graceful degredation- especially for "important" classes: If
+existing logger fails, try a simpler one (syslog?), and so forth. As a very
+last resort, at least logged to some global structure for attempted reporting
+later or on exit. Should be robust against:
+ 1. Network failure
+ 2. Disk failure
+ 3. Memory failure
+ 4. Misc. OS failure
+
+- - - - - - - - 
 
 
 (from
