@@ -98,6 +98,8 @@ typedef struct gx_tcp_sess {
     int                   rcv_dest;
     gx_rb                *rcv_buf;
     int                   rcv_do_readahead;
+    size_t                rcv_max_readahead; ///< 0 for as much as will fit in ringbuffer
+    size_t                rcv_peek_avail;
     size_t                rcv_expected;
     size_t                rcvd_so_far;
     int                   peer_fd;
@@ -418,15 +420,25 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                 if(sess->rcv_buf) { // If present, use as the receive buffer
                     gx_rb_release(rb_pool, rcvrb);
                     rcvrb = sess->rcv_buf;
-                    //rcvrbp = &rcvrb;
                     *rcvrbp = rcvrb;
                     sess->rcv_buf = NULL;
                 } else rb_clear(rcvrb);
 
                 // TODO: !!! if curr_remaining > rb_available, going to have to do
                 // the lesser and set can_rcv_more to true.
-                if(sess->rcv_do_readahead) bytes_attempted = rb_available(rcvrb);
-                else bytes_attempted = curr_remaining;
+                ssize_t avail = rb_available(rcvrb);
+                if(gx_unlikely(curr_remaining > avail)) {
+                    X_LOG_ERROR("Handler wants tcp data bigger than what can fit in the allocated ringbuffer.");
+                    bytes_attempted = avail;
+                } else if(sess->rcv_do_readahead) {
+                    if(sess->rcv_max_readahead) {
+                        bytes_attempted = MIN(curr_remaining+(ssize_t)sess->rcv_max_readahead, avail);
+                    } else {
+                        bytes_attempted = avail;
+                    }
+                } else {
+                    bytes_attempted = curr_remaining;
+                }
 
                 if(gx_likely(bytes_attempted > 0)) {
                     X (rcvd = zc_sock_rbuf(sess->peer_fd, bytes_attempted, rcvrb, 1)){X_FATAL;rcvd=0;}
@@ -440,6 +452,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     goto done_with_reading; // Not enough thrown away yet.
                 } else {
                     sess->rcvd_so_far = 0;
+                    sess->rcv_peek_avail  = 0;
                     if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) goto done_with_reading;
                     can_rcv_more = 1;
                 }
@@ -502,23 +515,31 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
         sess->rcvd_so_far = 0; // Clear it out so the next part is processed correctly
 
         if(sess->rcv_dest == GX_DEST_BUF) {
-            //-------- Alter ringbuffer so it only looks at the part the handler cares about currently.
-            size_t old_write_head = rcvrb->w;           // True write position
-            size_t old_expected   = sess->rcv_expected; // To advance read pointer after handler is done
-            int    handle_res;                          // Temporarily hold result of the handler
-            rcvrb->w              = rcvrb->r + sess->rcv_expected;
-            uint8_t old_nextbyte  = rb_uintw(rcvrb)[0];
-            rb_uintw(rcvrb)[0]    = '\0';               // So rb_uintr(rb) can be treated as a string if desired
+            int handle_res;  // Temporarily hold result of the handler
+            if((size_t)rb_used(rcvrb) > sess->rcv_expected) {
+                //-------- Alter ringbuffer so it only looks at the part the handler cares about currently.
+                sess->rcv_peek_avail  = rb_used(rcvrb) - sess->rcv_expected;
+                size_t old_write_head = rcvrb->w;           // True write position
+                size_t old_expected   = sess->rcv_expected; // To advance read pointer after handler is done
+                rcvrb->w              = rcvrb->r + sess->rcv_expected;
+                uint8_t old_nextbyte  = rb_uintw(rcvrb)[0];
+                rb_uintw(rcvrb)[0]    = '\0';               // So rb_uintr(rb) can be treated as a string if desired
 
-            //-------- Callback on fn_handler
-            handle_res            = _gx_call_handler(sess, rcvrb);
+                //-------- Callback on fn_handler
+                handle_res            = _gx_call_handler(sess, rcvrb);
 
-            //-------- Restore ringbuffer & advance read-pointer
-            rb_uintw(rcvrb)[0]    = old_nextbyte;
-            rcvrb->w              = old_write_head;
-            rb_advr(rcvrb, old_expected);
+                //-------- Restore ringbuffer & advance read-pointer
+                rb_uintw(rcvrb)[0]    = old_nextbyte;
+                rcvrb->w              = old_write_head;
+                rb_advr(rcvrb, old_expected);
+            } else {
+                sess->rcv_peek_avail  = 0;
+                handle_res            = _gx_call_handler(sess, rcvrb);
+                rb_clear(rcvrb);
+            }
             if(gx_unlikely(handle_res != GX_CONTINUE)) return;
         } else {
+            sess->rcv_peek_avail  = 0;
             if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) return;
         }
     }
