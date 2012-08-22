@@ -62,18 +62,22 @@
   #endif
 
   /// Types
+  //
   #include <stdint.h>
   #include <inttypes.h>
   #include <sys/types.h>
-  typedef uint8_t  byte,     uint8,       uint8_bitmask;
-  typedef uint16_t uint16,   uint16_be,   uint16_le;
-  typedef int16_t  sint16,   sint16_be,   sint16_le;
-  typedef uint32_t uint32,   uint32_be,   uint32_le;
-  typedef int32_t  sint32,   sint32_be,   sint32_le;
-  typedef uint64_t uint64,   uint64_le,   uint64_be;
-  typedef int64_t  sint64,   sint64_le,   sint64_be;
-  typedef struct __uint24   {uint8 b[3];} uint24, uint24_be, uint24_le;
-  typedef uint64_t number64, number64_le, number64_be;
+  typedef uint8_t     U8,    byte,     uint8,       uint8_bitmask;
+  typedef uint16_t    U16,   uint16,   uint16_be,   uint16_le;
+  typedef int16_t     S16,   sint16,   sint16_be,   sint16_le;
+  typedef uint32_t    U32,   uint32,   uint32_be,   uint32_le;
+  typedef int32_t     S32,   sint32,   sint32_be,   sint32_le;
+  typedef uint64_t    U64,   uint64,   uint64_be,   uint64_le;
+  typedef int64_t     S64,   sint64,   sint64_be,   sint64_le;
+  typedef struct
+  __uint24{U8 b[3];}  U24,   uint24,   uint24_be,   uint24_le;
+  typedef float       F32,   float32,  float32_be,  float32_le;
+  typedef double      F64,   float64,  float64_be,  float64_le;
+  typedef long double F96,   float96,  float96_be,  float96_le;
 
   /* Misc */
   #ifndef MIN

@@ -33,7 +33,65 @@
  */
 #ifndef GX_ENDIAN_H
 #define GX_ENDIAN_H
+
 #include <gx/gx.h>
+#include <sys/param.h>
+
+#if defined(BYTE_ORDER) && !defined(__BYTE_ORDER)
+  #define __BYTE_ORDER  BYTE_ORDER
+#endif
+#if defined(BIG_ENDIAN) && !defined(__BIG_ENDIAN)
+  #define __BIG_ENDIAN  BIG_ENDIAN
+#endif
+#if defined(LITTLE_ENDIAN) && !defined(__LITTLE_ENDIAN)
+  #define __LITTLE_ENDIAN  LITTLE_ENDIAN
+#endif
+
+#ifndef __LITTLE_ENDIAN
+  #define __LITTLE_ENDIAN  1234
+#endif
+#ifndef __BIG_ENDIAN
+  #define __BIG_ENDIAN  4321
+#endif
+
+#ifndef __BYTE_ORDER
+  #warning "Byte order not defined- assuming little endian"
+  #define __BYTE_ORDER  __LITTLE_ENDIAN
+#endif
+#ifndef __FLOAT_WORD_ORDER
+  #warning "Float word order not defined, assuming the same as byte order"
+  #define __FLOAT_WORD_ORDER  __BYTE_ORDER
+#endif
+#if !defined(__BYTE_ORDER) || !defined(__FLOAT_WORD_ORDER)
+  #error "Undefined byte or float word order"
+#endif
+#if __FLOAT_WORD_ORDER != __BIG_ENDIAN && __FLOAT_WORD_ORDER != __LITTLE_ENDIAN
+  #error "Unknown/unsupported float word order"
+#endif
+#if __BYTE_ORDER != __BIG_ENDIAN && __BYTE_ORDER != __LITTLE_ENDIAN
+  #error "Unknown/unsupported byte order"
+#endif
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+  #define gx_bytes_BE 1
+  #define gx_bytes_NE 1
+  #define gx_bytes_LE 0
+#else
+  #define gx_bytes_BE 0
+  #define gx_bytes_NE 0
+  #define gx_bytes_LE 1
+#endif
+
+#if __FLOAT_WORD_ORDER == __BIG_ENDIAN
+  #define gx_floats_BE 1
+  #define gx_floats_NE 1
+  #define gx_floats_LE 0
+#else
+  #define gx_floats_BE 0
+  #define gx_floats_NE 0
+  #define gx_floats_LE 1
+#endif
+
 
 #define gx_econst64_def(NAME, B1,B2,B3,B4,B5,B6,B7,B8) \
   const uint64_t NAME ## __host=0x ## B1 ## B2 ## B3 ## B4 ## B5 ## B6 ## B7 ## B8;\
@@ -43,9 +101,11 @@
   (gx_unlikely(gx_is_big_endian()) ? NAME ## __host : NAME ## __tsoh)
 
 
-
-/// Apparently this can be determined at compile-time, so the functions below
-/// that depend only on this conditional effectively have the dead branch
+/// TODO: Use as Fallbacks for when things are not determined above at
+///       preprocessor time (?)
+///
+/// Apparently this can still be determined at compile-time, so the functions
+/// below that depend only on this conditional effectively have the dead branch
 /// eliminated.
 ///
 static GX_INLINE int gx_is_big_endian(void) {
