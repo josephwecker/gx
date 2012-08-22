@@ -59,7 +59,6 @@
   #define __BYTE_ORDER  __LITTLE_ENDIAN
 #endif
 #ifndef __FLOAT_WORD_ORDER
-  #warning "Float word order not defined, assuming the same as byte order"
   #define __FLOAT_WORD_ORDER  __BYTE_ORDER
 #endif
 #if !defined(__BYTE_ORDER) || !defined(__FLOAT_WORD_ORDER)
