@@ -268,9 +268,10 @@ gx_pool_init(gx_tcp_sess);
 
 #ifdef DEBUG_EVENTS
 #define _gx_call_handler(SESS,RB) ( {     \
-    X_LOG_DEBUG("HANDLER: %s | exp: %lu | peek-avail: %lu", \
+    X_LOG_DEBUG("HANDLER: %s | exp: %lu (%lu) | peek-avail: %lu", \
         SESS->fn_handler_name,            \
         SESS->rcv_expected,               \
+        (RB) == NULL ? 0 : rb_used(RB),                      \
         SESS->rcv_peek_avail);            \
     SESS->fn_handler(SESS, RB); } )
 #else
@@ -523,14 +524,14 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
                 size_t old_write_head = rcvrb->w;           // True write position
                 size_t old_expected   = sess->rcv_expected; // To advance read pointer after handler is done
                 rcvrb->w              = rcvrb->r + sess->rcv_expected;
-                uint8_t old_nextbyte  = rb_uintw(rcvrb)[0];
-                rb_uintw(rcvrb)[0]    = '\0';               // So rb_uintr(rb) can be treated as a string if desired
+                //uint8_t old_nextbyte  = rb_uintw(rcvrb)[0];
+                //rb_uintw(rcvrb)[0]    = '\0';               // So rb_uintr(rb) can be treated as a string if desired
 
                 //-------- Callback on fn_handler
                 handle_res            = _gx_call_handler(sess, rcvrb);
 
                 //-------- Restore ringbuffer & advance read-pointer
-                rb_uintw(rcvrb)[0]    = old_nextbyte;
+                //rb_uintw(rcvrb)[0]    = old_nextbyte;
                 rcvrb->w              = old_write_head;
                 rb_advr(rcvrb, old_expected);
             } else {
