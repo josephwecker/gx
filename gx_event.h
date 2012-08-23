@@ -54,17 +54,11 @@
  * gx_event_states(events[i])
  *
  *
- *
- *
- *
- *
  *   |sock|-- |rbuf|
  *            |mmfd|
  *            |null|
  *            |pipe|-- |tee|-- *|sock|
  *                             *|tmp-rbuf|
- *
- *
  *
  */
 
@@ -239,14 +233,8 @@ gx_pool_init(gx_tcp_sess);
 }
 
 #define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
+#define gx_next_rbhandle(HANDLER, EXPECTED) gx_next_handle(HANDLER, GX_DEST_BUF, EXPECTED)
 #ifdef DEBUG_EVENTS
-    #define gx_next_rbhandle(HANDLER, EXPECTED) do {           \
-        sess->fn_handler = &HANDLER;                           \
-        sess->rcv_dest = GX_DEST_BUF;                          \
-        sess->rcv_expected = EXPECTED;                         \
-        sess->fn_handler_name = #HANDLER ;                     \
-    } while (0)
-
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
         sess->fn_handler = &HANDLER;                           \
         sess->rcv_dest = DESTINATION;                          \
@@ -254,11 +242,6 @@ gx_pool_init(gx_tcp_sess);
         sess->fn_handler_name = #HANDLER ;                     \
     } while (0)
 #else
-    #define gx_next_rbhandle(HANDLER, EXPECTED) do {           \
-        sess->fn_handler = &HANDLER;                           \
-        sess->rcv_dest = GX_DEST_BUF;                          \
-        sess->rcv_expected = EXPECTED;                         \
-    } while (0)
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\
         sess->fn_handler = &HANDLER;                           \
         sess->rcv_dest = DESTINATION;                          \
@@ -267,25 +250,19 @@ gx_pool_init(gx_tcp_sess);
 #endif
 
 #ifdef DEBUG_EVENTS
-#define _gx_call_handler(SESS,RB) ( {     \
-    X_LOG_DEBUG("HANDLER: %s | exp: %lu (%lu in rb) | peek-avail: %lu", \
-        SESS->fn_handler_name,            \
-        SESS->rcv_expected,               \
-        (RB) == NULL ? 0 : rb_used(RB),   \
-        SESS->rcv_peek_avail);            \
+#define _gx_call_handler(SESS,RB) ( {                          \
+    X_LOG_DEBUG("HANDLER: %s | exp: %lu (%lu in rb)"           \
+        " | peek-avail: %lu",                                  \
+        SESS->fn_handler_name,                                 \
+        SESS->rcv_expected,                                    \
+        (RB) == NULL ? 0 : rb_used(RB),                        \
+        SESS->rcv_peek_avail);                                 \
+    if(RB != NULL)                                             \
+        gx_hexdump(rb_r(RB), MIN(240, rb_used(RB)));           \
     SESS->fn_handler(SESS, RB); } )
 #else
 #define _gx_call_handler(SESS,RB) SESS->fn_handler(SESS, RB)
 #endif
-
-//#define gx_event_set_handler(SESS, HANDLER) {SESS->fn_handler = &HANDLER; SESS->fn_handler_name = #HANDLER;}
-
-//#define rtmp_handler(NAME) extern int NAME(struct rtmp_sess *rtmp, uint8_t *dat, ssize_t len)
-//rtmp_handler( dumper                       );
-//rtmp_handler( hs_check_version             );
-
-//#define set_handler(RTMP, HANDLER) {RTMP->handler = &HANDLER; RTMP->handler_name = #HANDLER; }
-
 
 //------- epoll ----------------------------------------------------------------
 #if defined(__LINUX__) || defined(HAVE_EPOLL_WAIT)
