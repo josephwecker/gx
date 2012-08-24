@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
                 nm.nonce.ident_hash,
                 nm.nonce.rand2[0], nm.nonce.rand2[1], nm.nonce.rand2[2], nm.nonce.rand2[3]);
 
-    //gx_hexdump(&(nm.nonce), sizeof(nm.nonce));
+    //gx_hexdump(&(nm.nonce), sizeof(nm.nonce), 0);
 
     char nonce[12];
     char nonce_base64[GX_BASE64_SIZE(12)];

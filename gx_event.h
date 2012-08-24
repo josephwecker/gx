@@ -258,7 +258,7 @@ gx_pool_init(gx_tcp_sess);
         (RB) == NULL ? 0 : rb_used(RB),                        \
         SESS->rcv_peek_avail);                                 \
     if(RB != NULL)                                             \
-        gx_hexdump(rb_r(RB), MIN(240, rb_used(RB)));           \
+        gx_hexdump(rb_r(RB),MIN(232,rb_used(RB)),rb_used(RB)>232); \
     SESS->fn_handler(SESS, RB); } )
 #else
 #define _gx_call_handler(SESS,RB) SESS->fn_handler(SESS, RB)

@@ -127,17 +127,26 @@
   #define      __packed  __attribute__ ((packed))
 
 
-  static GX_INLINE void gx_hexdump(void *buf, size_t len) {
-      size_t i;
+  static GX_INLINE void gx_hexdump(void *buf, size_t len, int more) {
+      size_t i=0; int val, grp, outsz=0;
       flockfile(stderr);
-      //fprintf(stderr, "-------------\n");
-      for(i=0; i<len; i++) {
-          fprintf(stderr, "%02X ", ((uint8_t *)buf)[i]);
-          if(i%8==7) fprintf(stderr, "| ");
-          if(i%24==23)fprintf(stderr, "\n");
+      fprintf(stderr, "     ");
+      if(len == 0) {fprintf(stderr, "\\__/\n"); return;}
+      while(1) {
+          for(grp=0; grp<3; grp++) {
+              fprintf(stderr, "| "); outsz += 2;
+              for(val=0; val<8; val++) {
+                  fprintf(stderr, "%02X ", ((uint8_t *)buf)[i]); outsz += 3;
+                  i++;
+                  if(i>=len) break;
+              }
+              if(i>=len) break;
+          }
+          fprintf(stderr, "|"); outsz += 1; if(i>=len) break; fprintf(stderr, "\n     ");
       }
-      //fprintf(stderr, "\n-------------\n\n");
-      fprintf(stderr, "\n");
+      if(more) { fprintf(stderr,"... ... ..."); outsz += 11; } fprintf(stderr,"\n     \\");
+      for(val=0; val<MIN(outsz, ((3 * 8 /* 1group */) + 2 /* front-bar+spc */) * 3 + 1) - 2; val++) fprintf(stderr,"_");
+      fprintf(stderr,"/\n");
       funlockfile(stderr);
   }
 
