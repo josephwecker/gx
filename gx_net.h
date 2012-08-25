@@ -36,19 +36,17 @@ static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {
     return sockfd;
 }
 
-
-static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port) {
-    int fd = -1;
-    int bindres = -1;
-    struct addrinfo hints;
-    struct addrinfo *ainfo;
-    struct addrinfo *rp;
-    int optval = 1;
+/// @todo: Use gai_strerror combined w/ gx_error when something goes wrong w/ getaddrinfo
+static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port, char *bound_node, size_t bound_node_len) {
+    int              fd      = -1;
+    int              bindres = -1;
+    int              optval  =  1;
+    struct addrinfo  hints, *ainfo, *rp;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family   = AF_UNSPEC; /* IPv4 and IPv6 */
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE;
+    hints.ai_flags    = AI_PASSIVE | AI_CANONNAME | AI_ALL | AI_ADDRCONFIG;
 
     X (getaddrinfo(node, port, &hints, &ainfo) ) X_RAISE(-1);
     for(rp = ainfo; rp != NULL; rp = rp->ai_next) {
@@ -58,14 +56,32 @@ static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port) {
         bindres = bind(fd, rp->ai_addr, rp->ai_addrlen);
         if(bindres == 0) break;
     }
-    freeaddrinfo(ainfo);
-    X (fd                          ) X_RAISE(-1);
-    X (bindres                     ) X_RAISE(-1);
-    Xn(rp                          ) X_RAISE(-1);
-    X (fcntl(fd,F_SETFL,O_NONBLOCK)) X_RAISE(-1);
+    X (fd                          ) X_GOTO(gx_tcp_listen_err);
+    X (bindres                     ) X_GOTO(gx_tcp_listen_err);
+    Xn(rp                          ) X_GOTO(gx_tcp_listen_err);
+    X (fcntl(fd,F_SETFL,O_NONBLOCK)) X_GOTO(gx_tcp_listen_err);/// @todo close/delete socket before raising error
+    X (listen(fd, 65535)           ) X_GOTO(gx_tcp_listen_err); // Backlog invisibly gets truncated to max-allowed
 
-    X (listen(fd, 65535)           ) X_RAISE(-1); /* Backlog invisibly gets truncated to max */
+    size_t len = 0;
+    if(rp->ai_canonname) {
+        strncpy(bound_node, rp->ai_canonname, bound_node_len - 1);
+        len = strlen(bound_node);
+        if(len < bound_node_len - 3) {
+            bound_node[len]   = ':';
+            bound_node[len+1] = ' ';
+            len += 2;
+        }
+    }
+    if(len < bound_node_len - 1)
+        inet_ntop(rp->ai_family, rp->ai_addr->sa_data + 2, &(bound_node[len]), bound_node_len - len - 1);
+
+    freeaddrinfo(ainfo);
     return fd;
+
+gx_tcp_listen_err:
+    freeaddrinfo(ainfo);
+    close(fd);
+    X_RAISE(-1);
 }
 
 static GX_INLINE int gx_net_daemonize(void) {
