@@ -250,9 +250,10 @@
     return __VA_ARGS__;                                    \
 }
 
-#define X_EXIT exit(errno)
-
-#define X_IGNORE ({ errno=0; });
+#define X_EXIT      exit(errno)
+#define X_ABORT     exit(errno)
+#define X_IGNORE    ({ errno=0; });
+#define X_GOTO(LBL) goto LBL
 
 //-----------------------------------------------------------------------------
  
