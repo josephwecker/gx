@@ -46,9 +46,13 @@ static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port, char 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family   = AF_UNSPEC; /* IPv4 and IPv6 */
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE | AI_CANONNAME | AI_ALL | AI_ADDRCONFIG;
+#ifdef __LINUX__
+    hints.ai_flags    = AI_PASSIVE | AI_ALL | AI_ADDRCONFIG;
+#else // AI_CANONNAME seems messed up on linux at the moment. yrmv
+    hints.ai_flags    = AI_PASSIVE | AI_ALL | AI_ADDRCONFIG | AI_CANONNAME;
+#endif
 
-    X (getaddrinfo(node, port, &hints, &ainfo) ) X_RAISE(-1);
+    X (getaddrinfo(node, port, &hints, &ainfo) ) {X_LOG_FATAL("%s", gai_strerror(errno)); X_RAISE(-1);}
     for(rp = ainfo; rp != NULL; rp = rp->ai_next) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if(fd == -1) continue;
@@ -79,6 +83,7 @@ static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port, char 
     return fd;
 
 gx_tcp_listen_err:
+    X_ERROR;
     freeaddrinfo(ainfo);
     close(fd);
     X_RAISE(-1);
