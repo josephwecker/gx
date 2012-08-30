@@ -83,10 +83,12 @@
   #ifndef MIN
   #define MIN(m,n) ((m) < (n) ? (m) : (n))
   #endif
+  #define MIN3(m,n,o) MIN(MIN(m,n),o)
 
   #ifndef MAX
   #define MAX(m,n) ((m) > (n) ? (m) : (n))
   #endif
+  #define MAX3(m,n,o) MAX(MAX(m,n),o)
 
 
   /// Compiler Optimization Cues
