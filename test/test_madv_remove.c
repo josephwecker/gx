@@ -24,7 +24,7 @@ gx_error_initialize(GX_DEBUG);
 #define DONTNEED_PAGES  200
 
 
-#ifdef __LINUX__
+#ifdef _LINUX
 char    path[] = "/dev/shm/tmptest-XXXXXX";
 #else
 char    path[] = "/tmp/tmptest-XXXXXX";

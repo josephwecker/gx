@@ -265,7 +265,7 @@ gx_pool_init(gx_tcp_sess);
 #endif
 
 //------- epoll ----------------------------------------------------------------
-#if defined(__LINUX__) || defined(HAVE_EPOLL_WAIT)
+#if defined(_LINUX) || defined(HAVE_EPOLL_WAIT)
   #include <sys/epoll.h>
 
   #define GX_EVENT_WRITABLE  EPOLLOUT
@@ -301,7 +301,7 @@ gx_pool_init(gx_tcp_sess);
 
 
 //------- kqueue ---------------------------------------------------------------
-#elif defined(__DARWIN__) || defined(HAVE_KQUEUE)
+#elif defined(_OSX) || defined(HAVE_KQUEUE)
   #include <sys/types.h>
   #include <sys/event.h>
   #include <sys/time.h>
@@ -577,7 +577,7 @@ static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahand
             case EPROTO:
             case ENOPROTOOPT:
             case EHOSTDOWN:
-#if defined(__linux__) || defined(__LINUX__)
+#if defined(__linux__) || defined(_LINUX)
             case ENONET:
 #endif
             case EHOSTUNREACH:

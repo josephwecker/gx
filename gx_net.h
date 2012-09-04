@@ -46,7 +46,7 @@ static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port, char 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family   = AF_UNSPEC; /* IPv4 and IPv6 */
     hints.ai_socktype = SOCK_STREAM;
-#ifdef __LINUX__
+#ifdef _LINUX
     hints.ai_flags    = AI_PASSIVE | AI_ALL | AI_ADDRCONFIG;
 #else // AI_CANONNAME seems messed up on linux at the moment. yrmv
     hints.ai_flags    = AI_PASSIVE | AI_ALL | AI_ADDRCONFIG | AI_CANONNAME;
@@ -116,7 +116,7 @@ static GX_INLINE int gx_net_daemonize(void) {
 }
 
 
-#ifdef __LINUX__
+#ifdef _LINUX
 #include <sys/ioctl.h>
 #include <net/if.h>
 #else
@@ -136,7 +136,7 @@ static GX_INLINE int gx_node_uid(char *buf) {
         X_LOG_DEBUG("Constructing node uid for the first time.");
         X (getifaddrs(&ifaddr)) X_RAISE(-1);
         for(ifa=ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-          #ifdef __LINUX__
+          #ifdef _LINUX
             struct ifreq ifinfo;
             int sd, res;
             strcpy(ifinfo.ifr_name, ifa->ifa_name);

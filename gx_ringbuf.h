@@ -43,7 +43,7 @@ typedef struct gx_rb {
 /// @param stay_in_ram   If non-zero, ring-buffer gets "locked" into RAM-
 ///                      doesn't swap out.
 static int gx_rb_create(gx_rb *rb, ssize_t min_size, int stay_in_ram) {
-#ifdef __LINUX__
+#ifdef _LINUX
     char    path[] = "/dev/shm/rb-XXXXXX"; // Doesn't actually get written to
 #else
     char    path[] = "/tmp/rb-XXXXXX";

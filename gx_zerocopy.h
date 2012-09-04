@@ -55,14 +55,14 @@
 
 #include <gx/gx.h>
 
-#if defined(__LINUX__)
+#if defined(_LINUX)
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE 1
   #endif
   #include <fcntl.h>
   #include <unistd.h>
   #include <sys/sendfile.h>
-#elif defined(__DARWIN__)
+#elif defined(_OSX)
   #include <sys/uio.h>
 #endif
 
@@ -117,7 +117,7 @@ static ssize_t zc_mbuf_sock(void *mbuf, size_t src_off, size_t len, int sock) {
 /// TODO: header/footer like bsd implementation- esp. if it makes sense for the
 ///       other zero-copy functions.
 static GX_INLINE ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
-  #if defined(__LINUX__)
+  #if defined(_LINUX)
     int     tries=1;
     ssize_t sent;
     off_t   src_off2 = src_off;
@@ -133,7 +133,7 @@ sendagain:
         }
     }
     return sent;
-  #elif defined(__DARWIN__)
+  #elif defined(_OSX)
     int tries=1;
     off_t total_sent=0;
     off_t sent = len;
@@ -221,7 +221,7 @@ do_file_write:
     return sent;
 }
 
-#ifdef __LINUX__
+#ifdef _LINUX
 static GX_OPTIONAL int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
 static GX_OPTIONAL int zc_devnull_fd = -1;
 #endif
@@ -230,7 +230,7 @@ static GX_OPTIONAL int zc_devnull_fd = -1;
 /// code? Haven't done mac version yet even...
 static ssize_t zc_sock_null(int sock, size_t len) {
 // @todo rewrite this so it actually works on linux--SPLICE_F_MOVE seems to have disappeared
-// #ifdef __LINUX__
+// #ifdef _LINUX
 #if 0
     int     tries = 1;
     ssize_t res;

@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 
     printf("%x | %x\n", full_map[0], full_map[gx_pagesize]);
     
-#ifdef __LINUX__
+#ifdef _LINUX
     Xm( full_map = mremap(full_map, gx_pagesize << 1, gx_pagesize * 3, MREMAP_MAYMOVE)) {X_FATAL; X_EXIT;}
 #else
     #error mremap not yet implemented on mac (TODO)

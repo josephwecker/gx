@@ -280,7 +280,7 @@ extern int             gx_error_curr_report;
 extern int             gx_error_loglevel;
 
 // Generate these with build-ename.sh
-#if defined(__DARWIN__)
+#if defined(_OSX)
     static char *_gx_ename[] = {
         /*   0 */ "", 
         /*   1 */ "EPERM  ", "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 
@@ -310,7 +310,7 @@ extern int             gx_error_loglevel;
     };
 
   #define MAX_ENAME 103
-#elif defined(__LINUX__)
+#elif defined(_LINUX)
     static char *_gx_ename[] = {
         /*   0 */ "", 
         /*   1 */ "EPERM  ",   "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 

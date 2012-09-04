@@ -30,22 +30,25 @@
  * @todo  Move resource pool to its own module
  * @todo  gx_prefetch_(rw_keep|rw_toss|ro_keep|ro_toss)
  *
- */
-#ifndef   GX_H
-  #define GX_H
+ *///---------------------------------------------------------------------------
+#ifndef GX_H
+#define GX_H
 
-  /// Normalize some OS names
-  #ifdef __linux__
-    #define __LINUX__ 1
-  #elif defined(__APPLE__) || defined(__MACH__)
-    #define __DARWIN__ 1
-  #endif
+//------------------------------------------------------------------------------
+/// Normalize some OS names
+#ifdef __linux__
+  #define _LINUX 1
+  #undef  _OSX
+#elif defined(__APPLE__) || defined(__MACH__)
+  #define _OSX 1
+  #undef  _LINUX
+#endif
 
-  #if defined(__LINUX__)
-    #ifndef _GNU_SOURCE
-      #define _GNU_SOURCE 1
-    #endif
+#if defined(_LINUX)
+  #ifndef _GNU_SOURCE
+    #define _GNU_SOURCE 1
   #endif
+#endif
 
   #include <stdio.h>
   #include <stdlib.h>
@@ -55,7 +58,7 @@
   #include <string.h>
   #include <pthread.h> // For pool mutexes / gx_clone
   #include <sys/wait.h>
-  #ifdef __LINUX__
+  #ifdef _LINUX
     #include <syscall.h>
   #else
     #include <sys/syscall.h>
@@ -347,7 +350,7 @@
     /// create a new process with everything shared with the parent except a
     /// new, _small_ stack. The parent is not signaled when the child
     /// finishes [at least on linux... don't know yet for other...]
-    #ifdef __LINUX__
+    #ifdef _LINUX
       #ifndef _GNU_SOURCE
         #define _GNU_SOURCE
       #endif
