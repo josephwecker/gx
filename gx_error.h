@@ -171,23 +171,6 @@
 #define XDBG X_LOG_DEBUG(NULL, "-- XDBG position reached --")
 
 /// For system errors- detects -1 and uses errno
-#define cX(expr, ctx) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?        \
-    ({_GX_X(ctx,errno,0,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
-
-/// Checks for null values
-#define cXn(expr, ctx) if( ({errno=0; (gx_unlikely((void *)(expr) == NULL)) ?  \
-    ({_GX_X(ctx,errno,1,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
-
-/// Check for mmap errors
-#define cXm(expr, ctx) if( ({errno=0; (gx_unlikely((expr) == MAP_FAILED)) ?    \
-    ({_GX_X(ctx,errno,2,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
-
-/// Checks for system errors, but drops you into a switch statement
-#define cXs(expr, ctx) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?       \
-    ({_GX_X(ctx,errno,0,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;})) \
-    switch(gx_error_recent_reports[gx_error_curr_report].sys_errno)
-
-/// For system errors- detects -1 and uses errno
 #define X(expr) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?        \
     ({_GX_X(NULL,errno,0,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
@@ -224,19 +207,6 @@
     ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_INFO; 1;})
 #define X_LOG_DEBUG(msg, ...) \
     ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_DEBUG;1;})
-
-#define cX_LOG_PANIC(ctx, msg, ...) \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_PANIC;1;})
-#define cX_LOG_FATAL(ctx, msg, ...) \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_FATAL;1;})
-#define cX_LOG_ERROR(ctx, msg, ...) \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_ERROR;1;})
-#define cX_LOG_WARN(ctx, msg, ...)  \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_WARN; 1;})
-#define cX_LOG_INFO(ctx, msg, ...)  \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_INFO; 1;})
-#define cX_LOG_DEBUG(ctx, msg, ...) \
-    ({_GX_X(ctx,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_DEBUG;1;})
 
 #define X_PANIC _GX_ERROR_LOG(GX_PANIC) ///< Log last captured error at 'panic' severity
 #define X_FATAL _GX_ERROR_LOG(GX_FATAL) ///< Log last captured error at 'fatal' severity
