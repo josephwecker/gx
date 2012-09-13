@@ -137,12 +137,13 @@ typedef struct gx_error_report {
 // Guarantee these variables are put in the .common section so they are
 // globally shared by the linker without us needing to initialize them
 // anywhere.
-__asm__ ("\n .comm _gx_error_stack,"  _STR(GX_ERROR_REPORT_SIZE * GX_ERROR_BACKTRACE_SIZE) ",16 \n");
-__asm__ ("\n .comm _gx_error_cidx,"   _STR(__SIZEOF_INT__) ",16 \n");
-__asm__ ("\n .comm _gx_error_depth,"  _STR(__SIZEOF_INT__) ",16 \n");
-gx_error_report _gx_error_stack[GX_ERROR_BACKTRACE_SIZE] = {0};
-int             _gx_error_cidx                           = 0;
-int             _gx_error_depth                          = 0;
+asm ("\n .comm _gx_error_stack,"  _STR(GX_ERROR_REPORT_SIZE * GX_ERROR_BACKTRACE_SIZE) ",8 \n");
+asm ("\n .comm _gx_error_cidx,"   _STR(__SIZEOF_INT__) ",8 \n");
+asm ("\n .comm _gx_error_depth,"  _STR(__SIZEOF_INT__) ",8 \n");
+
+gx_error_report _gx_error_stack[GX_ERROR_BACKTRACE_SIZE];
+int             _gx_error_cidx;
+int             _gx_error_depth;
 
 // Purposefully don't inline because it will be rarely called (or, in any case,
 // the code path for it not being called should be the optimized code path) and
