@@ -54,7 +54,7 @@
  *   free.
  *
  *
- *  MFD_DEPRICATE   = MADV_FREE | MADV_REMOVE
+ *  MFD_DEPRICATE   = MADV_FREE |\ MADV_REMOVE
  *  
  * - Header, then, needs to include
  *    - persistence
@@ -81,8 +81,8 @@
  *  - Make sure and mark variable as volatile (in the smallest appropriate
  *    scope ala wikipedia)
  *  - Programatically check and warn on bad system limitations
- *  -  W| |mfd_write(mfd*, void *src, len)
- *  -  W| |mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
+ *  -  W|\ |mfd_write(mfd*, void *src, len)
+ *  -  W|\ |mfd_wbyte, wbe16/24/32/64, wse16/24/32/64, etc.
  *
  * RELEVANT SYSTEM LIMITATIONS:
  *  - vm.max_map_count  (65530)
