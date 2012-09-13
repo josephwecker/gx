@@ -1,6 +1,26 @@
 
 
 
+
+Central concerns:
+  - Error handling
+    - Doesn't obscure "sunny-day" flow.
+    - Doesn't disturb code optimization & processor-cache/pipeline.
+    - Assume they are rare code paths.
+  - Logging
+    - Smallest performance impact possible
+      - Never ever block central flow
+    - Assume they are very common code paths and need to be highly optimized.
+    - As informative as possible
+    - As flexible as possible
+    - An error / problem with logging should never affect the server and visa
+      versa.
+
+
+
+- - - - -
+
+
 if_e* / switch_e* / _eraise / _eclear    -> _gx_error_stack
 
 * HAS
