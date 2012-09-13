@@ -77,6 +77,27 @@
 
 /// Stringifies the current line of code
 /// @TODO: move to gx.h
+#ifndef __SIZEOF_INT__
+  #ifdef __INTMAX_MAX__
+    #if (__INT_MAX__ == 0x7fffffff) || (__INT_MAX__ == 0xffffffff)
+      #define __SIZEOF_INT__ 4
+    #else
+      //#warning Guessing the size of an integer is 2 bytes
+      #define __SIZEOF_INT__ 2
+    #endif
+  #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64)
+    #define __SIZEOF_INT__ 4
+  #else
+    //#warning Guessing the size of an integer is 2 bytes
+    #define __SIZEOF_INT__ 2
+  #endif
+#endif
+
+#ifndef __SIZEOF_POINTER__
+  //#warning Guessing the size of a pointer is 2 * __SIZEOF_INT__
+  #define __SIZEOF_POINTER__ (2 * __SIZEOF_INT__)
+#endif
+
 #define _STR2(x)      #x
 #define _STR(x)       _STR2(x)
 #define __LINE_STR__  _STR(__LINE__)
