@@ -103,11 +103,6 @@
  *      gx_system information if feasable.
  *  [ ] Update the examples / documentation with all the new logging and any
  *      updated error handling.
- *  [ ] Memoize-cache gx_error_curr_report stuff instead of requiring the
- *      initial init (especially since it's currently required for _anything_
- *      that includes gx.h) (i.e., no more GX_ERROR_INITIALIZE();)
- *  [ ] Prefix a bunch of the constants etc. so that they don't accidentally
- *      pollute an apps namespace.
  *  [ ] External configuration and compile-time culling
  *  [ ] Configurable log-level-types
  *  [ ] Get context thought through and implemented correctly. (And tested
@@ -115,23 +110,16 @@
  *  [ ] Slightly more sophisticated colorschemes
  *  [ ] Plugin-able devices/formats/mechanisms/etc. - ideally truly pluginable
  *      using a header file and separate compilation.
- *  [ ] Better test w/ actual configurations etc.- from less to more
- *      complicated.
  *  [ ] Runtime log-level detection.
  *  [ ] Verify that coloration only happens when appropriate (to a tty)
  *  [ ] Ability to turn off coloration in config and via env. variable.
  *  [ ] Refactor ansi terminal stuff (gx_tty?)
- *  [ ] Script in ext or something to automatically update unix error code
- *      strings.
+ *  [ ] Script in ext or something to automatically update unix error code strings.
  *  [ ] UDP based log destination / device implementation
- *  [ ] Actually queue up several log-messages when RAISE is issued and
- *      correctly display them at the toplevel's discretion. May involve
- *      correctly resetting the rotating struct or correctly linking them. Also
- *      means the error message needs to be generated- just placed elsewhere.
  *  [ ] Verbosity levels in config/runtime...
  *  [ ] Better tty driver with good column alignment (possibly by doing its own
  *      scan in the build process... crazy but doable...)
- *  [ ] Call-stack information when appropriate
+ *  [ ] Call-stack information when appropriate (? maybe not necessary...)
  *  [ ] Ensure that errorno and other parts are robust against multi-threaded
  *      abuse and interrupt reentrance etc.
  *  [ ] Consider ffmpeg/libav style error returns- allowing user-defined
@@ -146,8 +134,18 @@
  *      anything like locking or other blocking operations.
  *  [ ] X_IGNORE as NOOP on error-check block to explicitely state that an
  *      error/warning there is not a problem but check the return value anyway.
- *  [ ] Replace pragma GCC diagnostic ignored with function attributes as
- *      appropriate.
+ *  [ ] Replace pragma GCC diagnostic ignored with function attributes as appropriate.
+ *
+ *  [D2]Actually queue up several log-messages when RAISE is issued and
+ *      correctly display them at the toplevel's discretion. May involve
+ *      correctly resetting the rotating struct or correctly linking them. Also
+ *      means the error message needs to be generated- just placed elsewhere.
+ *  [D2]Memoize-cache gx_error_curr_report stuff instead of requiring the
+ *      initial init (especially since it's currently required for _anything_
+ *      that includes gx.h) (i.e., no more GX_ERROR_INITIALIZE();)
+ *  [D2]Prefix a bunch of the constants etc. so that they don't accidentally
+ *      pollute an apps namespace.
+ *  [D2]Better test w/ actual configurations etc.- from less to more complicated.
  *
  */
 #ifndef GX_ERROR_H
