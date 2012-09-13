@@ -1,6 +1,10 @@
 #include "./test_gxerr_help.h"
 #include <errno.h>
 
+void *test_chain1();
+int test_chain2();
+int test_chain3();
+
 int test_esys(int desired_errno) {
     errno = desired_errno;
     return -1;
@@ -16,8 +20,9 @@ int test_chain2() {
     return 0;
 }
 
-int test_chain3() {
-    if_ez(test_chain4()) _eraise(EBADF);
+int test_chain5() {
+    errno = EACCES;
+    if_esys(test_esys(EFAULT)) _eraise(0);
     return 0;
 }
 
@@ -27,9 +32,8 @@ int test_chain4() {
     return 0;
 }
 
-int test_chain5() {
-    errno = EACCES;
-    if_esys(test_esys(EFAULT)) _eraise(0);
+int test_chain3() {
+    if_ez(test_chain4()) _eraise(EBADF);
     return 0;
 }
 
