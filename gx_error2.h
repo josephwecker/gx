@@ -1,7 +1,6 @@
 /**
    @file      gx_error.h
    @brief     Lots of error-handling/logging to help unobscure C code.
-
    @author    Joseph A Wecker <joseph.wecker@gmail.com>
    @copyright
      Except where otherwise noted, Copyright (C) 2012 Joseph A Wecker
@@ -25,25 +24,22 @@
      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
      FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
      DEALINGS IN THE SOFTWARE.
-*/
 
+
+   @details
+
+    | etype | description                                                               |
+    | ----- | ------------------------------------------------------------------------- |
+    | esys  | Error if expression is -1         errno set                               |
+    | emap  | Error if expression is MAP_FAILED errno set                               |
+    | enz   | Error if expression is non-zero   value as errno                          |
+    | ez    | Error if expression is zero       errno set                               |
+    | enull | Error if expression is null       errno possibly set                      |
+    | eio   | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
+    | eavc  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
+*/
 #ifndef GX_ERROR_H
 #define GX_ERROR_H
-
-/** 
- * Error Families.
- *
- *  | etype | description                                                               |
- *  | ----- | ------------------------------------------------------------------------- |
- *  | esys  | Error if expression is -1         errno set                               |
- *  | emap  | Error if expression is MAP_FAILED errno set                               |
- *  | enz   | Error if expression is non-zero   value as errno                          |
- *  | ez    | Error if expression is zero       errno set                               |
- *  | enull | Error if expression is null       errno possibly set                      |
- *  | eio   | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
- *  | eavc  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
- */
-
 
 #define if_esys(E)  if( _esys(E)  )
 #define if_emap(E)  if( _emap(E)  )
@@ -75,8 +71,9 @@
 }
 
 
-/// Stringifies the current line of code
-/// @TODO: move to gx.h
+// ---------------------------------------------------------------------
+// TODO: move all contained to gx.h when ready to make this include gx.h
+
 #ifndef __SIZEOF_INT__
   #ifdef __INTMAX_MAX__
     #if (__INT_MAX__ == 0x7fffffff) || (__INT_MAX__ == 0xffffffff)
@@ -105,6 +102,31 @@
 #define _freq(X)      __builtin_expect(!!(X), 1)
 #define _inline       __attribute__ ((__always_inline__))
 #define _noinline     __attribute__ ((__noinline__))
+/// A trick to get the number of args passed to a variadic macro
+/// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
+/// @todo   Abstract this back into gx.h and rename so it's generally usable
+#define PP_NARG(...) \
+         PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
+#define PP_NARG_(...) \
+         PP_ARG_N(__VA_ARGS__)
+#define PP_ARG_N( \
+          _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
+         _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
+         _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
+         _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
+         _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
+         _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
+         _61,_62,_63,N,...) N
+#define PP_RSEQ_N() \
+         63,62,61,60,                   \
+         59,58,57,56,55,54,53,52,51,50, \
+         49,48,47,46,45,44,43,42,41,40, \
+         39,38,37,36,35,34,33,32,31,30, \
+         29,28,27,26,25,24,23,22,21,20, \
+         19,18,17,16,15,14,13,12,11,10, \
+         9,8,7,6,5,4,3,2,1,0
+// ---------------------------------------------------------------------
+
 
 #define _gx_mrk(EXPR_STR) \
     _gx_mark_err_do((errno ? errno : ( _e ? _e : EINVAL )), \
@@ -124,6 +146,7 @@
 
 
 #define GX_ERROR_BACKTRACE_SIZE 5
+
 typedef struct gx_error_report {
     int         error_id;
     const char *src_file;
@@ -133,6 +156,10 @@ typedef struct gx_error_report {
     int         chk_level;
 } __attribute__((__packed__)) gx_error_report;
 #define GX_ERROR_REPORT_SIZE ((__SIZEOF_INT__ * 3) + (__SIZEOF_POINTER__ * 3))
+// TODO:
+//   - error-class for lookup tables
+
+
 
 // Guarantee these variables are put in the .common section so they are
 // globally shared by the linker without us needing to initialize them
@@ -164,6 +191,19 @@ static _noinline int _gx_mark_err_do(int error_id, const char *file, int line,
     // actually occurred.
     return 1;
 }
+
+
+
+/**
+ * Log any errors. (should be automatic??)
+ * SEVERITY
+ * - 
+ *
+ */
+
+//  #define _elog(SEVERITY, ...) _gx_elog(#SEVERITY, ##  ....
+//  static _noinline void _gx_elog(const char *severity,  ....
+
 
 static void gx_error_dump_all()
 {

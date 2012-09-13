@@ -1,4 +1,37 @@
 
+
+
+if_e* / switch_e* / _eraise / _eclear    -> _gx_error_stack
+
+* HAS
+    error_id
+    src_file
+    src_line
+    src_func
+    src_expr
+    chk_level (depth)
+    related/parent errors
+
+* error-class - for lookup functions, error-id interpretation, etc.
+
+* MISSING
+  - error-value          (such as errno)
+  - error-label          (via specified lookup)
+  - error-description    (via specified lookup)
+  - reference-expression (well, usually just the called function)
+  - message-class        (usually severity)
+  - recovery-action      (? if possible- would be nice to be explicit)
+
+- stringified internal error message
+
+
+recovery action
+
+
+
+- - - - - -
+
+
 Error-logging graceful degredation- especially for "important" classes: If
 existing logger fails, try a simpler one (syslog?), and so forth. As a very
 last resort, at least logged to some global structure for attempted reporting
@@ -15,17 +48,20 @@ later or on exit. Should be robust against:
 http://www.trottercashion.com/2012/08/12/how-to-write-good-log-messages.html)
 
 
- * level     (importance)
- * time      (in UTC)
  * host
+ * version   (version of the code that generated msg)
  * pid
+
+ * level     (importance)
  * user      (peer, IP or session-id etc.)
  * location  (location in the code that generated msg)
- * version   (version of the code that generated msg)
- * variables (k/v pairs)
  * message   (descriptive, ideally)
+ * variables (k/v pairs)
+ * time      (in UTC)
 
 
+(I would like to have 'message' or 'tag' and then 'report' which can have
+newlines / formatting / etc.)
 
 - - - - - - - - - - 
 
@@ -43,14 +79,6 @@ http://www.trottercashion.com/2012/08/12/how-to-write-good-log-messages.html)
   - utc-time (when string, in ISO 8601 format: YYY-MM-DDThh:mm:ss...Z)
   - pid/tid
   - ppid
-
-* **error**
-  - error-value          (such as errno)
-  - error-label          (via specified lookup)
-  - error-description    (via specified lookup)
-  - reference-expression (well, usually just the called function)
-  - message-class        (usually severity)
-  - recovery-action      (? if possible- would be nice to be explicit)
 
 * **log**
   - message-class
