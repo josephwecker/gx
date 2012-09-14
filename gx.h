@@ -105,7 +105,7 @@
   #pragma intrinsic(__rdtsc)
   #define GX_CPU_TS ((unsigned)__rdtsc())
 #else
-  #warning Don't know how to implement RDTSC intrinsic on your system.
+  #warning "Don't know how to implement RDTSC intrinsic on your system."
 #endif
 #if __GNUC__
 	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
