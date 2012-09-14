@@ -239,4 +239,14 @@ static void gx_error_dump_all()
     }
 }
 
+
+//
+// - name
+// - short_abbrev
+// - check_statement
+typedef struct gx_error_class {
+    
+
+} gx_error_class;
+
 #endif
