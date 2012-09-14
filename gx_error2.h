@@ -258,8 +258,12 @@ static void gx_error_dump_all()
 // - name
 // - short_abbrev
 // - check_statement
+
+// {err_class, err_id, tag, brief, general_persistence, [resulting_action]
+
 typedef struct gx_error_class {
 
+    //gx_error_value *value_table;
 
 } gx_error_class;
 

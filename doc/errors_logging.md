@@ -1,3 +1,50 @@
+
+
+check-type
+errno-lookup-module
+
+
+
+- - - - - - -
+
+* Likely to repeat- configuration/system-settings
+* Likely system-temporary
+* Likely process-temporary
+* Completely transient (e.g., EAGAIN)
+
+
+### Application permanent (probably needs manual intervention & code change, will almost certainly repeat)
+
+EBADE EBADF EBADMSG EBADRQC EBADSLT ECHRNG EDESTADDRREQ EDOM EFAULT EILSEQ
+ECHILD EINVAL EMEDIUMTYPE ENOENT ENOEXEC ENOSTR ENOTBLK ENOTDIR ENOTSOCK ENOTTY
+EOVERFLOW EPROTOTYPE ERANGE ESHUTDOWN ESPIPE ESRCH ESTALE ESTRPIPE EXDEV
+EUCLEAN
+
+### System/configuration permanent (probably needs manual system intervention, will likely repeat)
+ESOCKTNOSUPPORT EREMCHG EREMOTE EREMOTEIO EPERM EPFNOSUPPORT EPIPE EPROTO
+EPROTONOSUPPORT ENOTUNIQ EOPNOTSUPP ENXIO ELIBMAX ELIBACC ELIBBAD ELIBSCN
+ELIBEXEC ENOSYS ENOTCONN ENOTEMPTY ENODEV ENOTSUP ELOOP E2BIG EACCESS
+EADDRINUSE EADDRNOTAVAIL EAFNOSUPPORT EDQUOT EEXIST EISDIR EISNAM ENOKEY
+EKEYEXPIRED EKEYREJECTED EKEYREVOKED EL2HLT EL2NSYNC EL3HLT EL3RST EMULTIHOP
+ENOPKG ENOPROTOOPT EROFS EUNATCH
+
+
+### System Temporary / limits (possibly recoverable as system state changes, will possibly repeat- repeats indicate bigger problems)
+EXFULL EBUSY ECOMM EALREADY ECONNABORTED ECONNREFUSED ECONNRESET EHOSTDOWN
+EHOSTUNREACH EIDRM EIO EISCONN ENETDOWN ENETRESET ENETUNREACH ENOBUFS ENOLCK
+ENOLINK ENOMEDIUM ENOMEM ENOMSG ENONET ENOSPC ENOSR
+
+EFBIG ENAMETOOLONG EMSGSIZE EMFILE EMLINK ENFILE EUSERS
+
+### Process Temporary (possibly recoverable within process, only a problem if it always repeats)
+EAGAIN EWOULDBLOCK ECANCELED EDEADLK EDEADLOCK EINPROGRESS EINTR ENODATA
+ERESTART ETIME ETIMEDOUT ETXTBSY
+
+
+
+
+- - - - - -
+
     *-->[Check Functions]-->(Error-stack)-->[Explicit err log rpt]--->[Error-rpt-expander]--->[[_gx_log]]
                                         \-->[Implicit err log rpt]-/   ^
                                                                        |

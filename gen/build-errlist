@@ -1,5 +1,13 @@
 #!/bin/bash
 set -e
+
+is_in_array () {
+  local e
+  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+  return 1
+}
+
+
 ECONSTANTS=( `echo '#include <errno.h>' | cpp -dM | grep 'define E' | cut -f2 -d' ' | sort -u` )
 NUMTAGS=${#ECONSTANTS[@]}
 ETAGS=$(printf '"%s",' "${ECONSTANTS[@]}")
