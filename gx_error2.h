@@ -38,20 +38,31 @@
     | eio   | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
     | eavc  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
 */
-#ifndef GX_ERROR_H
-#define GX_ERROR_H
+#ifndef GX_ERROR2_H
+#define GX_ERROR2_H
 
-#define if_esys(E)  if( _esys(E)  )
-#define if_emap(E)  if( _emap(E)  )
-#define if_enz(E)   if( _enz(E)   )
-#define if_ez(E)    if( _ez(E)    )
-#define if_enull(E) if( _enull(E) )
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define if_esys(E)      if( _esys(E)  )
+#define if_emap(E)      if( _emap(E)  )
+#define if_enz(E)       if( _enz(E)   )
+#define if_ez(E)        if( _ez(E)    )
+#define if_enull(E)     if( _enull(E) )
 
 #define switch_esys(E)  if_esys(E)  switch(errno)
 #define switch_emap(E)  if_emap(E)  switch(errno)
 #define switch_enz(E)   if_enz(E)   switch(errno)
 #define switch_ez(E)    if_ez(E)    switch(errno)
 #define switch_enull(E) if_enull(E) switch(errno)
+
+#define _(E)            if_esys(E)
+#define _M(E)           if_emap(E)
+#define _E(E)           if_enz(E)
+#define _Z(E)           if_ez(E)
+#define _N(E)           if_enull(E)
+
 
 #define E_GX_RAISED 254
 #define _eraise(RETVAL) {\
@@ -68,6 +79,11 @@
     _gx_error_stack[0].error_id =        \
         _gx_error_stack[1].error_id = 0; \
     errno = 0;                           \
+}
+
+#define _eexit() {\
+    /* TODO: log fatal */ gx_error_dump_all();\
+    exit(errno);\
 }
 
 
@@ -147,14 +163,14 @@
 
 #define GX_ERROR_BACKTRACE_SIZE 5
 
-typedef struct gx_error_report {
+typedef struct gx_error_rpt {
     int         error_id;
     const char *src_file;
     int         src_line;
     const char *src_func;
     const char *src_expr;
     int         chk_level;
-} __attribute__((__packed__)) gx_error_report;
+} __attribute__((__packed__)) gx_error_rpt;
 #define GX_ERROR_REPORT_SIZE ((__SIZEOF_INT__ * 3) + (__SIZEOF_POINTER__ * 3))
 // TODO:
 //   - error-class for lookup tables
@@ -168,9 +184,9 @@ asm ("\n .comm _gx_error_stack,"  _STR(GX_ERROR_REPORT_SIZE * GX_ERROR_BACKTRACE
 asm ("\n .comm _gx_error_cidx,"   _STR(__SIZEOF_INT__) ",8 \n");
 asm ("\n .comm _gx_error_depth,"  _STR(__SIZEOF_INT__) ",8 \n");
 
-gx_error_report _gx_error_stack[GX_ERROR_BACKTRACE_SIZE];
-int             _gx_error_cidx;
-int             _gx_error_depth;
+gx_error_rpt _gx_error_stack[GX_ERROR_BACKTRACE_SIZE];
+int          _gx_error_cidx;
+int          _gx_error_depth;
 
 // Purposefully don't inline because it will be rarely called (or, in any case,
 // the code path for it not being called should be the optimized code path) and

@@ -20,14 +20,8 @@
  *  https://dank.qemfd.net/bugzilla/show_bug.cgi?id=119
  * 
  * USAGE:
- * RW|Allocate gx_mfd pool    |new_gx_mfd_pool(SIZE)     |mfd_pool or NULL on error
- * RW|Get gx_mfd from pool    |acquire_gx_mfd (mfd_pool) |actual gx_mfd
- *  W|Initialize writer gx_mfd|gx_mfd_create_w(mfd*,path)|-1 on error, otherwise mfd->fd.
- * R |Initialize reader gx_mfd|gx_mfd_create_r(mfd*,path)|-1 or populate mfd & mfd->watch_fd
- * RW|Prepare to read or write|mfd_c_adv      (mfd*,len) |pointer to where you can now r/w len bytes.
- * RW|Update fd's offset to c |mfd_autoseek   (mfd*)     |-1=err, do before fd based read/write/sendfile/etc
- * RW|Update c to fd's offset |mfd_autotell   (mfd*)     |-1 on error
- *  W|Tell readers re new data|mfd_broadcast  (mfd*)     |-1 on error
+
+
  *
  *
  *        freed/
@@ -227,6 +221,16 @@ static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
     }
 }
 
+/*
+/// Mapped to the first part of the first page of the file- common offsets for mapcs.
+typdef struct mapc_head {
+    uint64_t file_sig;         ///< Will always be 0x1c... (so we don't clobber some unsuspecting file)
+    uint64_t file_size;        ///< Full size of a file- including head(?)
+    uint64_t start_available;  ///< File offset to data that hasn't been freed
+    uint64_t start_active;     ///< File offset to data still mapped in writer
+    uint64_t start_unused;     ///< Points to just after the last byte of actual data
+} mapc_head;
+*/
 
 typedef struct gx_mfd_head {
     uint64_t  sig;    ///< Will always be 0x1c... - so we don't clobber some unsuspecting file not made for this

@@ -1,5 +1,16 @@
 
 
+logger
+  - filter
+    - msg-classes
+    - error-numbers
+    - ...
+
+
+
+
+- - - - -
+
 
 
 Central concerns:
@@ -16,6 +27,9 @@ Central concerns:
     - An error / problem with logging should never affect the server and visa
       versa.
 
+  - If there is no logger that cares about a given message class, processing of
+    that message class error report and/or log message should halt as early as
+    possible- including being completely compiled away if possible...
 
 
 - - - - -

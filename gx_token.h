@@ -200,19 +200,6 @@ static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
     283, 293, 307, 311, 313, 317, 331, 313};
 
 //-----------------------------------------------------------------------------
-#if __INTEL_COMPILER
-  #define GX_CPU_TS ((unsigned)__rdtsc())
-#elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
-  #define GX_CPU_TS ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
-#elif (_M_IX86)
-  #include <intrin.h>
-  #pragma intrinsic(__rdtsc)
-  #define GX_CPU_TS ((unsigned)__rdtsc())
-#else
-  #error Architechture not supported! No native construct for rdtsc
-#endif
-
-//-----------------------------------------------------------------------------
 /// Forward Declarations
 static           int      gx_nonce_init(gx_nonce_machine *nm, int hardened);
 static GX_INLINE int      gx_nonce_next(gx_nonce_machine *nm, char *buf);
