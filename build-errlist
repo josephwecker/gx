@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+ECONSTANTS=( `echo '#include <errno.h>' | cpp -dM | grep 'define E' | cut -f2 -d' ' | sort -u` )
+NUMTAGS=${#ECONSTANTS[@]}
+ETAGS=$(printf '"%s",' "${ECONSTANTS[@]}")
+ECONSTANTS=$(printf '%s,' "${ECONSTANTS[@]}")
+PROG="
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+int main(int argc, char **argv) {
+  int i;
+  const char *as_tags[] = {$ETAGS \"\"};
+  int codes[]={${ECONSTANTS}};
+  for(i=0; i < $NUMTAGS ; i++) printf(\"%d %s {{%s}}\\n\",codes[i],as_tags[i],strerror(codes[i]));
+  return 0;
+}"
+echo "$PROG" > .tmp_test.c
+gcc -o ./.tmp_test .tmp_test.c && ./.tmp_test && rm ./.tmp_test && rm ./.tmp_test.c

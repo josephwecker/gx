@@ -45,6 +45,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+esys = {strerror, };
+
+// Overrides
+
+/* TODO:
+ *  h_errno
+    gai_strerror,
+    herror,
+    hstrerror,
+*/
+
+
+
 #define if_esys(E)      if( _esys(E)  )
 #define if_emap(E)      if( _emap(E)  )
 #define if_enz(E)       if( _enz(E)   )
@@ -63,7 +77,7 @@
 #define _Z(E)           if_ez(E)
 #define _N(E)           if_enull(E)
 
-
+// TODO: try sys_nerr + 10 or something for E_GX_RAISED
 #define E_GX_RAISED 254
 #define _eraise(RETVAL) {\
     _gx_error_cidx += 1;                               \
@@ -245,7 +259,7 @@ static void gx_error_dump_all()
 // - short_abbrev
 // - check_statement
 typedef struct gx_error_class {
-    
+
 
 } gx_error_class;
 

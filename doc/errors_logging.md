@@ -1,4 +1,41 @@
+    *-->[Check Functions]-->(Error-stack)-->[Explicit err log rpt]--->[Error-rpt-expander]--->[[_gx_log]]
+                                        \-->[Implicit err log rpt]-/   ^
+                                                                       |
+                                                                /error-class-defs/
 
+    *-->[Adhoc logging / stats]-->[_gx_log]-->[gen-logm expander]-->[log-rpt-dispatch]--*>[...Loggers...]
+                                                                            ^
+                                                                            |
+                                                                     (log-entry common consts etc.)
+
+    [...Loggers...]--->/registered/-->/active-loggers/--->[[log-rpt-dispatch]]
+           |                                          \-->[preemptive-filter]-->[[gen-logm expander]]
+           |                                                                 |->[[error-rpt-expander]]
+           |                                                                 |->[[Explicit err log rpt]]
+           v                                                                 \->[[Implicit err log rpt]]
+        [...external-systems/files/etc...]
+
+
+
+* error-rpt-expander - including optional backtrace only when the situation
+  warrants it- i.e., be reactive to system needs.
+* error-class-defs can give "min severity"s that upgrade a user's
+  severity/msg-class (e.g., all that failed was opening a non-essential file so
+  main prog sets severity to warn but error-class-def sees that it's an EFAULT
+  so upgrades it to error- every final report being the max(given,defined)
+  msg-type.
+
+
+* Important one: mqueue based w/ user-space backup queue where higher priority
+  items can swap out lower-priority ones, msgs about missing messages, etc. can
+  be placed.
+
+* Status reports that work like /proc filesystem- simply file entrypoints that
+  "query" the server.
+
+* Main implemented loggers:  debug(stderr), stress(syslog), comm(mqueue)
+
+- - - - - - -
 
 logger
   - filter

@@ -21,4 +21,7 @@ typedef struct gx_logentry_common {
 
 
 
+
+
+
 // specify formatters for different kinds of reports
