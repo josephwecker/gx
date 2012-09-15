@@ -28,15 +28,15 @@
 
    @details
 
-    | etype | description                                                               |
-    | ----- | ------------------------------------------------------------------------- |
-    | esys  | Error if expression is -1         errno set                               |
-    | emap  | Error if expression is MAP_FAILED errno set                               |
-    | enz   | Error if expression is non-zero   value as errno                          |
-    | ez    | Error if expression is zero       errno set                               |
-    | enull | Error if expression is null       errno possibly set                      |
-    | eio   | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
-    | eavc  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
+    | check | errtype | description                                                               |
+    | ----- | ------- | ------------------------------------------------------------------------- |
+    | esys  | syserr  | Error if expression is -1         errno set                               |
+    | emap  | syserr  | Error if expression is MAP_FAILED errno set                               |
+    | enz   | syserr  | Error if expression is non-zero   value as errno                          |
+    | ez    | syserr  | Error if expression is zero       errno set                               |
+    | enull | syserr  | Error if expression is null       errno possibly set                      |
+    | eio   | syserr  | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
+    | eavc  | syserr  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
 */
 #ifndef GX_ERROR2_H
 #define GX_ERROR2_H
@@ -56,6 +56,8 @@ esys = {strerror, };
     herror,
     hstrerror,
 */
+
+
 
 
 
