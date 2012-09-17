@@ -28,38 +28,41 @@
 
    @details
 
-    | check | errtype | description                                                               |
-    | ----- | ------- | ------------------------------------------------------------------------- |
-    | esys  | syserr  | Error if expression is -1         errno set                               |
-    | emap  | syserr  | Error if expression is MAP_FAILED errno set                               |
-    | enz   | syserr  | Error if expression is non-zero   value as errno                          |
-    | ez    | syserr  | Error if expression is zero       errno set                               |
-    | enull | syserr  | Error if expression is null       errno possibly set                      |
-    | eio   | syserr  | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
-    | eavc  | syserr  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
+    | check | abbrv | errtype | description                                                               |
+    | ----- | ----- | ------- | ------------------------------------------------------------------------- |
+    | esys  | _()   | syserr  | Error if expression is -1         errno set                               |
+    | emap  | _M()  | syserr  | Error if expression is MAP_FAILED errno set                               |
+    | enz   | _E()  | syserr  | Error if expression is non-zero   value as errno                          |
+    | ez    | _Z()  | syserr  | Error if expression is zero       errno set                               |
+    | enull | _N()  | syserr  | Error if expression is null       errno possibly set                      |
+    | eio   |       | syserr  | (NYI) stdio ferror style errors (doesn't trigger on feof)                 |
+    | eavc  |       | syserr  | (NYI) avconv-style errors- < 0 is error value, some w/ mapping to errno   |
+
+
+    Actions
+      - _eignore     : ignore. possibly logs to unessential message-class
+      - _elog(MCLASS, TAG, DESIRED_ACTION) 
+      - _eraise(RV)  : returns RV after saving the error on the error-stack
+      - _eclear()    : clears the error-stack- does not log
+      - _eexit()     : exits with errno value- automatically logs reason / severity
+
+
+
+   @todo separate esys lookup module with additional lookups from:
+      - h_errno
+      - gai_strerror,
+      - herror,
+      - hstrerror,
+      - and including error-id severity overrides
+
 */
+
 #ifndef GX_ERROR2_H
 #define GX_ERROR2_H
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-
-esys = {strerror, };
-
-// Overrides
-
-/* TODO:
- *  h_errno
-    gai_strerror,
-    herror,
-    hstrerror,
-*/
-
-
-
-
 
 #define if_esys(E)      if( _esys(E)  )
 #define if_emap(E)      if( _emap(E)  )
@@ -79,14 +82,11 @@ esys = {strerror, };
 #define _Z(E)           if_ez(E)
 #define _N(E)           if_enull(E)
 
-// TODO: try sys_nerr + 10 or something for E_GX_RAISED
-#define E_GX_RAISED 254
 #define _eraise(RETVAL) {\
     _gx_error_cidx += 1;                               \
     if(_gx_error_cidx > GX_ERROR_BACKTRACE_SIZE - 1) { \
         _gx_error_cidx = GX_ERROR_BACKTRACE_SIZE - 1;  \
     }\
-    errno = E_GX_RAISED; \
     return RETVAL;       \
 }
 
