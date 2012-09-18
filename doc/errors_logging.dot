@@ -1,0 +1,26 @@
+digraph errors_and_logging {
+  ratio=compress; splines=true; searchsize=200; mclimit=16.0;
+  concentrate=true; nslimit=16.0;
+  node [fontname="sans"];
+
+  // Entrypoints
+  node [fillcolor="#ffdddd",style=filled]
+  "Check Functions"
+  "Log Error (Explicit)"
+  "Log Adhoc"
+
+  // Normal
+  node [fillcolor=white,style=solid]
+
+  "Check Functions" -> "Error Stack"
+  "Error Stack" -> "Log Error (Explicit)"
+  "Error Stack" -> "Log Error (Implicit)"
+  "Log Error (Explicit)" -> "Error Report Expander"
+  "Log Error (Implicit)" -> "Error Report Expander"
+  "Error Class Definitions" -> "Error Report Expander"
+  "Error Report Expander" -> "Logger"
+  "Log Adhoc" -> "Logger"
+  "Logger" -> "General Log Report Expander"
+  "Logger Common Constants" -> "General Log Report Expander"
+  "General Log Report Expander" -> "Log Dispatch Queue"
+}
