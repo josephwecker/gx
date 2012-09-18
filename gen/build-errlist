@@ -1,14 +1,72 @@
 #!/bin/bash
-set -e
+# This can be pretty easily adapted to other kinds of errors but for now just
+# looks up normal errno system errors.
+#set -e
+
+# Application permanent (probably needs manual intervention & code change, will
+# almost certainly repeat)
+err_app_permanent=( EBADE EBADF EBADMSG EBADRQC EBADSLT ECHRNG EDESTADDRREQ
+EDOM EFAULT EILSEQ ECHILD EINVAL EMEDIUMTYPE ENOENT ENOEXEC ENOSTR ENOTBLK
+ENOTDIR ENOTSOCK ENOTTY EOVERFLOW EPROTOTYPE ERANGE ESHUTDOWN ESPIPE ESRCH
+ESTALE ESTRPIPE EXDEV EUCLEAN )
+
+# System/configuration permanent (probably needs manual system intervention,
+# will likely repeat)
+err_sys_permanent=( ESOCKTNOSUPPORT EREMCHG EREMOTE EREMOTEIO EPERM
+EPFNOSUPPORT EPIPE EPROTO EPROTONOSUPPORT ENOTUNIQ EOPNOTSUPP ENXIO ELIBMAX
+ELIBACC ELIBBAD ELIBSCN ELIBEXEC ENOSYS ENOTCONN ENOTEMPTY ENODEV ENOTSUP ELOOP
+E2BIG EACCESS EADDRINUSE EADDRNOTAVAIL EAFNOSUPPORT EDQUOT EEXIST EISDIR EISNAM
+ENOKEY EKEYEXPIRED EKEYREJECTED EKEYREVOKED EL2HLT EL2NSYNC EL3HLT EL3RST
+EMULTIHOP ENOPKG ENOPROTOOPT EROFS EUNATCH )
+
+# System Temporary / limits (possibly recoverable as system state changes, will
+# possibly repeat- repeats indicate bigger problems)
+err_sys_temporary=( EXFULL EBUSY ECOMM EALREADY ECONNABORTED ECONNREFUSED
+ECONNRESET EHOSTDOWN EHOSTUNREACH EIDRM EIO EISCONN ENETDOWN ENETRESET
+ENETUNREACH ENOBUFS ENOLCK ENOLINK ENOMEDIUM ENOMEM ENOMSG ENONET ENOSPC ENOSR
+EFBIG ENAMETOOLONG EMSGSIZE EMFILE EMLINK ENFILE EUSERS )
+
+# Process Temporary (possibly recoverable within process, only a problem if it
+# always repeats)
+err_app_temporary=( EAGAIN EWOULDBLOCK ECANCELED EDEADLK EDEADLOCK
+EINPROGRESS EINTR ENODATA ERESTART ETIME ETIMEDOUT ETXTBSY )
 
 is_in_array () {
+  local to_find="${1}"
+  shift
+  local srch_array=("${@}")
   local e
-  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+  for e in "${srch_array[@]}"; do [ "$e" == "${to_find}" ] && return 0; done
   return 1
 }
 
+err_severity () {
+  local to_find="${1}"
+  is_in_array ${to_find} "${err_app_permanent[@]}" && echo 'app_permanent' && return 0
+  is_in_array ${to_find} "${err_sys_permanent[@]}" && echo 'sys_permanent' && return 0
+  is_in_array ${to_find} "${err_sys_temporary[@]}" && echo 'sys_temporary' && return 0
+  is_in_array ${to_find} "${err_app_temporary[@]}" && echo 'app_temporary' && return 0
+  echo 'unknown' && return 0
+}
+
+map () { 
+  if [ $# -le 1 ]; then 
+    return 
+  else 
+    local f=$1 
+    local x=$2 
+    shift 2 
+    local xs=$@ 
+
+    $f $x 
+
+    map "$f" $xs 
+  fi 
+}
 
 ECONSTANTS=( `echo '#include <errno.h>' | cpp -dM | grep 'define E' | cut -f2 -d' ' | sort -u` )
+ESEVERITY=( $( map err_severity "${ECONSTANTS[@]}" ) )
+ESEVERITIES=$(printf '"%s",' "${ESEVERITY[@]}")
 NUMTAGS=${#ECONSTANTS[@]}
 ETAGS=$(printf '"%s",' "${ECONSTANTS[@]}")
 ECONSTANTS=$(printf '%s,' "${ECONSTANTS[@]}")
@@ -19,9 +77,21 @@ PROG="
 int main(int argc, char **argv) {
   int i;
   const char *as_tags[] = {$ETAGS \"\"};
+  const char *intrinsic_severities[] = {$ESEVERITIES \"unknown\"};
   int codes[]={${ECONSTANTS}};
-  for(i=0; i < $NUMTAGS ; i++) printf(\"%d %s {{%s}}\\n\",codes[i],as_tags[i],strerror(codes[i]));
+  for(i=0; i < $NUMTAGS ; i++) printf(\"    {%d,\\\"%s\\\",\\\"%s\\\", \\\"%s\\\"},\\n\",codes[i],as_tags[i],strerror(codes[i]), intrinsic_severities[i]);
   return 0;
 }"
 echo "$PROG" > .tmp_test.c
-gcc -o ./.tmp_test .tmp_test.c && ./.tmp_test && rm ./.tmp_test && rm ./.tmp_test.c
+set -e
+gcc -o ./.tmp_test .tmp_test.c
+
+echo "const err_entry syserr_entries[] = {"
+./.tmp_test
+echo "    {0}"
+echo "}"
+rm ./.tmp_test
+rm ./.tmp_test.c
+
+
+
