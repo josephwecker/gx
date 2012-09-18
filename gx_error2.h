@@ -103,6 +103,15 @@
 }
 
 
+typedef enum gx_intrinsic_severity {
+    SEV_APP_PERMANENT,
+    SEV_SYS_PERMANENT,
+    SEV_SYS_TRANSIENT,
+    SEV_APP_TRANSIENT,
+    SEV_UNKNOWN
+} gx_intrinsic_severity;
+
+
 // ---------------------------------------------------------------------
 // TODO: move all contained to gx.h when ready to make this include gx.h
 

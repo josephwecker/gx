@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# Currently just working for errno-type syserrors, but can easily be modified
+# to build header files for other error classes.
+
+# Application permanent (probably needs manual intervention & code change, will
+# almost certainly repeat)
+err_app_permanent=%w'EBADE EBADF EBADMSG EBADRQC EBADSLT ECHRNG EDESTADDRREQ
+EDOM EFAULT EILSEQ ECHILD EINVAL EMEDIUMTYPE ENOENT ENOEXEC ENOSTR ENOTBLK
+ENOTDIR ENOTSOCK ENOTTY EOVERFLOW EPROTOTYPE ERANGE ESHUTDOWN ESPIPE ESRCH
+ESTALE ESTRPIPE EXDEV EUCLEAN'
+# System/configuration permanent (probably needs manual system intervention,
+# will likely repeat)
+err_sys_permanent=%w'ESOCKTNOSUPPORT EREMCHG EREMOTE EREMOTEIO EPERM
+EPFNOSUPPORT EPIPE EPROTO EPROTONOSUPPORT ENOTUNIQ EOPNOTSUPP ENXIO ELIBMAX
+ELIBACC ELIBBAD ELIBSCN ELIBEXEC ENOSYS ENOTCONN ENOTEMPTY ENODEV ENOTSUP ELOOP
+E2BIG EACCESS EADDRINUSE EADDRNOTAVAIL EAFNOSUPPORT EDQUOT EEXIST EISDIR EISNAM
+ENOKEY EKEYEXPIRED EKEYREJECTED EKEYREVOKED EL2HLT EL2NSYNC EL3HLT EL3RST
+EMULTIHOP ENOPKG ENOPROTOOPT EROFS EUNATCH'
+# System Temporary / limits (possibly recoverable as system state changes, will
+# possibly repeat- repeats indicate bigger problems)
+err_sys_transient=%w'EXFULL EBUSY ECOMM EALREADY ECONNABORTED ECONNREFUSED
+ECONNRESET EHOSTDOWN EHOSTUNREACH EIDRM EIO EISCONN ENETDOWN ENETRESET
+ENETUNREACH ENOBUFS ENOLCK ENOLINK ENOMEDIUM ENOMEM ENOMSG ENONET ENOSPC ENOSR
+EFBIG ENAMETOOLONG EMSGSIZE EMFILE EMLINK ENFILE EUSERS'
+# Process Temporary (possibly recoverable within process, only a problem if it
+# always repeats)
+err_app_transient=%w'EAGAIN EWOULDBLOCK ECANCELED EDEADLK EDEADLOCK EINPROGRESS
+EINTR ENODATA ERESTART ETIME ETIMEDOUT ETXTBSY'
+
+constants = `echo '#include <errno.h>' | cpp -dM | grep 'define E' | cut -f2 -d' ' | sort -u`.split(/\s+/)
+severities = constants.map do |errtag|
+  if    err_app_permanent.include?(errtag) then :SEV_APP_PERMANENT
+  elsif err_sys_permanent.include?(errtag) then :SEV_SYS_PERMANENT
+  elsif err_sys_transient.include?(errtag) then :SEV_SYS_TRANSIENT
+  elsif err_app_transient.include?(errtag) then :SEV_APP_TRANSIENT
+  else :SEV_UNKNOWN end
+end
+
+def strlist(arr) arr.map{|v| '"'+v.to_s.gsub('"','\\"')+'"'}.join(', ') end
+
+generator_src = <<-c_src
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+int main(int argc, char **argv) {
+  int i;
+  const char *as_tags[] = {#{strlist(constants)}};
+  const char *intrinsic_severities[] = {#{strlist(severities)}};
+  int codes[]={#{constants.join(', ')}};
+  for(i=0; i < #{constants.size} ; i++) printf(\"{%d|||%s|||%s|||%s}\\n\",codes[i],as_tags[i],strerror(codes[i]), intrinsic_severities[i]);
+  return 0;
+}
+c_src
+require 'tempfile'
+src_file = Tempfile.new(['genh', '.c'])
+exe_file = Tempfile.new('genh-out')
+exe_file.close
+src_file.write(generator_src) and src_file.close
+res = `gcc -o "#{exe_file.path}" "#{src_file.path}" && "#{exe_file.path}"`
+File.unlink(src_file.path) and File.unlink(exe_file.path)
+
+res = res.strip.scan(/\{([^\}]+)\}/m).map{|entry| entry[0].split('|||')}
