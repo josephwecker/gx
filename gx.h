@@ -179,6 +179,61 @@
   #define      __packed  __attribute__ ((packed))
 
 
+#ifndef __SIZEOF_INT__
+  #ifdef __INTMAX_MAX__
+    #if (__INT_MAX__ == 0x7fffffff) || (__INT_MAX__ == 0xffffffff)
+      #define __SIZEOF_INT__ 4
+    #else
+      //#warning Guessing the size of an integer is 2 bytes
+      #define __SIZEOF_INT__ 2
+    #endif
+  #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64)
+    #define __SIZEOF_INT__ 4
+  #else
+    //#warning Guessing the size of an integer is 2 bytes
+    #define __SIZEOF_INT__ 2
+  #endif
+#endif
+
+#ifndef __SIZEOF_POINTER__
+  //#warning Guessing the size of a pointer is 2 * __SIZEOF_INT__
+  #define __SIZEOF_POINTER__ (2 * __SIZEOF_INT__)
+#endif
+
+#define _STR2(x)      #x
+#define _STR(x)       _STR2(x)
+#define __LINE_STR__  _STR(__LINE__)
+#define _rare(X)      __builtin_expect(!!(X), 0)
+#define _freq(X)      __builtin_expect(!!(X), 1)
+#define _inline       __attribute__ ((__always_inline__))
+#define _noinline     __attribute__ ((__noinline__))
+/// A trick to get the number of args passed to a variadic macro
+/// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
+/// @todo   Abstract this back into gx.h and rename so it's generally usable
+#define PP_NARG(...) \
+         PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
+#define PP_NARG_(...) \
+         PP_ARG_N(__VA_ARGS__)
+#define PP_ARG_N( \
+          _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
+         _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
+         _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
+         _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
+         _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
+         _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
+         _61,_62,_63,N,...) N
+#define PP_RSEQ_N() \
+         63,62,61,60,                   \
+         59,58,57,56,55,54,53,52,51,50, \
+         49,48,47,46,45,44,43,42,41,40, \
+         39,38,37,36,35,34,33,32,31,30, \
+         29,28,27,26,25,24,23,22,21,20, \
+         19,18,17,16,15,14,13,12,11,10, \
+         9,8,7,6,5,4,3,2,1,0
+
+
+
+
   static GX_INLINE void gx_hexdump(void *buf, size_t len, int more) {
       size_t i=0, tch; int val, grp, outsz=0, begin_col;
       size_t begin_line;

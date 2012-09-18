@@ -1,6 +1,9 @@
 #include "./test_gxerr_help.h"
 #include <errno.h>
 
+
+gx_error_initialize(GX_DEBUG)  // TODO: remove after old gx_error.h migrated out of gx.h
+
 void *test_chain1();
 int test_chain2();
 int test_chain3();

@@ -1,6 +1,6 @@
-
+gx_all : gxe/syserr.h
 
 $(shell mkdir -p gxe)
 
-gxe/syserr.h : gen/build-errlist
-	gen/build-errlist > gxe/syserr.h
+gxe/syserr.h : gen/build-error-lookups
+	$< > $@

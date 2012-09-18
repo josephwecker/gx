@@ -40,12 +40,11 @@
 
 
     Actions
-      - _eignore     : ignore. possibly logs to unessential message-class
-      - _elog(MCLASS, TAG, DESIRED_ACTION) 
-      - _eraise(RV)  : returns RV after saving the error on the error-stack
-      - _eclear()    : clears the error-stack- does not log
-      - _eexit()     : exits with errno value- automatically logs reason / severity
-
+      - _eignore       : ignore. possibly logs to unessential message-class
+      - _eraise(RV)    : returns RV after saving the error on the error-stack
+      - _eclear()      : clears the error-stack- does not log
+      - _eexit()       : exits with errno value- automatically logs reason / severity
+      - _elog(SEV,...) : 
 
 
    @todo separate esys lookup module with additional lookups from:
@@ -60,6 +59,7 @@
 #ifndef GX_ERROR2_H
 #define GX_ERROR2_H
 
+#include "./gx.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,97 +82,29 @@
 #define _Z(E)           if_ez(E)
 #define _N(E)           if_enull(E)
 
-#define _eraise(RETVAL) {\
-    _gx_error_cidx += 1;                               \
-    if(_gx_error_cidx > GX_ERROR_BACKTRACE_SIZE - 1) { \
-        _gx_error_cidx = GX_ERROR_BACKTRACE_SIZE - 1;  \
-    }\
-    return RETVAL;       \
+#define _eraise(RETVAL) {                                        \
+    _gx_error_cidx += 1;                                         \
+    if(_gx_error_cidx > GX_ERROR_BACKTRACE_SIZE - 1) {           \
+        _gx_error_cidx = GX_ERROR_BACKTRACE_SIZE - 1;            \
+    }                                                            \
+    return RETVAL;                                               \
 }
 
-#define _eclear() {\
-    _gx_error_cidx = 0;                  \
-    _gx_error_stack[0].error_id =        \
-        _gx_error_stack[1].error_id = 0; \
-    errno = 0;                           \
+#define _eclear() {                                              \
+    _gx_error_cidx = 0;                                          \
+    _gx_error_stack[0].error_number =                                \
+        _gx_error_stack[1].error_number = 0;                         \
+    errno = 0;                                                   \
 }
 
-#define _eexit() {\
-    /* TODO: log fatal */ gx_error_dump_all();\
-    exit(errno);\
+#define _eexit() {                                               \
+    /* TODO: log fatal */ gx_error_dump_all();                   \
+    exit(errno);                                                 \
 }
 
-
-typedef enum gx_intrinsic_severity {
-    SEV_APP_PERMANENT,
-    SEV_SYS_PERMANENT,
-    SEV_SYS_TRANSIENT,
-    SEV_APP_TRANSIENT,
-    SEV_UNKNOWN
-} gx_intrinsic_severity;
-
-
-// ---------------------------------------------------------------------
-// TODO: move all contained to gx.h when ready to make this include gx.h
-
-#ifndef __SIZEOF_INT__
-  #ifdef __INTMAX_MAX__
-    #if (__INT_MAX__ == 0x7fffffff) || (__INT_MAX__ == 0xffffffff)
-      #define __SIZEOF_INT__ 4
-    #else
-      //#warning Guessing the size of an integer is 2 bytes
-      #define __SIZEOF_INT__ 2
-    #endif
-  #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64)
-    #define __SIZEOF_INT__ 4
-  #else
-    //#warning Guessing the size of an integer is 2 bytes
-    #define __SIZEOF_INT__ 2
-  #endif
-#endif
-
-#ifndef __SIZEOF_POINTER__
-  //#warning Guessing the size of a pointer is 2 * __SIZEOF_INT__
-  #define __SIZEOF_POINTER__ (2 * __SIZEOF_INT__)
-#endif
-
-#define _STR2(x)      #x
-#define _STR(x)       _STR2(x)
-#define __LINE_STR__  _STR(__LINE__)
-#define _rare(X)      __builtin_expect(!!(X), 0)
-#define _freq(X)      __builtin_expect(!!(X), 1)
-#define _inline       __attribute__ ((__always_inline__))
-#define _noinline     __attribute__ ((__noinline__))
-/// A trick to get the number of args passed to a variadic macro
-/// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
-/// @todo   Abstract this back into gx.h and rename so it's generally usable
-#define PP_NARG(...) \
-         PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
-#define PP_NARG_(...) \
-         PP_ARG_N(__VA_ARGS__)
-#define PP_ARG_N( \
-          _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
-         _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
-         _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
-         _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
-         _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
-         _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
-         _61,_62,_63,N,...) N
-#define PP_RSEQ_N() \
-         63,62,61,60,                   \
-         59,58,57,56,55,54,53,52,51,50, \
-         49,48,47,46,45,44,43,42,41,40, \
-         39,38,37,36,35,34,33,32,31,30, \
-         29,28,27,26,25,24,23,22,21,20, \
-         19,18,17,16,15,14,13,12,11,10, \
-         9,8,7,6,5,4,3,2,1,0
-// ---------------------------------------------------------------------
-
-
-#define _gx_mrk(EXPR_STR) \
-    _gx_mark_err_do((errno ? errno : ( _e ? _e : EINVAL )), \
+#define _gx_mrk(EXPR_STR)                                        \
+    _gx_mark_err_do((errno ? errno : ( _e ? _e : EINVAL )),      \
            __FILE__, __LINE__, __FUNCTION__, EXPR_STR)
-
 #define _reset_e() errno=0; int _e=0; _gx_error_depth++
 #define _run_e(E)  ({ int _result = _rare(E); _gx_error_depth--; \
         if(!_gx_error_depth && !_result) _eclear(); _result; })
@@ -186,21 +118,42 @@ typedef enum gx_intrinsic_severity {
 // TODO: _eavc - libavconv/ffmpeg style error codes
 
 
+typedef enum gx_error_severity {
+    SEV_APP_PERMANENT,
+    SEV_SYS_PERMANENT,
+    SEV_SYS_TRANSIENT,
+    SEV_APP_TRANSIENT,
+    SEV_UNKNOWN
+} gx_error_severity;
+
+typedef struct gx_error_lookup_info {
+    char               err_label     [25];
+    char               err_brief    [256];
+    gx_error_severity  err_severity;
+} gx_error_lookup_info;
+
+// These are generated by the makefile
+#include "./gxe/syserr.h"
+
+typedef enum gx_error_family {
+    ERRF_SYSERR
+} gx_error_family;
+
+//static const gx
+
+
 #define GX_ERROR_BACKTRACE_SIZE 5
 
 typedef struct gx_error_rpt {
-    int         error_id;
+    int         error_number;
+    int         error_family;
     const char *src_file;
     int         src_line;
     const char *src_func;
     const char *src_expr;
     int         chk_level;
 } __attribute__((__packed__)) gx_error_rpt;
-#define GX_ERROR_REPORT_SIZE ((__SIZEOF_INT__ * 3) + (__SIZEOF_POINTER__ * 3))
-// TODO:
-//   - error-class for lookup tables
-
-
+#define GX_ERROR_REPORT_SIZE ((__SIZEOF_INT__ * 4) + (__SIZEOF_POINTER__ * 3))
 
 // Guarantee these variables are put in the .common section so they are
 // globally shared by the linker without us needing to initialize them
@@ -217,15 +170,16 @@ int          _gx_error_depth;
 // the code path for it not being called should be the optimized code path) and
 // we don't want it to mess with the instruction pipeline / processing cache,
 // even though the body is pretty minimal currently...
-static _noinline int _gx_mark_err_do(int error_id, const char *file, int line,
+static _noinline int _gx_mark_err_do(int error_number, const char *file, int line,
         const char *function, const char *expr)
 {
-    _gx_error_stack[_gx_error_cidx].error_id  = error_id;
-    _gx_error_stack[_gx_error_cidx].src_file  = file;
-    _gx_error_stack[_gx_error_cidx].src_line  = line;
-    _gx_error_stack[_gx_error_cidx].src_func  = function;
-    _gx_error_stack[_gx_error_cidx].src_expr  = expr;
-    _gx_error_stack[_gx_error_cidx].chk_level = _gx_error_depth;
+    _gx_error_stack[_gx_error_cidx].error_family = ERRF_SYSERR; /// Hardcoded for now until there are more
+    _gx_error_stack[_gx_error_cidx].error_number = error_number;
+    _gx_error_stack[_gx_error_cidx].src_file     = file;
+    _gx_error_stack[_gx_error_cidx].src_line     = line;
+    _gx_error_stack[_gx_error_cidx].src_func     = function;
+    _gx_error_stack[_gx_error_cidx].src_expr     = expr;
+    _gx_error_stack[_gx_error_cidx].chk_level    = _gx_error_depth;
 
     // If you ever want to change this so that it possibly filters out certain
     // errors you can return 0 and the earlier macros will think that no error
@@ -235,47 +189,31 @@ static _noinline int _gx_mark_err_do(int error_id, const char *file, int line,
 
 
 
-/**
- * Log any errors. (should be automatic??)
- * SEVERITY
- * - 
- *
- */
+#define _elog(SEVERITY, ...) _gx_elog(PP_NARG(__VA_ARGS__)+1, SEVERITY, ##__VA_ARGS__)
+static _noinline void _gx_elog(int argc, gx_error_severity severity,  ...)
+{
 
-//  #define _elog(SEVERITY, ...) _gx_elog(#SEVERITY, ##  ....
-//  static _noinline void _gx_elog(const char *severity,  ....
+}
 
 
+
+/// Primarily a debugging tool, orthogonal to the normal errors/logging
 static void gx_error_dump_all()
 {
     int i;
     fprintf(stderr,"\n\n---------------- ERROR-DUMP --------------------\n");
     for(i = 0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
-        if(_gx_error_stack[i].error_id) {
+        if(_gx_error_stack[i].error_number) {
             fprintf(stderr, "\nEntry %d:\n" "-------------------\n"
                             "  errno:     %d\n" "  src_file:  %s\n"
                             "  src_line:  %d\n" "  src_func:  %s\n"
                             "  src_expr:  %s\n" "  chk_level: %d\n",
-                    i, _gx_error_stack[i].error_id,
+                    i, _gx_error_stack[i].error_number,
                     _gx_error_stack[i].src_file, _gx_error_stack[i].src_line,
                     _gx_error_stack[i].src_func, _gx_error_stack[i].src_expr,
                     _gx_error_stack[i].chk_level);
         } else break;
     }
 }
-
-
-//
-// - name
-// - short_abbrev
-// - check_statement
-
-// {err_class, err_id, tag, brief, general_persistence, [resulting_action]
-
-typedef struct gx_error_class {
-
-    //gx_error_value *value_table;
-
-} gx_error_class;
 
 #endif
