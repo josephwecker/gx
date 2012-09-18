@@ -22,10 +22,10 @@ ETIMEDOUT ETXTBSY'
 
 constants = `echo '#include <errno.h>' | cpp -dM | grep 'define E' | cut -f2 -d' ' | sort -u`.split(/\s+/)
 severities = constants.map do |errtag|
-  if    err_app_permanent.include?(errtag) then :SEV_APP_PERMANENT
-  elsif err_sys_permanent.include?(errtag) then :SEV_SYS_PERMANENT
-  elsif err_sys_transient.include?(errtag) then :SEV_SYS_TRANSIENT
-  elsif err_app_transient.include?(errtag) then :SEV_APP_TRANSIENT
+  if    err_app_permanent.include?(errtag) then :SEV_ALERT
+  elsif err_sys_permanent.include?(errtag) then :SEV_EMERGENCY
+  elsif err_sys_transient.include?(errtag) then :SEV_CRITICAL
+  elsif err_app_transient.include?(errtag) then :SEV_ERROR
   else :SEV_UNKNOWN end
 end
 
