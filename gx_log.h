@@ -27,6 +27,8 @@
 
 
    @details
+
+## Critical Concerns
      Primary purposes for logging (with some overlap):
        - Product resource usage & performance analysis
        - Product usage analysis
@@ -34,6 +36,8 @@
        - Defect containment/identification/investigation (app & system)
        - Development inspection & investigation
 
+
+## Commonly Reported Fields
 
      Common fields for log reports / items. Fields that are automatically
      calculated / included are marked with `*`. Fields that are automatically
@@ -75,8 +79,135 @@
      | (ad-hoc pairs)  | all    | Misc adhoc key/value pair assoc. data | desired_file=somefile.txt     |
 
 
+## Log Message Severity.
+
+  RFC 5424 defines eight severity levels described below (notes from wikipedia
+  plus some additional notes, clarification, and customizations). I've given
+  each level the following attributes:
+    - A brief description
+    - (Likely) Scope:  How big of a problem is infered or explicitly noted by
+      a message of this level- how many users / systems, etc.
+    - (Likely) Persistence:  How likely the error or similar errors are to
+      repeat themselves. Keep in mind these are orthogonal to the scope but
+      together with the scope and desired action inform the severity. Some
+      common values:
+        - System-permanent: it will not ever fix itself unless there is manual
+          intervention at the system level. e.g., required protocol not
+          implemented on / available on current OS.
+        - System-transient: It is a system-level problem (like resources or
+          network connection) that may resolve itself without manual
+          intervention. e.g., out of memory
+        - App-permanent: Something in the way the application is coded and
+          to a lesser degree it's current runtime context guarantees the error
+          will not go away without manual intervention (and/or code changes).
+          e.g., a segfault
+        - App-transient: May heal itself / stop repeating at the process
+          level. Usually pretty easy to code correct behavior. e.g., EINTR.
+    - (Desired) Action:  What kind of action this severity usually calls for.
+
+
+  -- scope -----------------\
+  -- persistence ------------>  severity/urgency -> notification-action
+  -- intervention-needed ---/
+
+
+  -------------------------------------------------------------
+  0. EMERGENCY: Whole system disruption or serious destabilization
+  -------------------------------------------------------------
+     Scope:       Potentially all application users and more. May indicate
+                  problems that affect larger systems.
+     Persistence: System-permanent or sometimes system-transient
+     Action:      Manual intervention almost certainly required. At this level
+                  usually notify all tech staff on call.
+
+  -------------------------------------------------------------
+  1. ALERT:     Full App disruption or serious destabilization
+  -------------------------------------------------------------
+     Scope:       Most or all of the application users / potential users. App
+                  cannot recover.
+     Persistence: System-transient, app-permanent, some system-permanent
+     Action:      Fast manual intervention and sometimes code changes
+                  probably required. Therefore notify staff that can fix the
+                  problem.
+
+  -------------------------------------------------------------
+  2. CRITICAL:  Critical conditions.
+  -------------------------------------------------------------
+     Scope:       Either many users disrupted or destabilized such that they
+                  may soon be disrupted. e.g., Worker process dies along with
+                  all the sessions it was handling... Also usually includes
+                  failure of redundant systems- i.e., backup ISP connection
+                  goes down.
+     Persistence: Partially or fully recoverable but indicates possible
+                  problem escalation and/or needs manual intervention.
+     Action:      Should be corrected immediately to avoid Alerts and
+                  Emergencies.
+
+  -------------------------------------------------------------
+  3. ERROR:     Non-urgent failures. Verified defect hits.
+  -------------------------------------------------------------
+     Scope:       Session-level and application defined disruptions affecting
+                  individual users.
+     Persistence: Session-transient. App and system fully recover but bug will
+                  remain.
+     Action:      Relayed to developers and/or admins and resolved in a given
+                  timeframe.
+
+  -------------------------------------------------------------
+  4. WARNING:   Warning conditions.
+  -------------------------------------------------------------
+     Scope:       Usually unknown- an indicator of instability and potential
+                  problem escalation. Unrecognized usage / code paths that
+                  haven't been fully developed, etc. Failed assertions, etc.
+     Persistence: Often session-transient. These are dangerous because if
+                  warnings never escalate they start to get ignored even
+                  though rarely seen warnings can be very urgent.
+     Action:      Relayed to developers and/or admins and resolved in a given
+                  timeframe.
+
+  -------------------------------------------------------------
+  5. NOTICE:   Normal but significant condition.
+  -------------------------------------------------------------
+     Scope:       Usually unknown in advance. The events are unusual but not
+                  directly destabilizing or disruptive. Usually they concern
+                  app-specific usage and user behavior assumptions. May
+                  indicate that different optimization decisions should be
+                  made etc.
+     Persistence: Any
+     Action:      Email-speed notifications or reports of aggregated totals
+                  for further analysis. No immediate action required.
+
+  -------------------------------------------------------------
+  6. INFO/STAT: Informational messages.
+  -------------------------------------------------------------
+     Scope:       Normal operational messages - may be harvested for
+                  reporting, measuring throughput, etc.
+     Persistence: N/A
+     Action:      Record, aggregate, report, etc. No immediate action
+                  required.
+
+  -------------------------------------------------------------
+  7. DEBUG:    Debug-level messages.
+  -------------------------------------------------------------
+     Scope:       Info useful to developers for debugging the application, not
+                  useful during operations.
+     Persistence: Development context
+     Action:      Developer specific
+
 */
 
+typedef enum gx_severity {
+    SEV_EMERGENCY, ///< Whole system disruption or serious destabilization.
+    SEV_ALERT,     ///< Full application disruption or serious destabilization.
+    SEV_CRITICAL,  ///< Process-level disruption or destabilization needing intervention.
+    SEV_ERROR,     ///< Session-level disruptions. Failures. Defects.
+    SEV_WARNING,   ///< Potential instability needing attention.
+    SEV_NOTICE,    ///< Normal but significant condition needing some monitoring.
+    SEV_INFO,      ///< Informational messages/reports for analysis.
+    SEV_STAT       = SEV_INFO,
+    SEV_DEBUG,     ///< Assistance for development/debugging but not useful during operations.
+    SEV_UNKNOWN    = SEV_WARNING
+} gx_severity;
 
 
 typedef struct gx_logentry_constants {
@@ -92,7 +223,7 @@ typedef struct gx_logentry_common {
     char     *tag;
     char     *msg;
     char      report   [1024];
-    
+
 } gx_log_common;
 
 
