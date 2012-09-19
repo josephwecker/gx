@@ -14,29 +14,29 @@ int test_esys(int desired_errno) {
 }
 
 void *test_chain1() {
-    if_esys(test_chain2()) _eraise(NULL);
+    if_esys(test_chain2()) E_RAISE(NULL);
     return &test_chain1;
 }
 
 int test_chain2() {
-    if_enz(test_chain3()) _eraise(-1);
+    if_enz(test_chain3()) E_RAISE(-1);
     return 0;
 }
 
 int test_chain5() {
     errno = EACCES;
-    if_esys(test_esys(EFAULT)) _eraise(0);
+    if_esys(test_esys(EFAULT)) E_RAISE(0);
     return 0;
 }
 
 int test_chain4() {
     errno = EACCES;
-    if_ez(test_chain5()) _eraise(0);
+    if_ez(test_chain5()) E_RAISE(0);
     return 0;
 }
 
 int test_chain3() {
-    if_ez(test_chain4()) _eraise(EBADF);
+    if_ez(test_chain4()) E_RAISE(EBADF);
     return 0;
 }
 
@@ -52,12 +52,14 @@ int main(int argc, char **argv) {
     if_esys(0)  return __LINE__;
     if_esys(5)  return __LINE__;
     if_esys(-5) return __LINE__;
-    if_esys(test_esys(EBADF)) printf("Error occurred correctly\n");
-    if_esys(test_esys(EAGAIN)) gx_error_dump_all();
+    if_esys(test_esys(EAGAIN)) E_EMERGENCY();
+    if_esys(test_esys(EAGAIN)) E_CRITICAL("one");
+    if_esys(test_esys(EBADF) ) E_INFO("tag", "Bad stuff");
+    if_esys(test_esys(EAGAIN)) E_NOTICE("one","two","three");
 
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
-    _eclear();
+    E_CLEAR();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
     return 0;
 }
