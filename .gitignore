@@ -1,1 +1,10 @@
-gxe/syserr.h
+gxe/*
+*.i
+*.s
+*.o
+*.d
+.*.h
+.*.swp
+
+# Binaries
+tst/test_gxerr
