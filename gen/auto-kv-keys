@@ -19,10 +19,10 @@ KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null \
   | grep -E -o 'K[a-z_][a-z0-9_]*'                                       \
   | sort -u ) )
 
-#if [ ${#KV_KEYS[@]} -lt 1 ]; then
-#  echo "Warning: no keys found. Enum not emitted." >&2
-#else
+if [ ${#KV_KEYS[@]} -lt 1 ]; then
+  echo "Warning: no keys found. Enum not emitted." >&2
+else
   echo "typedef enum ${ENUM_NAME} {"
   printf "    %s,\n" ${KV_KEYS[@]}
   echo "} ${ENUM_NAME};"
-#fi
+fi
