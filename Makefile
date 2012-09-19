@@ -13,8 +13,12 @@ gxe/syserr.h : gen/build-error-lookups
 	$< > $@
 
 KVKEYS=$B/.kv_keys.h
-test : $(KVKEYS) $B/test_gxerr
+ENUM_MAPS=$B/.test_enums.h
+test : $(KVKEYS) $(ENUM_MAPS) $B/test_gxerr
 	$B/test_gxerr
+
+$(ENUM_MAPS) : gen/build-enum-maps.rb gen/perfect_map.rb
+	$< $T/*.h $T/.*.h > $@
 
 $(KVKEYS) : gen/auto-kv-keys
 	$< kv_log_keys $T/*.c $T/*.h > $@
