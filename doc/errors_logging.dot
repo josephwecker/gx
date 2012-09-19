@@ -9,8 +9,14 @@ digraph errors_and_logging {
   "Log Error (Explicit)"
   "Log Adhoc"
 
+  // Data/Config
+  node [shape="box",fontcolor="#888888",fillcolor=white,color="#888888"]
+  "Logger Common Constants"
+  "Error Class Definitions"
+  "Error Stack"
+
   // Normal
-  node [fillcolor=white,style=solid]
+  node [shape="ellipse",fontcolor=black,fillcolor=white,style=solid]
 
   "Check Functions" -> "Error Stack"
   "Error Stack" -> "Log Error (Explicit)"
@@ -22,5 +28,8 @@ digraph errors_and_logging {
   "Log Adhoc" -> "Logger"
   "Logger" -> "General Log Report Expander"
   "Logger Common Constants" -> "General Log Report Expander"
-  "General Log Report Expander" -> "Log Dispatch Queue"
+  "General Log Report Expander" -> "Log Dispatcher"
+  "Log Dispatcher" -> "syslogd" [ label="if serious" ]
+  "Log Dispatcher" -> "stderr"  [ label="if tty/debug" ]
+  "Log Dispatcher" -> "mqueue"  [ label="always" ]
 }
