@@ -3,4 +3,18 @@ BS="${BASH_SOURCE[0]}";RL="readlink";([[ `uname -s`=='Darwin' ]] || RL="$RL -f")
   while([ -h "${BS}" ]) do BS=`$RL "${BS}"`; done
   N="/dev/null";pushd .>$N;cd `dirname ${BS}`>$N;BS=`pwd`;popd>$N
 
-gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -E $@ 2>/dev/null | grep -E '_gx_e?log\s*\(' | grep -E -o 'K[a-z_][a-z0-9_]*' | sort -u
+ENUM_NAME=$1
+shift
+
+# preprocess it first, ignoring warnings/include errors, so that it normalizes
+# newlines, expands known macros, and removes comments.
+KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null \
+  | grep -E '_gx_e?log\s*\('                             \
+  | grep -E -o 'K[a-z_][a-z0-9_]*'                       \
+  | sort -u ) )
+
+
+echo "typedef enum ${ENUM_NAME} {"
+printf "    %s,\n" ${KV_KEYS[@]}
+echo "} ${ENUM_NAME};"
+

@@ -1,4 +1,5 @@
 #include "./test_gxerr_help.h"
+#include "./.test_gxerr_kv_keys.h"
 #include <errno.h>
 
 
@@ -58,7 +59,8 @@ int main(int argc, char **argv) {
     //if_esys(test_esys(EAGAIN)) E_NOTICE($one,"two",$three);
     //if_esys(-1) E_NOTICE($one,"two",$three, S("some crazy value %d/%d/%d", 42, (int)sizeof(main), 0xDEAD));
 
-    _(-1) E_NOTICE(K_err_brief,  $("some crazy stuff %d %d", 23, 0xDEAD))
+    _(-1) E_NOTICE(K_err_brief,  $("some crazy stuff %d %d", 23, 0xDEAD));
+    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
 
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
