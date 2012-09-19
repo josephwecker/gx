@@ -53,9 +53,10 @@ int main(int argc, char **argv) {
     if_esys(5)  return __LINE__;
     if_esys(-5) return __LINE__;
     if_esys(test_esys(EAGAIN)) E_EMERGENCY();
-    if_esys(test_esys(EAGAIN)) E_CRITICAL("one");
-    if_esys(test_esys(EBADF) ) E_INFO("tag", "Bad stuff");
-    if_esys(test_esys(EAGAIN)) E_NOTICE("one","two","three");
+    if_esys(test_esys(EAGAIN)) E_CRITICAL($one);
+    if_esys(test_esys(EBADF) ) E_INFO($tag, "Bad stuff");
+    if_esys(test_esys(EAGAIN)) E_NOTICE($one,"two",$three);
+    if_esys(test_esys(EAGAIN)) E_NOTICE($one,"two",$three, S("some crazy value %d/%d/%d", 42, (int)sizeof(main), 0xDEAD));
 
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();

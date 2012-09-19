@@ -73,6 +73,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #define if_esys(E)      if( _esys(E)  )
 #define if_emap(E)      if( _emap(E)  )
@@ -112,9 +113,7 @@
     exit(errno);                                                 \
 }
 
-#define E_LOG(SEV, ...)                                          \
-    _gx_elog(SEV, #SEV, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
-
+#define E_LOG(SEV, ...)  _gx_elog(SEV, #SEV, KV(__VA_ARGS__))
 #define E_EMERGENCY(...) E_LOG(SEV_EMERGENCY, ##__VA_ARGS__)
 #define E_ALERT(...)     E_LOG(SEV_ALERT,     ##__VA_ARGS__)
 #define E_CRITICAL(...)  E_LOG(SEV_CRITICAL,  ##__VA_ARGS__)
@@ -206,7 +205,22 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
 
 static _noinline void _gx_elog(gx_severity severity, const char *severity_str, int argc, ...)
 {
-    fprintf(stderr, "(%d) %s + %d args\n", severity, severity_str, argc);
+    va_list argv;
+    va_start(argv, argc);
+    fprintf(stderr, "--------| %s (%d) |---------\n", severity_str, severity);
+    int i;
+    for(i=0; i<argc; i++) {
+        if(i & 0x0001) {
+            fprintf(stderr, "  %s", va_arg(argv,char *));
+        } else {
+            fprintf(stderr, "\n<%s> :", va_arg(argv,char *));
+        }
+    }
+    fprintf(stderr, "\n");
+
+    va_end(argv);
+    // Reset temporary string buffer
+    RESET_S();
 }
 
 
