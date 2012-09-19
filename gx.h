@@ -263,8 +263,7 @@
 static char  _gx_tstr_buf[4096] = {0};
 static char *_gx_tstr_p         = _gx_tstr_buf;
 static char  _gx_tstr_empty[]   = "";
-
-#define S(FMT,...) (char *)({                                             \
+#define $(FMT,...) (char *)({                                             \
         char *_res = _gx_tstr_p;                                          \
         int   _rem = sizeof(_gx_tstr_buf) - (_gx_tstr_p - _gx_tstr_buf);  \
         if(_rare(_rem < 25)) _res = _gx_tstr_empty;                       \
