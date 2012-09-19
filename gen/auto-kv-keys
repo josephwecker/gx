@@ -1,0 +1,6 @@
+#!/bin/bash
+BS="${BASH_SOURCE[0]}";RL="readlink";([[ `uname -s`=='Darwin' ]] || RL="$RL -f")
+  while([ -h "${BS}" ]) do BS=`$RL "${BS}"`; done
+  N="/dev/null";pushd .>$N;cd `dirname ${BS}`>$N;BS=`pwd`;popd>$N
+
+gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -E $@ 2>/dev/null | grep -E '_gx_e?log\s*\(' | grep -E -o 'K[a-z_][a-z0-9_]*' | sort -u

@@ -231,26 +231,31 @@
          19,18,17,16,15,14,13,12,11,10, \
          9,8,7,6,5,4,3,2,1,0
 
+
+// This is pulled out because I can see in the near future the need to do
+// something different.
+#define MK_KEY(LABEL) LABEL
+
 #define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define KV2(N,...) KV3(N, ##__VA_ARGS__)
 #define KV3(N,...) KV_ ## N (__VA_ARGS__)
 #define  KV_0()
-#define  KV_1(K1)                                              ,#K1
-#define  KV_2(K1,V1)                                           ,#K1,V1
-#define  KV_3(K1,V1,K2)                                        ,#K1,V1,#K2
-#define  KV_4(K1,V1,K2,V2)                                     ,#K1,V1,#K2,V2
-#define  KV_5(K1,V1,K2,V2,K3)                                  ,#K1,V1,#K2,V2,#K3
-#define  KV_6(K1,V1,K2,V2,K3,V3)                               ,#K1,V1,#K2,V2,#K3,V3
-#define  KV_7(K1,V1,K2,V2,K3,V3,K4)                            ,#K1,V1,#K2,V2,#K3,V3,#K4
-#define  KV_8(K1,V1,K2,V2,K3,V3,K4,V4)                         ,#K1,V1,#K2,V2,#K3,V3,#K4,V4
-#define  KV_9(K1,V1,K2,V2,K3,V3,K4,V4,K5)                      ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5
-#define KV_10(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5)                   ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5
-#define KV_11(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6)                ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6
-#define KV_12(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6)             ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6
-#define KV_13(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7)          ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7
-#define KV_14(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7)       ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7
-#define KV_15(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8)    ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7,#K8
-#define KV_16(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8,V8) ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7,#K8,V8
+#define  KV_1(K1)                                              ,MK_KEY(K1)
+#define  KV_2(K1,V1)                                           ,MK_KEY(K1),V1
+#define  KV_3(K1,V1,K2)                                        ,MK_KEY(K1),V1,MK_KEY(K2)
+#define  KV_4(K1,V1,K2,V2)                                     ,MK_KEY(K1),V1,MK_KEY(K2),V2
+#define  KV_5(K1,V1,K2,V2,K3)                                  ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3)
+#define  KV_6(K1,V1,K2,V2,K3,V3)                               ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3
+#define  KV_7(K1,V1,K2,V2,K3,V3,K4)                            ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4)
+#define  KV_8(K1,V1,K2,V2,K3,V3,K4,V4)                         ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4
+#define  KV_9(K1,V1,K2,V2,K3,V3,K4,V4,K5)                      ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5)
+#define KV_10(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5)                   ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5
+#define KV_11(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6)                ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6)
+#define KV_12(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6)             ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6
+#define KV_13(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7)          ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7)
+#define KV_14(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7)       ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7
+#define KV_15(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8)    ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7,MK_KEY(K8)
+#define KV_16(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8,V8) ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7,MK_KEY(K8),V8
 
 
 

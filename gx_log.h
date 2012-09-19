@@ -225,6 +225,10 @@ typedef union gx_log_val {
     long long int  v_long_long_int;
 } gx_log_val;
 
+typedef union gx_log_key {
+
+} gx_log_key;
+
 // TODO:
 //   - high-level logging macros
 //   - runtime loglevel mechanism
