@@ -206,11 +206,11 @@ typedef enum gx_severity {
     SEV_CRITICAL,  ///< Process-level disruption or destabilization needing intervention.
     SEV_ERROR,     ///< Session-level disruptions. Failures. Defects.
     SEV_WARNING,   ///< Potential instability needing attention.
-    SEV_NOTICE,    ///< Normal but significant condition needing some monitoring.
-    SEV_INFO,      ///< Informational messages/reports for analysis.
-    SEV_STAT       = SEV_INFO,
+    SEV_NOTICE,    ///< Normal but significant condition needing some monitoring- high priority stat.
+    SEV_STAT,      ///< Information being gathered for specific analytics or monitoring
+    SEV_INFO,      ///< General informational messages/reports possibly useful for analysis.
     SEV_DEBUG,     ///< Assistance for development/debugging but not useful during operations.
-    SEV_UNKNOWN    = SEV_WARNING
+    SEV_UNKNOWN
 } gx_severity;
 
 
@@ -242,6 +242,11 @@ static _noinline void _gx_log_inner(gx_severity severity, char *category, int vp
     //   - dispatch 
 }
 
+
+/*static __attribute__ (( __always_inline__, __nonnull__, __pure__ )) const char *kv_str_lookup(register const int val) {
+    static const char *tbl[] = {
+        "
+}*/
 
 
 typedef struct gx_logentry_constants {
