@@ -144,8 +144,8 @@
 #ifndef GX_TOKEN_H
 #define GX_TOKEN_H
 
-#include <gx/gx.h>
-#include <gx/gx_net.h>
+#include "./gx.h"
+#include "./gx_net.h"
 //#include "ae.h"
 
 //-----------------------------------------------------------------------------

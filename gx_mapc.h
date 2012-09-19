@@ -64,7 +64,7 @@
 #ifndef GX_MAPC_H
 #define GX_MAPC_H
 
-#include <gx/gx.h>
+#include "./gx.h"
 #include "gx_error2.h"
 
 #include <sys/file.h>

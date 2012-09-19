@@ -493,7 +493,7 @@ static char  _gx_tstr_empty[]   = "";
   #endif
 
 
-  #include <gx/gx_error.h>
+  #include "./gx_error.h"
 
     /// Very "lightweight" fork, calls given function in child. Falls back to
     /// fork on systems that don't have anything lighter. Otherwise tries to

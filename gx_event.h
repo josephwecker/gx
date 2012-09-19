@@ -62,10 +62,10 @@
  *
  */
 
-#include <gx/gx.h>
-#include <gx/gx_error.h>
-#include <gx/gx_ringbuf.h>
-#include <gx/gx_zerocopy.h>
+#include "./gx.h"
+#include "./gx_error.h"
+#include "./gx_ringbuf.h"
+#include "./gx_zerocopy.h"
 
 #define GX_DEST_DEVNULL      -3  ///< Discard incoming data
 #define GX_DEST_BUF          -2  ///< Save incoming data in a ring buffer

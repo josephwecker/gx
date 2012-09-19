@@ -53,7 +53,7 @@
 #ifndef GX_ZEROCOPY_H
 #define GX_ZEROCOPY_H
 
-#include <gx/gx.h>
+#include "./gx.h"
 
 #if defined(_LINUX)
   #ifndef _GNU_SOURCE
@@ -69,7 +69,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <gx/gx_ringbuf.h>
+#include "./gx_ringbuf.h"
 
 /// All return number of bytes transfered or -1 if fatal error. If zero
 /// or less then desired was transfered, it could be because of EAGAIN, several

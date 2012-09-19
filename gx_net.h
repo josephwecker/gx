@@ -14,8 +14,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <gx/gx.h>
-#include <gx/ext/sha2.h>
+#include "./gx.h"
+#include "./ext/sha2.h"
 
 
 static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {

@@ -34,7 +34,7 @@
 #ifndef GX_ENDIAN_H
 #define GX_ENDIAN_H
 
-#include <gx/gx.h>
+#include "./gx.h"
 #include <sys/param.h>
 
 #if defined(BYTE_ORDER) && !defined(__BYTE_ORDER)
