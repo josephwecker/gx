@@ -231,6 +231,52 @@
          19,18,17,16,15,14,13,12,11,10, \
          9,8,7,6,5,4,3,2,1,0
 
+#define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define KV2(N,...) KV3(N, ##__VA_ARGS__)
+#define KV3(N,...) KV_ ## N (__VA_ARGS__)
+#define  KV_0()
+#define  KV_1(K1)                                              ,#K1
+#define  KV_2(K1,V1)                                           ,#K1,V1
+#define  KV_3(K1,V1,K2)                                        ,#K1,V1,#K2
+#define  KV_4(K1,V1,K2,V2)                                     ,#K1,V1,#K2,V2
+#define  KV_5(K1,V1,K2,V2,K3)                                  ,#K1,V1,#K2,V2,#K3
+#define  KV_6(K1,V1,K2,V2,K3,V3)                               ,#K1,V1,#K2,V2,#K3,V3
+#define  KV_7(K1,V1,K2,V2,K3,V3,K4)                            ,#K1,V1,#K2,V2,#K3,V3,#K4
+#define  KV_8(K1,V1,K2,V2,K3,V3,K4,V4)                         ,#K1,V1,#K2,V2,#K3,V3,#K4,V4
+#define  KV_9(K1,V1,K2,V2,K3,V3,K4,V4,K5)                      ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5
+#define KV_10(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5)                   ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5
+#define KV_11(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6)                ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6
+#define KV_12(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6)             ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6
+#define KV_13(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7)          ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7
+#define KV_14(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7)       ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7
+#define KV_15(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8)    ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7,#K8
+#define KV_16(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8,V8) ,#K1,V1,#K2,V2,#K3,V3,#K4,V4,#K5,V5,#K6,V6,#K7,V7,#K8,V8
+
+
+
+/// For doing very fast inline sprintfs. tstr = tmpstring
+static char  _gx_tstr_buf[4096] = {0};
+static char *_gx_tstr_p         = _gx_tstr_buf;
+static char  _gx_tstr_empty[]   = "";
+
+#define S(FMT,...) (char *)({                                             \
+        char *_res = _gx_tstr_p;                                          \
+        int   _rem = sizeof(_gx_tstr_buf) - (_gx_tstr_p - _gx_tstr_buf);  \
+        if(_rare(_rem < 25)) _res = _gx_tstr_empty;                       \
+        else {                                                            \
+            int _len = snprintf(_gx_tstr_p,                               \
+                sizeof(_gx_tstr_buf) - (_gx_tstr_p - _gx_tstr_buf),       \
+                FMT, ##__VA_ARGS__);                                      \
+            if(_freq(_len > 0)) _gx_tstr_p += _len;                       \
+            if(_rare(_gx_tstr_p > _gx_tstr_buf+sizeof(_gx_tstr_buf)))     \
+                _gx_tstr_p = &(_gx_tstr_buf[sizeof(_gx_tstr_buf)-2]);     \
+            _gx_tstr_p[0] = _gx_tstr_p[1] = '\0';                         \
+            _gx_tstr_p += 1;                                              \
+        }                                                                 \
+        _res;                                                             \
+    })
+
+#define RESET_S() { _gx_tstr_p = _gx_tstr_buf; _gx_tstr_p[0] = '\0'; }
 
   static GX_INLINE void gx_hexdump(void *buf, size_t len, int more) {
       size_t i=0, tch; int val, grp, outsz=0, begin_col;
