@@ -36,7 +36,7 @@
 
 //------------------------------------------------------------------------------
 /// Normalize some OS names
-#ifdef __linux__
+#if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
   #define _LINUX 1
   #undef  _OSX
 #elif defined(__APPLE__) || defined(__MACH__)
