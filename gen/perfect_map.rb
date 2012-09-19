@@ -101,7 +101,7 @@ module PerfectMap
 
     def output_ctype_clean
       occ = output_ctype.gsub(/\bconst\b|\bstatic\b/,'').strip
-      if out_is_pointer? && output_ctype.gsub(/\s+/,'') != 'constchar*'
+      if out_is_pointer? && output_ctype.gsub(/\s+/,'') !~ /(const)?char\*/
         return occ[0..-2].strip
       else return occ end
     end
@@ -243,7 +243,7 @@ module PerfectMap
       # TODO: add hot attribute when using versio of gcc that supports it..?
       f_attributes = ['always_inline', 'nonnull', 'pure']
       f_attr = "__attribute__ (( #{f_attributes.map{|a|"__#{a}__"}.join(', ')} ))"
-      f_attr += ' const ' if out_is_pointer?
+      f_attr += ' const ' if out_is_pointer? && output_ctype !~ /const/
       "static #{f_attr} #{output_ctype}#{@name.to_s.strip}(register const char *buf)"
     end
 
