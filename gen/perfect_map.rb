@@ -179,15 +179,23 @@ module PerfectMap
       @parts[:num_duplicates] = raw[/, duplicates = (\d+) \*\//,         1].to_i
       hsh                     = raw[/static[a-z ]+\s*hash\s*\([^\)]+\)\s*\{(.*?)\n\}\s+/m,1]
       hsh, @parts[:hash_calc] = hsh.split(/^\s*\};\s*$/)
+      if @parts[:hash_calc].nil? && hsh =~ /return/
+        @parts[:hash_calc] = hsh
+      end
       hshtbl                  = hsh[/static[a-z ]+asso_values\[\]\s*=\s*\{(.+)/m,1]
-      @parts[:hash_table]     = hshtbl.strip.gsub(/\n     /,'').gsub(/, /,',').split(',')
+      @parts[:hash_table]     = hshtbl.strip.gsub(/\n     /,'').gsub(/, /,',').split(',') unless hshtbl.nil?
 
       #------- Wordlist (final lookup result structure) -------
       lst                     = raw[/result_structure wordlist\[\] =\s*\{(.*?)\n\s*\};\s*\n/m,1]
       lst                     = lst.scan(/\{((""|".*?[^\\]"|[^\}\{]|\{[^\}]*\})+)\}/m)
       qstr                    = /(?:^|,\s*)(".*?[^\\]"|[^,]+)/
       @parts[:wordlist]       = lst.map{|r|r[0].scan(qstr).flatten.map{|v|v.strip!;v=='(char*)0' ? nil : v}}
-      @parts[:keypositions]   = raw[/\/*\s*Computed positions:\s*-k'([^']+)'/,1].split(',').map{|v|v.to_i}
+      keypos                  = raw[/\/*\s*Computed positions:\s*-k'([^']+)'/,1]
+      if keypos.nil?
+        @parts[:keypositions] = []
+      else
+        @parts[:keypositions]   = keypos.split(',').map{|v|v.to_i}
+      end
 
       if @parts[:min_word_len] == @parts[:max_word_len] && !@static_width
         @static_width = true
@@ -355,12 +363,14 @@ module PerfectMap
       parse_gperf_output
 
       #--- Lightly format hash value lookup table
-      ht = @parts[:hash_table].each_slice(10).map{|slc| slc.join(',')}
-      ht = ht.each_slice(3).map{|b| ' '*8 + b.join(',  ')}.join(",\n")
+      unless @parts[:hash_table].nil?
+        ht = @parts[:hash_table].each_slice(10).map{|slc| slc.join(',')}
+        ht = ht.each_slice(3).map{|b| ' '*8 + b.join(',  ')}.join(",\n")
+      end
       @function = <<-final_function
 #{f_sig} {
-    static const unsigned char asso_values[] = {
-#{ht}};
+    #{@parts[:hash_table].nil? ? '' : "static const unsigned char asso_values[] = {
+#{ht}};"}
 
 #{f_out_table}
 #{f_modified_calculation}
