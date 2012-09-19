@@ -1,4 +1,4 @@
-#include <gx/gx.h>
+#include "../gx.h"
 gx_error_initialize(GX_DEBUG);
 
 int main(int argc, char **argv) {

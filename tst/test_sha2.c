@@ -1,5 +1,5 @@
-#include <gx/gx.h>
-#include <gx/ext/sha2.h>
+#include "../gx.h"
+#include "../ext/sha2.h"
 
 gx_error_initialize(GX_DEBUG);
 

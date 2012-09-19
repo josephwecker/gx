@@ -1,6 +1,6 @@
-#include <gx/gx.h>
-#include <gx/gx_mfd.h>
-#include <gx/gx_event.h>
+#include "../gx.h"
+#include "../gx_mfd.h"
+#include "../gx_event.h"
 
 gx_error_initialize(GX_DEBUG);
 

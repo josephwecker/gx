@@ -1,4 +1,4 @@
-#include <gx/gx.h>
+#include "../gx.h"
 /*#ifdef _LINUX
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE
@@ -10,7 +10,7 @@
   //#include <sys/time.h>
 #endif
 */
-#include <gx/gx_mfd.h>
+#include "../gx_mfd.h"
 #include <sys/mman.h>
 
 

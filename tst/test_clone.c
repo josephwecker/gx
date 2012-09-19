@@ -1,4 +1,4 @@
-#include <gx/gx.h>
+#include "../gx.h"
 //#ifndef _BSD_SOURCE
 //#define _BSD_SOURCE
 //#endif

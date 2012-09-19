@@ -11,9 +11,9 @@
  */
 
 
-#include <gx/gx.h>
-#include <gx/gx_error.h>
-#include <gx/gx_system.h>
+#include "../gx.h"
+#include "../gx_error.h"
+#include "../gx_system.h"
 #include <sys/mman.h>
 
 gx_error_initialize(GX_DEBUG);

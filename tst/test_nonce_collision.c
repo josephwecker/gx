@@ -1,6 +1,6 @@
-#include <gx/gx.h>
-#include <gx/gx_net.h>
-#include <gx/gx_token.h>
+#include "../gx.h"
+#include "../gx_net.h"
+#include "../gx_token.h"
 
 gx_error_initialize(GX_ERROR);
 

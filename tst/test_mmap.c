@@ -5,8 +5,8 @@
  *
  */
 
-#include <gx/gx.h>
-#include <gx/gx_error.h>
+#include "../gx.h"
+#include "../gx_error.h"
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
