@@ -195,6 +195,10 @@
      Action:      Developer specific
 
 */
+#ifndef GX_LOG_H
+#define GX_LOG_H
+
+#include "./gx.h"
 
 typedef enum gx_severity {
     SEV_EMERGENCY, ///< Whole system disruption or serious destabilization.
@@ -208,6 +212,32 @@ typedef enum gx_severity {
     SEV_DEBUG,     ///< Assistance for development/debugging but not useful during operations.
     SEV_UNKNOWN    = SEV_WARNING
 } gx_severity;
+
+
+/// Pretty much the main things that get passed by value in C, but to build an
+/// array of them.
+typedef union gx_log_val {
+    int            v_int;
+    void          *v_ptr;
+    double         v_dbl;
+    char          *v_str;
+    long int       v_long_int;
+    long long int  v_long_long_int;
+} gx_log_val;
+
+// TODO:
+//   - high-level logging macros
+//   - runtime loglevel mechanism
+//   - macro for automatic argc/argv adhoc parameters for _gx_log_inner
+//   - memoized timer to minimize system calls
+
+static _noinline void _gx_log_inner(gx_severity severity, char *category, int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...) {
+    // TODO:
+    //   - determine core-logger destinations- early abort if no logger wants it
+    //   - fold in app, process, and time parameters
+    //   - dispatch 
+}
+
 
 
 typedef struct gx_logentry_constants {
@@ -230,6 +260,4 @@ typedef struct gx_logentry_common {
 
 
 
-
-
-// specify formatters for different kinds of reports
+#endif

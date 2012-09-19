@@ -203,24 +203,24 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
 
 
 
-static _noinline void _gx_elog(gx_severity severity, const char *severity_str, int argc, ...)
+static _noinline void _gx_elog(gx_severity severity, const char *severity_str, int additional_argc, ...)
 {
-    va_list argv;
-    va_start(argv, argc);
-    fprintf(stderr, "--------| %s (%d) |---------\n", severity_str, severity);
-    int i;
-    for(i=0; i<argc; i++) {
-        if(i & 0x0001) {
-            fprintf(stderr, "  %s", va_arg(argv,char *));
-        } else {
-            fprintf(stderr, "\n<%s> :", va_arg(argv,char *));
-        }
-    }
-    fprintf(stderr, "\n");
+    va_list additional_argv;
+    va_start(additional_argv, additional_argc);
 
-    va_end(argv);
-    // Reset temporary string buffer
-    RESET_S();
+    // TODO:
+    //  - silently abort (very early on) if runtime log-level is > severity
+    //  - do error lookups, including looking up error family as category if
+    //    not overridden.
+    //  - possibly emit several log messages with a group id if there is more
+    //    than one active error in the _gx_error_stack
+    //  - package everything up and call _gx_log_inner
+    //
+
+    //_gx_log_inner(severity, "SYSERR", additional_argc, &additional_argv, (gx_log_val *)NULL);
+
+    va_end(additional_argv);
+    RESET_S(); // Reset temporary string buffer for adhoc sprintfs (S(...))
 }
 
 
