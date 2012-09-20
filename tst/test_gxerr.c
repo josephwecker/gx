@@ -61,10 +61,17 @@ int main(int argc, char **argv) {
     _(-1) E_NOTICE(K_err_brief,  $("some crazy stuff %d %d", 23, 0xDEAD));
     _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
 
+    // The following would all fail to build:
+    //  _(-1) E_ERROR ("something",     "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) E_ERROR (0,               "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) E_ERROR (&_gx_error_cidx, "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
     E_CLEAR();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
+
+    printf("\n\n\n%d\n", (int)(&_gx_error_cidx));
     return 0;
 }
 
