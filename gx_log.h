@@ -201,6 +201,10 @@
 #include "./gx.h"
 #include "./gxe/gx_enum_lookups.h"
 
+#define GX_LOG_MAX_KEY_LEN 64
+#define GX_LOG_MAX_VAL_LEN 255
+#define GX_LOG_MAX_RPT_LEN 4096
+
 
 static const char * (*gx_log_keystring_callback)(int);
 #define GX_LOG_SET_FKEYSTR(FUN) static const char * (*gx_log_keystring_callback)(int) = FUN
@@ -208,12 +212,13 @@ static const char * (*gx_log_keystring_callback)(int);
 
 /// @todo  Finish populating comments from table above
 
-#define K_START_ADHOC 128
+#define K_START_STD 128
+#define K_START_ADHOC 256
 
 typedef enum gx_log_standard_keys {
-    K_type,          ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
-    K_severity,      ///< Declared severity from app.    e.g., SEV_WARNING
-    K_name,          ///< Tag / name for grouping logs.  e.g., stream_up, syserr_eacces, ...
+    K_type=K_START_STD, ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
+    K_severity,         ///< Declared severity from app.    e.g., SEV_WARNING
+    K_name,             ///< Tag / name for grouping logs.  e.g., stream_up, syserr_eacces, ...
 
     K_msg,           ///< Brief app message / description / note. e.g., "publisher went live."
     K_report,        ///< Multiline formatted report / data
@@ -269,23 +274,32 @@ typedef union gx_log_val {
     long long int  v_long_long_int;
 } gx_log_val;
 
-typedef union gx_log_key {
+typedef struct _gx_log_skv {
+    //uint16_t 
 
-} gx_log_key;
+} _gx_log_skv;
 
 // TODO:
 //   - high-level logging macros
 //   - runtime loglevel mechanism
 //   - macro for automatic argc/argv adhoc parameters for _gx_log_inner
 //   - memoized timer to minimize system calls
+// TODO:
+//   - determine core-logger destinations- early abort if no logger wants it
+//   - fold in app, process, and time parameters
+//   - dispatch 
 
-static _noinline void _gx_log_inner(gx_severity severity, char *category,
-        int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...)
+#define _gx_log(VPCOUNT, VPARAMS, APARAMS, ...) _gx_log_inner(VPCOUNT, VPARAMS, APARAMS, KV(__VA_ARGS__))
+/// Main logging functionality.
+/// vparam_count/vparams have highest precedence (they are user overrides)
+/// haven't decided yet if aparams are necessary at all,
+
+static _noinline void _gx_log_inner(int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...)
 {
-    // TODO:
-    //   - determine core-logger destinations- early abort if no logger wants it
-    //   - fold in app, process, and time parameters
-    //   - dispatch 
+    // - loop through each param
+    //   - populate array of std-keys, giving string
+    //   - populate fixed size array (with incrementing pointer) of adhoc-keys
+    //
 }
 
 
