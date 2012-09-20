@@ -25,7 +25,7 @@ inc_dirs = inc_dirs.keys
 
 # Run preprocessor on them to resolve dependencies etc. etc.
 cmd      = "gcc -I. #{inc_dirs.map{|d| "-I'#{d}'"}.join(' ')} -E #{files.join(' ')}"
-raw      = `#{cmd}`
+raw      = `#{cmd} 2>/dev/null`
 
 # Some quick deletions to make the regexen cleaner
 raw      = raw.gsub(/\/\*.*?\*\//m,   '').    # remove block comments

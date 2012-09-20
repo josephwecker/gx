@@ -3,14 +3,15 @@ CG = "\\033[32m"
 CW = "\\033[30m\\033[1m"
 
 define gcc
-  $(call INFO, gcc, $(notdir $<), $@)
-	clang -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $<
+  @$(call INFO, gcc, $(notdir $<), $@)
+	$(CC) -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
+	@#clang -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
 endef
 
 define LINK
-  $(call INFO, link, '*.o', $@)
-	@#$(CC) $(1) -I$B -o $@ $(filter %.o,$^)
-	clang -O0 -g $(1) -I$B -o $@ $(filter %.o,$^)
+  @$(call INFO, link, '*.o', $@)
+	$(CC) $(1) -I$B -o $@ $(filter %.o,$^)
+	@#clang -O0 -g $(1) -I$B -o $@ $(filter %.o,$^)
 endef
 
 define INFO

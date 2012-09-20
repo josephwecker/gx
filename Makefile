@@ -19,9 +19,9 @@ gxe/gx_log_table.h :    gen/build-gx_log_table.rb ./gx_log.h
 KVKEYS=$B/.kv_keys.h
 ENUM_MAPS=$B/.test_enums.h
 test : gx_all $(KVKEYS) $(ENUM_MAPS) $B/test_gxerr ./*.h gx*.h
+	@rm -f $B/*.o
 	$B/test_gxerr
 	@rm -f $B/test_gxerr
-	@rm -f $B/*.o
 
 $(ENUM_MAPS) : gen/build-enum-maps.rb gen/perfect_map.rb $(KVKEYS)
 	$< $T/*.h $T/.*.h > $@

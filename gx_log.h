@@ -344,7 +344,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     log_staging_table[K_severity].val      = severity_str;
 
     if(_freq(!log_staging_table[K_sys_time].include)) {
-        unsigned int curr_tick = GX_CPU_TS;
+        uint64_t curr_tick = GX_CPU_TS;
         if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
             time_t now = time(NULL);
             struct tm now_tm;
@@ -357,14 +357,14 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
         kv->include  = 1;
         kv->val_size = _gx_log_time_len;
         kv->val      = _gx_log_time;
-        char *ctick_string = $("%llu", curr_tick);
+        char *ctick_string = $("%llu", (long long int)curr_tick);
         kv = &(log_staging_table[K_sys_ticks]);
         kv->include  = 1;
         kv->val_size = _gx_kv_valsize(ctick_string);
         kv->val      = ctick_string;
     }
 
-    ///--------- DEBUG --------
+    /// DEBUG
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
         _gx_log_kv_entry *kv = &(log_staging_table[i]);
