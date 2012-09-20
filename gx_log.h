@@ -194,6 +194,18 @@
      Persistence: Development context
      Action:      Developer specific
 
+  @todo 
+     - (*) update K_sys_* values
+     - (*) lookup key string in user-specified lookup function, and fallback if not there
+     - (*) determine whether or not it needs to be syslogged, dispatch if necessary
+     - (*) determine whether or not it needs to be output to stderr/tty, dispatch if necessary
+     - (*) dispatch to message-queue
+     - (F) module cleanup - put comments where they really go
+     - (F) memoized timer to minimize system calls
+     - (F) runtime loglevel mechanism
+     - (F) high-level logging macros
+     - (F) determine core-logger destinations earlier, abort if no logger wants it
+
 */
 #ifndef GX_LOG_H
 #define GX_LOG_H
@@ -260,20 +272,6 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-
-#if 0
-/// Pretty much the main things that get passed by value in C, but to build an
-/// array of them.
-typedef union gx_log_val {
-    int            v_int;
-    void          *v_ptr;
-    double         v_dbl;
-    char          *v_str;
-    long int       v_long_int;
-    long long int  v_long_long_int;
-} gx_log_val;
-#endif
-
 typedef struct _gx_log_kv_entry {
     char       include;
     uint16_t   key_size;                ///< Key size including null-term plus 2-byte header
@@ -287,25 +285,6 @@ typedef struct _gx_log_kv_entry {
 static char _GX_NULLSTRING[] = "";
 
 /// Main logging functionality.
-/// vparam_count/vparams have highest precedence (they are user overrides)
-/// haven't decided yet if aparams are necessary at all,
-// - loop through each param
-//   - populate array of std-keys, giving string
-//   - populate fixed size array (with incrementing pointer) of adhoc-keys
-// - update K_sys_* values
-// - determine whether or not it needs to be syslogged
-// - determine whether or not it needs to be output to
-// TODO:
-//   - high-level logging macros
-//   - runtime loglevel mechanism
-//   - macro for automatic argc/argv adhoc parameters for _gx_log_inner
-//   - memoized timer to minimize system calls
-// TODO:
-//   - determine core-logger destinations- early abort if no logger wants it
-//   - fold in app, process, and time parameters
-//   - dispatch
-/// @todo lookup key string in user-specified lookup function, and fallback if not there
-
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
 #define _gx_log(SEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, #SEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
@@ -350,6 +329,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     // Passed in at the highest level generally- highest precedence
     if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
 
+    // Absolute highest precedence
     log_staging_table[K_severity].include  = 1;
     log_staging_table[K_severity].val_size = _gx_kv_valsize(severity_str);
     log_staging_table[K_severity].val      = severity_str;
@@ -380,9 +360,5 @@ typedef struct gx_logentry_common {
     char      report   [1024];
 
 } gx_log_common;
-
-
-
-
 
 #endif
