@@ -12,17 +12,26 @@ BS="${BASH_SOURCE[0]}";RL="readlink";([[ `uname -s`=='Darwin' ]] || RL="$RL -f")
 
 ENUM_NAME=$1; shift
 
+# Ignore any of the standard keys already enumerated in gx_log.h
+STD_KV_KEYS=( $( grep -E -o 'K_[a-z][a-z0-9_]+' "${BS}/../gx_log.h" ) )
+STD_KV_KEYCMP=$( printf "%s\\|" ${STD_KV_KEYS[@]} )
+
 # (we preprocess it first, ignoring warnings/include errors, so that it
 # normalizes newlines, expands known macros, and removes comments.)
-KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null \
-  | grep -E '_gx_e?log\s*\('                                             \
-  | grep -E -o 'K[a-z_][a-z0-9_]*'                                       \
-  | sort -u ) )
+KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null  \
+  | grep  -E '_gx_e?log\s*\('                                             \
+  | grep  -E -o 'K[a-z_][a-z0-9_]*'                                       \
+  | grep  -v "\(${STD_KV_KEYCMP}NOOP\)"                                   \
+  | sort  -u ) )
 
 if [ ${#KV_KEYS[@]} -lt 1 ]; then
-  echo "Warning: no keys found. Enum not emitted." >&2
+  echo    "Warning: no keys found. Enum not emitted." >&2
 else
-  echo "typedef enum ${ENUM_NAME} {"
-  printf "    %s,\n" ${KV_KEYS[@]}
-  echo "} ${ENUM_NAME};"
+  echo    "#include <gx_log.h>"
+  echo    "typedef enum ${ENUM_NAME} {"
+  printf  "    %s = K_START_ADHOC + 1,\n" ${KV_KEYS[0]}
+  unset   KV_KEYS[0]
+  KV_KEYS=( "${KV_KEYS[@]}" )  # Repack minus first one
+  printf  "    %s,\n" ${KV_KEYS[@]}
+  echo    "} ${ENUM_NAME};"
 fi
