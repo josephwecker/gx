@@ -13,7 +13,8 @@ BS="${BASH_SOURCE[0]}";RL="readlink";([[ `uname -s`=='Darwin' ]] || RL="$RL -f")
 ENUM_NAME=$1; shift
 
 # Ignore any of the standard keys already enumerated in gx_log.h
-STD_KV_KEYS=( $( grep -E -o 'K_[a-z][a-z0-9_]+' "${BS}/../gx_log.h" ) )
+STD_KV_KEYS=( $( grep -E -o 'K_[a-z][a-z0-9_]+' "${BS}/../gx_log.h" | sort -u ) )
+STD_KV_NUM="${#STD_KV_KEYS[@]}"
 STD_KV_KEYCMP=$( printf "%s\\|" ${STD_KV_KEYS[@]} )
 
 # (we preprocess it first, ignoring warnings/include errors, so that it
@@ -29,7 +30,7 @@ if [ ${#KV_KEYS[@]} -lt 1 ]; then
 else
   echo    "#include <gx_log.h>"
   echo    "typedef enum ${ENUM_NAME} {"
-  printf  "    %s = K_START_ADHOC + 1,\n" ${KV_KEYS[0]}
+  printf  "    %s = ${STD_KV_NUM} + 1,\n" ${KV_KEYS[0]}
   unset   KV_KEYS[0]
   KV_KEYS=( "${KV_KEYS[@]}" )  # Repack minus first one
   printf  "    %s,\n" ${KV_KEYS[@]}
