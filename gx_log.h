@@ -47,8 +47,9 @@
      | Field           | Scope  | Description                           | example(s)                    |
      | --------------- | ------ | ------------------------------------- | ----------------------------- |
      | type            | all    | Adhoc namespace for log items         | broadcast_state, system_state |
+     | severity        | all    | naive severity from app perspective   | warning                       |
      | name            | all    | Single identifier for log item        | stream_up, syserr_eacces, ... |
-     | brief           | log    | Brief message / description / note    | publishing went live.         |
+     | msg             | log    | Brief message / description / note    | publishing went live.         |
      | report          | log    | Multiline formatted report or data    | payload hexdump: %n 0x1289... |
 
      | time*           | all    | UTC iso8601 formatted time of report  | 2012-09-17T09:49Z             |
@@ -63,16 +64,15 @@
      | src_line*       | all    |                                       | 52                            |
      | src_function*   | all    |                                       | handle_connection             |
 
-     | severity        | all    | naive severity from app perspective   | warning                       |
+     | err_family^     | error  | What kind of error                    | syserror, gxerror             |
      | err_label^      | error  | The constant used for the error       | EFAULT, EACCES, ...           |
-     | err_brief^      | error  | Looked up string description of err   | "Permission Denied."          |
+     | err_msg^        | error  | Looked up string description of err   | "Permission Denied."          |
      | err_severity^   | error  | intrinsic risk of an error            | critical                      |
      | result          | all    | impact / severity / recovery-action...| session_killed, msg_skipped...|
 
      | err_depth*      | error  | # in sequence of related errors       | 2                             |
      | err_group*      | error  | guid that associates several reports  | w839u21                       |
      | err_number^     | error  | Depends on error class- usually errno | 17                            |
-     | err_family^     | error  | What kind of error                    | syserror, gxerror             |
      | src_expression* | error  | Expression that triggered error       | open(filename, "r+")          |
      | err_stack*      | error  | multiline msg w/ stack trace info     | (nyi)                         |
 
@@ -199,17 +199,61 @@
 #define GX_LOG_H
 
 #include "./gx.h"
+#include "./gxe/gx_enum_lookups.h"
+
+
+static const char * (*gx_log_keystring_callback)(int);
+#define GX_LOG_SET_FKEYSTR(FUN) static const char * (*gx_log_keystring_callback)(int) = FUN
+
+
+/// @todo  Finish populating comments from table above
+
+#define K_START_ADHOC 128
+
+typedef enum gx_log_standard_keys {
+    K_type,          ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
+    K_severity,      ///< Declared severity from app.    e.g., SEV_WARNING
+    K_name,          ///< Tag / name for grouping logs.  e.g., stream_up, syserr_eacces, ...
+
+    K_msg,           ///< Brief app message / description / note. e.g., "publisher went live."
+    K_report,        ///< Multiline formatted report / data
+    K_result,        ///< App message indicating risk mitigation action taken etc.
+
+    K_src_file,
+    K_src_line,
+    K_src_function,
+    K_src_expression,
+
+    K_err_severity,
+    K_err_family,
+    K_err_number,
+    K_err_label,
+    K_err_msg,
+
+    K_err_depth,
+    K_err_group,
+    K_err_stack,
+
+    K_sys_time,
+    K_sys_ticks,
+    K_sys_host,
+    K_sys_program,
+    K_sys_version,
+    K_sys_pid,
+    K_sys_ppid,
+    K_sys_tid
+} gx_log_standard_keys;
 
 typedef enum gx_severity {
-    SEV_EMERGENCY, ///< Whole system disruption or serious destabilization.
-    SEV_ALERT,     ///< Full application disruption or serious destabilization.
-    SEV_CRITICAL,  ///< Process-level disruption or destabilization needing intervention.
-    SEV_ERROR,     ///< Session-level disruptions. Failures. Defects.
-    SEV_WARNING,   ///< Potential instability needing attention.
-    SEV_NOTICE,    ///< Normal but significant condition needing some monitoring- high priority stat.
-    SEV_STAT,      ///< Information being gathered for specific analytics or monitoring
-    SEV_INFO,      ///< General informational messages/reports possibly useful for analysis.
-    SEV_DEBUG,     ///< Assistance for development/debugging but not useful during operations.
+    SEV_EMERGENCY,   ///< Whole system disruption or serious destabilization.
+    SEV_ALERT,       ///< Full application disruption or serious destabilization.
+    SEV_CRITICAL,    ///< Process-level disruption or destabilization needing intervention.
+    SEV_ERROR,       ///< Session-level disruptions. Failures. Defects.
+    SEV_WARNING,     ///< Potential instability needing attention.
+    SEV_NOTICE,      ///< Normal but significant condition needing some monitoring- high priority stat.
+    SEV_STAT,        ///< Information being gathered for specific analytics or monitoring
+    SEV_INFO,        ///< General informational messages/reports possibly useful for analysis.
+    SEV_DEBUG,       ///< Assistance for development/debugging but not useful during operations.
     SEV_UNKNOWN
 } gx_severity;
 
@@ -235,18 +279,14 @@ typedef union gx_log_key {
 //   - macro for automatic argc/argv adhoc parameters for _gx_log_inner
 //   - memoized timer to minimize system calls
 
-static _noinline void _gx_log_inner(gx_severity severity, char *category, int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...) {
+static _noinline void _gx_log_inner(gx_severity severity, char *category,
+        int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...)
+{
     // TODO:
     //   - determine core-logger destinations- early abort if no logger wants it
     //   - fold in app, process, and time parameters
     //   - dispatch 
 }
-
-
-/*static __attribute__ (( __always_inline__, __nonnull__, __pure__ )) const char *kv_str_lookup(register const int val) {
-    static const char *tbl[] = {
-        "
-}*/
 
 
 typedef struct gx_logentry_constants {
