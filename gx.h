@@ -30,11 +30,10 @@
  * @todo  Move resource pool to its own module
  * @todo  gx_prefetch_(rw_keep|rw_toss|ro_keep|ro_toss)
  *
- *///---------------------------------------------------------------------------
+ */
 #ifndef GX_H
 #define GX_H
 
-//------------------------------------------------------------------------------
 /// Normalize some OS names
 #if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
   #define _LINUX 1
@@ -232,31 +231,74 @@
          9,8,7,6,5,4,3,2,1,0
 
 
-// This is pulled out because I can see in the near future the need to do
-// something different.
-#define MK_KEY(LABEL) LABEL
+#define GX_BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
+// Quick and dirty check to make sure that keys are only integers in a range
+// reserved for key-value pair keys.
+#define M_K(KEY) ({ GX_BUILD_BUG_ON(sizeof(KEY) != sizeof(int) || KEY < 128 || KEY > 512); KEY; })
 
 #define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define KV2(N,...) KV3(N, ##__VA_ARGS__)
 #define KV3(N,...) KV_ ## N (__VA_ARGS__)
-#define  KV_0()
-#define  KV_1(K1)                                              ,MK_KEY(K1)
-#define  KV_2(K1,V1)                                           ,MK_KEY(K1),V1
-#define  KV_3(K1,V1,K2)                                        ,MK_KEY(K1),V1,MK_KEY(K2)
-#define  KV_4(K1,V1,K2,V2)                                     ,MK_KEY(K1),V1,MK_KEY(K2),V2
-#define  KV_5(K1,V1,K2,V2,K3)                                  ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3)
-#define  KV_6(K1,V1,K2,V2,K3,V3)                               ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3
-#define  KV_7(K1,V1,K2,V2,K3,V3,K4)                            ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4)
-#define  KV_8(K1,V1,K2,V2,K3,V3,K4,V4)                         ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4
-#define  KV_9(K1,V1,K2,V2,K3,V3,K4,V4,K5)                      ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5)
-#define KV_10(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5)                   ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5
-#define KV_11(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6)                ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6)
-#define KV_12(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6)             ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6
-#define KV_13(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7)          ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7)
-#define KV_14(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7)       ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7
-#define KV_15(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8)    ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7,MK_KEY(K8)
-#define KV_16(K1,V1,K2,V2,K3,V3,K4,V4,K5,V5,K6,V6,K7,V7,K8,V8) ,MK_KEY(K1),V1,MK_KEY(K2),V2,MK_KEY(K3),V3,MK_KEY(K4),V4,MK_KEY(K5),V5,MK_KEY(K6),V6,MK_KEY(K7),V7,MK_KEY(K8),V8
-
+#define   KV_0()
+#define   KV_1(K1)         ,M_K(K1)
+#define   KV_2(K1,V1)      ,M_K(K1),V1
+#define   KV_3(K1,V1,...)  KV_2(K1,V1) KV_1(__VA_ARGS__)
+#define   KV_4(K1,V1,...)  KV_2(K1,V1) KV_2(__VA_ARGS__)
+#define   KV_5(K1,V1,...)  KV_2(K1,V1) KV_3(__VA_ARGS__)
+#define   KV_6(K1,V1,...)  KV_2(K1,V1) KV_4(__VA_ARGS__)
+#define   KV_7(K1,V1,...)  KV_2(K1,V1) KV_5(__VA_ARGS__)
+#define   KV_8(K1,V1,...)  KV_2(K1,V1) KV_6(__VA_ARGS__)
+#define   KV_9(K1,V1,...)  KV_2(K1,V1) KV_7(__VA_ARGS__)
+#define  KV_10(K1,V1,...)  KV_2(K1,V1) KV_8(__VA_ARGS__)
+#define  KV_11(K1,V1,...)  KV_2(K1,V1) KV_9(__VA_ARGS__)
+#define  KV_12(K1,V1,...)  KV_2(K1,V1)KV_10(__VA_ARGS__)
+#define  KV_13(K1,V1,...)  KV_2(K1,V1)KV_11(__VA_ARGS__)
+#define  KV_14(K1,V1,...)  KV_2(K1,V1)KV_12(__VA_ARGS__)
+#define  KV_15(K1,V1,...)  KV_2(K1,V1)KV_13(__VA_ARGS__)
+#define  KV_16(K1,V1,...)  KV_2(K1,V1)KV_14(__VA_ARGS__)
+#define  KV_17(K1,V1,...)  KV_2(K1,V1)KV_15(__VA_ARGS__)
+#define  KV_18(K1,V1,...)  KV_2(K1,V1)KV_16(__VA_ARGS__)
+#define  KV_19(K1,V1,...)  KV_2(K1,V1)KV_17(__VA_ARGS__)
+#define  KV_20(K1,V1,...)  KV_2(K1,V1)KV_18(__VA_ARGS__)
+#define  KV_21(K1,V1,...)  KV_2(K1,V1)KV_19(__VA_ARGS__)
+#define  KV_22(K1,V1,...)  KV_2(K1,V1)KV_20(__VA_ARGS__)
+#define  KV_23(K1,V1,...)  KV_2(K1,V1)KV_21(__VA_ARGS__)
+#define  KV_24(K1,V1,...)  KV_2(K1,V1)KV_22(__VA_ARGS__)
+#define  KV_25(K1,V1,...)  KV_2(K1,V1)KV_23(__VA_ARGS__)
+#define  KV_26(K1,V1,...)  KV_2(K1,V1)KV_24(__VA_ARGS__)
+#define  KV_27(K1,V1,...)  KV_2(K1,V1)KV_25(__VA_ARGS__)
+#define  KV_28(K1,V1,...)  KV_2(K1,V1)KV_26(__VA_ARGS__)
+#define  KV_29(K1,V1,...)  KV_2(K1,V1)KV_27(__VA_ARGS__)
+#define  KV_30(K1,V1,...)  KV_2(K1,V1)KV_28(__VA_ARGS__)
+#define  KV_31(K1,V1,...)  KV_2(K1,V1)KV_29(__VA_ARGS__)
+#define  KV_32(K1,V1,...)  KV_2(K1,V1)KV_30(__VA_ARGS__)
+#define  KV_33(K1,V1,...)  KV_2(K1,V1)KV_31(__VA_ARGS__)
+#define  KV_34(K1,V1,...)  KV_2(K1,V1)KV_32(__VA_ARGS__)
+#define  KV_35(K1,V1,...)  KV_2(K1,V1)KV_33(__VA_ARGS__)
+#define  KV_36(K1,V1,...)  KV_2(K1,V1)KV_34(__VA_ARGS__)
+#define  KV_37(K1,V1,...)  KV_2(K1,V1)KV_35(__VA_ARGS__)
+#define  KV_38(K1,V1,...)  KV_2(K1,V1)KV_36(__VA_ARGS__)
+#define  KV_39(K1,V1,...)  KV_2(K1,V1)KV_37(__VA_ARGS__)
+#define  KV_40(K1,V1,...)  KV_2(K1,V1)KV_38(__VA_ARGS__)
+#define  KV_41(K1,V1,...)  KV_2(K1,V1)KV_39(__VA_ARGS__)
+#define  KV_42(K1,V1,...)  KV_2(K1,V1)KV_40(__VA_ARGS__)
+#define  KV_43(K1,V1,...)  KV_2(K1,V1)KV_41(__VA_ARGS__)
+#define  KV_44(K1,V1,...)  KV_2(K1,V1)KV_42(__VA_ARGS__)
+#define  KV_45(K1,V1,...)  KV_2(K1,V1)KV_43(__VA_ARGS__)
+#define  KV_46(K1,V1,...)  KV_2(K1,V1)KV_44(__VA_ARGS__)
+#define  KV_47(K1,V1,...)  KV_2(K1,V1)KV_45(__VA_ARGS__)
+#define  KV_48(K1,V1,...)  KV_2(K1,V1)KV_46(__VA_ARGS__)
+#define  KV_49(K1,V1,...)  KV_2(K1,V1)KV_47(__VA_ARGS__)
+#define  KV_50(K1,V1,...)  KV_2(K1,V1)KV_48(__VA_ARGS__)
+#define  KV_51(K1,V1,...)  KV_2(K1,V1)KV_49(__VA_ARGS__)
+#define  KV_52(K1,V1,...)  KV_2(K1,V1)KV_50(__VA_ARGS__)
+#define  KV_53(K1,V1,...)  KV_2(K1,V1)KV_51(__VA_ARGS__)
+#define  KV_54(K1,V1,...)  KV_2(K1,V1)KV_52(__VA_ARGS__)
+#define  KV_55(K1,V1,...)  KV_2(K1,V1)KV_53(__VA_ARGS__)
+#define  KV_56(K1,V1,...)  KV_2(K1,V1)KV_54(__VA_ARGS__)
+#define  KV_57(K1,V1,...)  KV_2(K1,V1)KV_55(__VA_ARGS__)
+#define  KV_58(K1,V1,...)  KV_2(K1,V1)KV_56(__VA_ARGS__)
 
 
 /// For doing very fast inline sprintfs. tstr = tmpstring
