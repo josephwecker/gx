@@ -114,7 +114,7 @@
     exit(errno);                                                 \
 }
 
-#define E_LOG(SEV, ...)  _gx_elog(SEV, #SEV, KV(__VA_ARGS__))
+#define E_LOG(SEV, ...)  _gx_elog(SEV, KV(__VA_ARGS__))
 #define E_EMERGENCY(...) E_LOG(SEV_EMERGENCY, ##__VA_ARGS__)
 #define E_ALERT(...)     E_LOG(SEV_ALERT,     ##__VA_ARGS__)
 #define E_CRITICAL(...)  E_LOG(SEV_CRITICAL,  ##__VA_ARGS__)
@@ -204,18 +204,17 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
 
 
 
-#define _TMP_COMMON_FIELDS(IDX)      \
-    K_severity,        severity,     \
-    K_type,            "syserr",     \
-    K_name,            $("SYSERR_%s", syserr_info[_gx_error_stack[IDX].error_number].error_label), \
-    K_src_file,        _gx_error_stack[IDX].src_file,          \
-    K_src_line,        $("%u", _gx_error_stack[IDX].src_line), \
-    K_src_function,    _gx_error_stack[IDX].src_func,          \
-    K_src_expression,  _gx_error_stack[IDX].src_expr,          \
-    K_err_severity,    syserr_info[_gx_error_stack[IDX].error_number].error_severity, \
-    K_err_family,      $gx_error_family(ERRF_SYSERR),          \
-    K_err_number,      _gx_error_stack[IDX].error_number,      \
-    K_err_label,       syserr_info[_gx_error_stack[IDX].error_number].error_label,    \
+#define _EXPAND(IDX)                                                                                \
+    K_type,            "syserr",                                                                    \
+    K_name,            $("SYSERR_%s", syserr_info[_gx_error_stack[IDX].error_number].error_label),  \
+    K_src_file,        _gx_error_stack[IDX].src_file,                                               \
+    K_src_line,        $("%u", _gx_error_stack[IDX].src_line),                                      \
+    K_src_function,    _gx_error_stack[IDX].src_func,                                               \
+    K_src_expression,  _gx_error_stack[IDX].src_expr,                                               \
+    K_err_severity,    $gx_severity(syserr_info[_gx_error_stack[IDX].error_number].error_severity), \
+    K_err_family,      $gx_error_family(ERRF_SYSERR),                                               \
+    K_err_number,      $("%u", _gx_error_stack[IDX].error_number),                                  \
+    K_err_label,       syserr_info[_gx_error_stack[IDX].error_number].error_label,                  \
     K_err_msg,         syserr_info[_gx_error_stack[IDX].error_number].error_msg
 
 
@@ -225,45 +224,34 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
 /// @todo package everything up and call _gx_log_inner
 /// @todo silently abort (very early on) if runtime log-level is > severity
 /// @todo append stack trace report
-static _noinline void _gx_elog(gx_severity severity, const char *severity_str, int additional_argc, ...)
-{
-    int i;
-    va_list additional_argv;
-    if(additional_argc > 0) va_start(additional_argv, additional_argc);
 
+/// @note _gx_log call does RESET_S so be careful trying to use any values after that (although it'll still probably work...)
+static _noinline void _gx_elog(gx_severity sev, int argc, ...)
+{
+    int     i;
+    va_list argv;
+    if(argc > 0) va_start(argv, argc);
     if(_rare(_gx_error_stack[1].error_number)) {
         // Several errors to report, all "linked" to the last one
-        char *err_group_s = $("%u", GX_CPU_TS);
+        char *egrp = $("%u", GX_CPU_TS);
         for(i=0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
             if(_gx_error_stack[i].error_number) {
-                char *err_depth_s = $("%u", _gx_error_stack[i].chk_level);
-                if(additional_argc > 0) {
-                    va_list argv_copy;
-                    va_copy(argv_copy, additional_argv);
-                    _gx_log(additional_argc, &argv_copy, NULL, _TMP_COMMON_FIELDS(i),
-                            K_err_depth, err_depth_s, K_err_group, err_group_s);
-                } else {
-                    _gx_log(0, NULL, NULL, _TMP_COMMON_FIELDS(i),
-                            K_err_depth, err_depth_s, K_err_group, err_group_s);
-                }
+                char *edpth = $("%u", _gx_error_stack[i].chk_level);
+                if(argc > 0) _gx_log(sev, argc, &argv, _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
+                else         _gx_log(sev, 0,    NULL,  _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
             } else break;
         }
     } else {
-        if(additional_argc > 0) {
-            va_list argv_copy;
-            va_copy(argv_copy, additional_argv);
-            _gx_log(additional_argc, &argv_copy, NULL, _TMP_COMMON_FIELDS(0));
-        } else {
-            _gx_log(0, NULL, NULL, _TMP_COMMON_FIELDS(0));
-        }
+        if(argc > 0) _gx_log(sev, argc, &argv, _EXPAND(0));
+        else         _gx_log(sev, 0,    NULL,  _EXPAND(0));
     }
-    if(additional_argc > 0) {
-        va_end(additional_argv);
+    if(argc > 0) {
+        va_end(argv);
         RESET_S(); // Reset temporary string buffer for adhoc sprintfs (S(...))
     }
 }
 
-#undef TMP_COMMON_FIELDS
+#undef _EXPAND
 
 /// Primarily a debugging tool, orthogonal to the normal errors/logging
 static void gx_error_dump_all()

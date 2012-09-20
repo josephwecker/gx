@@ -212,10 +212,8 @@ static const char * (*gx_log_keystring_callback)(int);
 
 /// @todo  Finish populating comments from table above
 
-#define K_START_STD 128
-#define K_START_ADHOC 256
 typedef enum gx_log_standard_keys {
-    K_type=K_START_STD, ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
+    K_type=0,           ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
     K_severity,         ///< Declared severity from app.    e.g., SEV_WARNING
     K_name,             ///< Tag / name for grouping logs.  e.g., stream_up, syserr_eacces, ...
 
@@ -263,6 +261,7 @@ typedef enum gx_severity {
 } gx_severity;
 
 
+#if 0
 /// Pretty much the main things that get passed by value in C, but to build an
 /// array of them.
 typedef union gx_log_val {
@@ -273,6 +272,7 @@ typedef union gx_log_val {
     long int       v_long_int;
     long long int  v_long_long_int;
 } gx_log_val;
+#endif
 
 typedef struct _gx_log_kv_entry {
     char       include;
@@ -282,10 +282,19 @@ typedef struct _gx_log_kv_entry {
     char      *val;
 } _gx_log_kv_entry;
 
+#define _gx_kv_valsize(STR) ((uint16_t)(strlen(STR) + 1 + sizeof_member(_gx_log_kv_entry,val_size)))
 
+static char _GX_NULLSTRING[] = "";
 
-
-
+/// Main logging functionality.
+/// vparam_count/vparams have highest precedence (they are user overrides)
+/// haven't decided yet if aparams are necessary at all,
+// - loop through each param
+//   - populate array of std-keys, giving string
+//   - populate fixed size array (with incrementing pointer) of adhoc-keys
+// - update K_sys_* values
+// - determine whether or not it needs to be syslogged
+// - determine whether or not it needs to be output to
 // TODO:
 //   - high-level logging macros
 //   - runtime loglevel mechanism
@@ -294,80 +303,66 @@ typedef struct _gx_log_kv_entry {
 // TODO:
 //   - determine core-logger destinations- early abort if no logger wants it
 //   - fold in app, process, and time parameters
-//   - dispatch 
+//   - dispatch
+/// @todo lookup key string in user-specified lookup function, and fallback if not there
 
-#define _gx_log(VPCOUNT, VPARAMS, APARAMS, ...) _gx_log_inner(VPCOUNT, VPARAMS, APARAMS, KV(__VA_ARGS__))
-/// Main logging functionality.
-/// vparam_count/vparams have highest precedence (they are user overrides)
-/// haven't decided yet if aparams are necessary at all,
+/// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
+#define _gx_log(SEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, #SEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
-static char _GX_NULLSTRING[] = "";
-
-static _noinline void _gx_log_inner(int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...)
+/// Temporary macro for _gx_log_inner that iterates over a va_list & populates log_staging_table
+#define _VA_ARG_TO_TBL(VALIST) {                                         \
+    unsigned int  _kv_key = va_arg((VALIST), unsigned int);              \
+    char         *_kv_val = va_arg((VALIST), char *);                    \
+    if(_freq(_kv_key < adhoc_offset)) {                                  \
+        log_staging_table[_kv_key].include    = 1;                       \
+        log_staging_table[_kv_key].val_size   = _gx_kv_valsize(_kv_val); \
+        log_staging_table[_kv_key].val        = _kv_val;                 \
+    } else if(_freq(adhoc_idx <= adhoc_last)) {                          \
+        log_staging_table[adhoc_idx].include  = 1;                       \
+        log_staging_table[adhoc_idx].val_size = _gx_kv_valsize(_kv_val); \
+        log_staging_table[adhoc_idx].val      = _kv_val;                 \
+        adhoc_idx ++;                                                    \
+    }                                                                    \
+}
+static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, int vparam_count, va_list *vparams, int argc, ...)
 {
     int i;
-    unsigned int tck;
 
-    // The pregenerated header file declares/defines the following:
-    //    _gx_log_kv_entry  log_staging_table[] = {...}; // preallocated table to fill w/ kvpairs
-    //    int               adhoc_offset = ...;          // index where std kvpairs stop & adhocs start
-    //    int               adhoc_last   = ...;          // index of last entry in log_staging_table
+    /// The pregenerated header file declares/defines the following:
+    /// @param adhoc_offset              index of first adhoc kv pair
+    /// @param adhoc_last                index of last element of array
+    /// @param log_staging_table_master  Entry table default data
+    /// @param log_staging_table         Entry table for current run
     #include "./gxe/gx_log_table.h"
-    static _gx_log_kv_entry  log_staging_table_dup[LOG_STAGING_TABLE_ENTRIES];
 
-    //fprintf(stderr, "%lu | %lu\n", sizeof(log_staging_table), sizeof(log_staging_table_dup));
-    //return;
+    memcpy(&log_staging_table, &log_staging_table_master, sizeof(log_staging_table)); // yes it's fastest
+
+    int adhoc_idx = adhoc_offset;
+
+    // Usually "expanded" values
+    if(argc > 0) {
+        va_list argv;
+        va_start(argv, argc);
+        for(i = 0; i < argc; i+=2) _VA_ARG_TO_TBL(argv);
+        va_end(argv);
+    }
+
+    // Passed in at the highest level generally- highest precedence
+    if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
+
+    log_staging_table[K_severity].include  = 1;
+    log_staging_table[K_severity].val_size = _gx_kv_valsize(severity_str);
+    log_staging_table[K_severity].val      = severity_str;
 
     ///--------- DEBUG --------
     fprintf(stderr, "\n\n--------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
-        _gx_log_kv_entry *kv = &(log_staging_table_dup[i]);
+        _gx_log_kv_entry *kv = &(log_staging_table[i]);
         fprintf(stderr, "/* %3d */ {%d, 0x%04x, '%s', 0x%04x, '%s'}\n",
                 i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
     }
-
-    log_staging_table[65].key     = "DIRTY";
-    log_staging_table_dup[65].key = "DIRTY";
-
-    tck = GX_CPU_TS;
-    memcpy(log_staging_table_dup, log_staging_table, sizeof(log_staging_table_dup));
-    fprintf(stderr, "\n\n-- memcpy          ----> %u\n", (unsigned int)GX_CPU_TS - tck);
-
-
-    // Reset table
-    tck = GX_CPU_TS;
-    for(i = 0; i < adhoc_offset; i++) {
-        log_staging_table[i].include  = 0;
-        log_staging_table[i].val_size = 0x0003;
-        log_staging_table[i].val      = _GX_NULLSTRING;
-    }
-    for(i = adhoc_offset+1; i <= adhoc_last; i++) {
-        log_staging_table[i].include  = 0;
-        log_staging_table[i].key_size = 0x0003;
-        log_staging_table[i].key      = _GX_NULLSTRING;
-        log_staging_table[i].val_size = 0x0003;
-        log_staging_table[i].val      = _GX_NULLSTRING;
-    }
-    fprintf(stderr, "\n\n-- selective reset ----> %u\n", (unsigned int)GX_CPU_TS - tck);
-
-#if 0
-    if(vparam_count > 0) {
-        int i;
-        va_start(*vparams);
-        for(i = 0; i < vparam_count; i++) {
-
-        }
-        va_end(*vparams);
-    }
-#endif
-
-    // - loop through each param
-    //   - populate array of std-keys, giving string
-    //   - populate fixed size array (with incrementing pointer) of adhoc-keys
-    // - update K_sys_* values
-    // - determine whether or not it needs to be syslogged
-    // - determine whether or not it needs to be output to 
 }
+#undef _VA_ARG_TO_TBL
 
 
 typedef struct gx_logentry_constants {
