@@ -58,7 +58,11 @@ int main(int argc, char **argv) {
     //if_esys(test_esys(EAGAIN)) E_NOTICE($one,"two",$three);
     //if_esys(-1) E_NOTICE($one,"two",$three, S("some crazy value %d/%d/%d", 42, (int)sizeof(main), 0xDEAD));
 
+    _(-1) E_NOTICE(K_err_brief,  $("first crazy stuff %d %d", 23, 0xDEADE));
     _(-1) E_NOTICE(K_err_brief,  $("some crazy stuff %d %d", 23, 0xDEAD));
+    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(-1) E_ERROR (K_err_another, "another", K_src_line, "wowzers!");
+    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
     _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
 
     // The following would all fail to build:

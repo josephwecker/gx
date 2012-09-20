@@ -214,15 +214,14 @@ static const char * (*gx_log_keystring_callback)(int);
 
 #define K_START_STD 128
 #define K_START_ADHOC 256
-
 typedef enum gx_log_standard_keys {
     K_type=K_START_STD, ///< Adhoc namespace for log items. e.g., broadcast_state, system_state, ...
     K_severity,         ///< Declared severity from app.    e.g., SEV_WARNING
     K_name,             ///< Tag / name for grouping logs.  e.g., stream_up, syserr_eacces, ...
 
-    K_msg,           ///< Brief app message / description / note. e.g., "publisher went live."
-    K_report,        ///< Multiline formatted report / data
-    K_result,        ///< App message indicating risk mitigation action taken etc.
+    K_msg,              ///< Brief app message / description / note. e.g., "publisher went live."
+    K_report,           ///< Multiline formatted report / data
+    K_result,           ///< App message indicating risk mitigation action taken etc.
 
     K_src_file,
     K_src_line,
@@ -248,6 +247,7 @@ typedef enum gx_log_standard_keys {
     K_sys_ppid,
     K_sys_tid
 } gx_log_standard_keys;
+#define K_END_ADHOC (K_sys_tid)
 
 typedef enum gx_severity {
     SEV_EMERGENCY,   ///< Whole system disruption or serious destabilization.
@@ -274,10 +274,17 @@ typedef union gx_log_val {
     long long int  v_long_long_int;
 } gx_log_val;
 
-typedef struct _gx_log_skv {
-    //uint16_t 
+typedef struct _gx_log_kv_entry {
+    char       include;
+    uint16_t   key_size;                ///< Key size including null-term plus 2-byte header
+    char      *key;
+    uint16_t   val_size;
+    char      *val;
+} _gx_log_kv_entry;
 
-} _gx_log_skv;
+
+
+
 
 // TODO:
 //   - high-level logging macros
@@ -294,12 +301,72 @@ typedef struct _gx_log_skv {
 /// vparam_count/vparams have highest precedence (they are user overrides)
 /// haven't decided yet if aparams are necessary at all,
 
+static char _GX_NULLSTRING[] = "";
+
 static _noinline void _gx_log_inner(int vparam_count, va_list *vparams, gx_log_val aparams[], int argc, ...)
 {
+    int i;
+    unsigned int tck;
+
+    // The pregenerated header file declares/defines the following:
+    //    _gx_log_kv_entry  log_staging_table[] = {...}; // preallocated table to fill w/ kvpairs
+    //    int               adhoc_offset = ...;          // index where std kvpairs stop & adhocs start
+    //    int               adhoc_last   = ...;          // index of last entry in log_staging_table
+    #include "./gxe/gx_log_table.h"
+    static _gx_log_kv_entry  log_staging_table_dup[LOG_STAGING_TABLE_ENTRIES];
+
+    //fprintf(stderr, "%lu | %lu\n", sizeof(log_staging_table), sizeof(log_staging_table_dup));
+    //return;
+
+    ///--------- DEBUG --------
+    fprintf(stderr, "\n\n--------------------------------------------\n");
+    for(i = 0; i <= adhoc_last; i++) {
+        _gx_log_kv_entry *kv = &(log_staging_table_dup[i]);
+        fprintf(stderr, "/* %3d */ {%d, 0x%04x, '%s', 0x%04x, '%s'}\n",
+                i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
+    }
+
+    log_staging_table[65].key     = "DIRTY";
+    log_staging_table_dup[65].key = "DIRTY";
+
+    tck = GX_CPU_TS;
+    memcpy(log_staging_table_dup, log_staging_table, sizeof(log_staging_table_dup));
+    fprintf(stderr, "\n\n-- memcpy          ----> %u\n", (unsigned int)GX_CPU_TS - tck);
+
+
+    // Reset table
+    tck = GX_CPU_TS;
+    for(i = 0; i < adhoc_offset; i++) {
+        log_staging_table[i].include  = 0;
+        log_staging_table[i].val_size = 0x0003;
+        log_staging_table[i].val      = _GX_NULLSTRING;
+    }
+    for(i = adhoc_offset+1; i <= adhoc_last; i++) {
+        log_staging_table[i].include  = 0;
+        log_staging_table[i].key_size = 0x0003;
+        log_staging_table[i].key      = _GX_NULLSTRING;
+        log_staging_table[i].val_size = 0x0003;
+        log_staging_table[i].val      = _GX_NULLSTRING;
+    }
+    fprintf(stderr, "\n\n-- selective reset ----> %u\n", (unsigned int)GX_CPU_TS - tck);
+
+#if 0
+    if(vparam_count > 0) {
+        int i;
+        va_start(*vparams);
+        for(i = 0; i < vparam_count; i++) {
+
+        }
+        va_end(*vparams);
+    }
+#endif
+
     // - loop through each param
     //   - populate array of std-keys, giving string
     //   - populate fixed size array (with incrementing pointer) of adhoc-keys
-    //
+    // - update K_sys_* values
+    // - determine whether or not it needs to be syslogged
+    // - determine whether or not it needs to be output to 
 }
 
 

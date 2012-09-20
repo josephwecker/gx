@@ -1,30 +1,13 @@
 #!/usr/bin/env ruby
 unless Kernel.respond_to?(:require_relative)
   module Kernel
-    def require_relative(path)
-      $wd = File.expand_path(File.dirname(caller[0]))+'/../../'
-      require File.join(File.dirname(caller[0]), path.to_str)
-    end
-  end
-else $wd = File.expand_path(File.dirname(__FILE__))+'/../../' end
-
-class Array
-  # Greatest Common Prefix - implies comparable parts in array values
-  def gcp
-    pfx = first.dup
-    self.[](1..-1).each do |e|
-      pfx.slice!(e.size..-1) if e.size < pfx.size
-      pfx = pfx.chop while (pfx != e[0..pfx.size-1] && pfx.size > 0)
-    end
-    pfx
+    def require_relative(path) require File.join(File.dirname(caller[0]), path.to_str) end
   end
 end
-
 require          'pp'
 require          'tempfile'
 require_relative 'perfect_map'
-
-include PerfectMap
+include          PerfectMap
 
 # Find all relevant files where enums might exist
 files    = []
