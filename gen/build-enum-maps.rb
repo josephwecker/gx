@@ -61,6 +61,11 @@ done     = {}
 
 puts "\n\n\n#ifndef NULL\n#define NULL ((void *)0)\n#endif\n\n"
 
+def strsz(str)
+  s = [str.size].pack('S')
+  '\\x%02x\\x%02x' % [s[0].ord, s[1].ord]
+end
+
 lists.each do |name, raw_entries, entries|
   next if done[name] || name == 'rtmp_mtype'
 
@@ -97,7 +102,9 @@ lists.each do |name, raw_entries, entries|
     end
 
     actual_vals = actual_vals.split("\n").map{|v| v.split('|')}
-    actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label+'"']}
+    actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+strsz(label)+label+'"']}
+    #require 'pp'
+    #$stderr.puts actual_vals.pretty_inspect
 
     header  = "/// Looks up string associated with enums in the #{name} enum table by looking at char buffer.\n"+
               "/// @see $#{name}(int) below for something more useful."
