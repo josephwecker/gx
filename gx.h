@@ -238,13 +238,13 @@
 
 // Quick and dirty check to make sure that keys are only integers in a range
 // reserved for key-value pair keys.
-#define M_K(KEY) ({ GX_BUILD_BUG_ON(sizeof(KEY) != sizeof(int) || KEY < 128 || KEY > 512); KEY; })
+#define M_K(KEY) ({ GX_BUILD_BUG_ON(sizeof(KEY) != sizeof(int) || KEY > 512); KEY; })
 
 #define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define KV2(N,...) KV3(N, ##__VA_ARGS__)
 #define KV3(N,...) KV_ ## N (__VA_ARGS__)
 #define   KV_0()
-#define   KV_1(K1)         ,M_K(K1)
+#define   KV_1(K1)         ,ERROR___key_without_a_value
 #define   KV_2(K1,V1)      ,M_K(K1),V1
 #define   KV_3(K1,V1,...)  KV_2(K1,V1) KV_1(__VA_ARGS__)
 #define   KV_4(K1,V1,...)  KV_2(K1,V1) KV_2(__VA_ARGS__)
