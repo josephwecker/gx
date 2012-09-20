@@ -40,11 +40,11 @@
 
 
     Actions
-      - E_IGN  ()        : ignore. possibly logs to unessential severity
-      - E_RAISE(RV)      : returns RV after saving the error on the error-stack
-      - E_CLEAR()        : clears the error-stack- does not log. happens automatically with other handlers
-      - E_EXIT ()        : exits with error-number's value- automatically logs reason / severity
-      - E_LOG  (SEV,...) : explicitly logs the error with a given severity & additional information
+      - E_IGNORE()        : ignore. possibly logs to unessential severity
+      - E_RAISE (RV)      : returns RV after saving the error on the error-stack
+      - E_CLEAR ()        : clears the error-stack- does not log. happens automatically with other handlers
+      - E_EXIT  ()        : exits with error-number's value- automatically logs reason / severity
+      - E_LOG   (SEV,...) : explicitly logs the error with a given severity & additional information
         The following are shorthand for logging the error with specific severities.
           - E_EMERGENCY(...)
           - E_ALERT    (...)
@@ -58,11 +58,16 @@
           - E_UNKNOWN  (...)
 
 
-   @todo separate esys lookup module with additional lookups from:
-      - h_errno
-      - gai_strerror,
-      - herror,
-      - hstrerror,
+   @todo 
+      - Separate esys lookup module with additional lookups from:
+        - h_errno
+        - gai_strerror,
+        - herror,
+        - hstrerror,
+      - _eio  - stdio ferror style errors (distinguish feof)
+      - _eavc - libavconv/ffmpeg style error codes
+      - Silently abort (very early on) if runtime log-level is > severity
+      - Append stack trace report when severity is high enough
 */
 
 #ifndef GX_ERROR2_H
@@ -102,6 +107,11 @@
     return RETVAL;                                               \
 }
 
+#define E_IGNORE() {                                             \
+    E_DEBUG(K_msg, "Ignored");                                   \
+    E_CLEAR();                                                   \
+}
+
 #define E_CLEAR() {                                              \
     _gx_error_cidx = 0;                                          \
     _gx_error_stack[0].error_number =                            \
@@ -110,7 +120,7 @@
 }
 
 #define E_EXIT() {                                               \
-    /* TODO: log fatal */ gx_error_dump_all();                   \
+    E_CRITICAL();                                                \
     exit(errno);                                                 \
 }
 
@@ -139,8 +149,6 @@
 #define _enz(E)    ({ _reset_e(); (_run_e((_e=(int)(E))!= 0          )) ? _gx_mrk(#E) : 0; })
 #define _ez(E)     ({ _reset_e(); (_run_e(         (E) == 0          )) ? _gx_mrk(#E) : 0; })
 #define _enull(E)  ({ _reset_e(); (_run_e( (void *)(E) ==(void *)NULL)) ? _gx_mrk(#E) : 0; })
-// TODO: _eio  - stdio ferror style errors (distinguish feof)
-// TODO: _eavc - libavconv/ffmpeg style error codes
 
 
 typedef struct gx_error_lookup_info {
@@ -202,7 +210,8 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
     return 1;
 }
 
-
+/// Core Error expansion / logging
+/// @note _gx_log call does RESET_S so be careful trying to use any values after that (although it'll still probably work...)
 
 #define _EXPAND(IDX)                                                                                \
     K_type,            "syserr",                                                                    \
@@ -217,15 +226,6 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
     K_err_label,       syserr_info[_gx_error_stack[IDX].error_number].error_label,                  \
     K_err_msg,         syserr_info[_gx_error_stack[IDX].error_number].error_msg
 
-
-/// Core Error expansion / logging
-/// @todo do error lookups, including looking up error family as category if not overridden.
-/// @todo possibly emit several log messages with a group id if there is more than one active error in the _gx_error_stack
-/// @todo package everything up and call _gx_log_inner
-/// @todo silently abort (very early on) if runtime log-level is > severity
-/// @todo append stack trace report
-
-/// @note _gx_log call does RESET_S so be careful trying to use any values after that (although it'll still probably work...)
 static _noinline void _gx_elog(gx_severity sev, int argc, ...)
 {
     int     i;
@@ -250,10 +250,10 @@ static _noinline void _gx_elog(gx_severity sev, int argc, ...)
         RESET_S(); // Reset temporary string buffer for adhoc sprintfs (S(...))
     }
 }
-
 #undef _EXPAND
 
-/// Primarily a debugging tool, orthogonal to the normal errors/logging
+
+/// Primarily a debugging tool, orthogonal to the normal errors/logging. You can probably ignore it.
 static void gx_error_dump_all()
 {
     int i;
