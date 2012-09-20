@@ -4,7 +4,7 @@ CW = "\\033[30m\\033[1m"
 
 define gcc
   $(call INFO, gcc, $(notdir $<), $@)
-	@$(CC) $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $<
+	clang $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $<
 endef
 
 define LINK
