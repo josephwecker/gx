@@ -20,36 +20,26 @@ keys     = enum_def.split(',').map do |key|
              key    = key.split('=')[0]
              ckey   = key[/^K_([a-z0-9_]+)$/,1]
              abort    "unrecognized key: #{key}" unless ckey
-             ['0', '0x%04x' % (ckey.size+3), '"'+ckey+'"', '0x0003', '_GX_NULLSTRING']
-             #'        {0, 0x%04x, %-20s 0x0003, _GX_NULLSTRING}' % [ckey.size+3,'"'+ckey+'",']
+             vs     = '0x0003'
+             vv     = '_GX_NULLSTRING'
+             if ckey == 'type'
+               vv   = '"unknown"'
+               vs   = '0x%04x' % (vv.size+3 - 2)
+             elsif ckey == 'severity'
+               vv   = '"SEV_UNKNOWN"'
+               vs   = '0x%04x' % (vv.size+3 - 2)
+             end
+             ['0', '0x%04x' % (ckey.size+3), '"'+ckey+'"', vs, vv]
            end
-
+ah_offs  = keys.size
 keys    += [['0','0x0003','_GX_NULLSTRING','0x0003','_GX_NULLSTRING']]*ADHOCS
-fullsize = keys.size
-
-require 'pp'
-pp keys
-exit
+sz       = keys.size
 
 puts <<-OUTPUT
-typedef struct _gx_log_kv_entry {
-    char       include [#{fullsize}];
-    uint16_t   key_size[#{fullsize}];  ///< Including null terminator & two byte size
-    char      *key     [#{fullsize}];
-    uint16_t   val_size[#{fullsize}];
-    char      *val     [#{fullsize}];
-} _gx_log_kv_entry;
-
-static _gx_log_kv_entry log_staging_table = {
-    .include   = {0},
-    .key_size  = 
-
-puts       keys.join(",\n") + ",\n"
-puts       "        {0, 0x0003, _GX_NULLSTRING,      0x0003, _GX_NULLSTRING},\n" * ADHOCS
-puts       "    };\n"
-
-puts       "    int adhoc_offset = #{keys.size};\n"
-puts       "    int adhoc_last   = #{ADHOCS + keys.size - 1};\n"
-puts       "    #define LOG_STAGING_TABLE_ENTRIES #{ADHOCS + keys.size}\n"
-
+static const _gx_log_kv_entry log_staging_table_master[] = {
+    #{keys.map{|k|"{#{k.join(',')}}"}.join(",\n    ")}
+};
+static _gx_log_kv_entry log_staging_table[#{sz}];
+#define adhoc_offset #{ah_offs}
+#define adhoc_last   #{sz - 1}
 OUTPUT
