@@ -85,9 +85,8 @@ lists.each do |name, raw_entries, entries|
     end
 
     actual_vals = actual_vals.split("\n").map{|v| v.split('|')}
-    actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+strsz(label)+label+'"']}
-    #require 'pp'
-    #$stderr.puts actual_vals.pretty_inspect
+    #actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+strsz(label)+label+'"']}
+    actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label+'"']}
 
     header  = "/// Looks up string associated with enums in the #{name} enum table by looking at char buffer.\n"+
               "/// @see $#{name}(int) below for something more useful."
