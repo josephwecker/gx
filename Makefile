@@ -1,4 +1,4 @@
-gx_all : gxe/syserr.h | .silent
+gx_all : gxe/syserr.h gxe/gx_enum_lookups.h | .silent
 
 
 include gen/common.mk
@@ -9,15 +9,18 @@ $(shell mkdir -p gxe)
 B=./tst
 T=./tst
 
+gxe/gx_enum_lookups.h : gen/build-enum-maps.rb gen/perfect_map.rb
+	$< ./*.h > $@
+
 gxe/syserr.h : gen/build-error-lookups
 	$< > $@
 
 KVKEYS=$B/.kv_keys.h
 ENUM_MAPS=$B/.test_enums.h
-test : $(KVKEYS) $(ENUM_MAPS) $B/test_gxerr
+test : $(KVKEYS) $(ENUM_MAPS) $B/test_gxerr ./*.h
 	$B/test_gxerr
 
-$(ENUM_MAPS) : gen/build-enum-maps.rb gen/perfect_map.rb
+$(ENUM_MAPS) : gen/build-enum-maps.rb gen/perfect_map.rb $(KVKEYS)
 	$< $T/*.h $T/.*.h > $@
 
 $(KVKEYS) : gen/auto-kv-keys
@@ -26,6 +29,6 @@ $(KVKEYS) : gen/auto-kv-keys
 $B/test_gxerr : $B/test_gxerr.o $B/test_gxerr_2.o
 	$(call LINK)
 $B/test_gxerr.o : $T/test_gxerr.c $B/.kv_keys.h $T/test_gxerr_help.h
-	$(call gcc, -I.. -c)
+	$(call gcc, -I.. -I. -c)
 $B/test_gxerr_2.o : $T/test_gxerr_2.c $(KVKEYS) $T/test_gxerr_help.h
-	$(call gcc, -I.. -c)
+	$(call gcc, -I.. -I. -c)
