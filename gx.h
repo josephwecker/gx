@@ -207,6 +207,9 @@
 #define _inline       __attribute__ ((__always_inline__))
 #define _noinline     __attribute__ ((__noinline__))
 
+#define sizeof_member(type, member) sizeof(((type *)0)->member)
+
+
 /// A trick to get the number of args passed to a variadic macro
 /// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
 /// @author Joseph Wecker (fixed zero-va_args bug)
