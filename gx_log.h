@@ -212,6 +212,8 @@
 
 #include "./gx.h"
 #include "./gxe/gx_enum_lookups.h"
+#include <time.h>
+
 
 #define GX_LOG_MAX_KEY_LEN 64
 #define GX_LOG_MAX_VAL_LEN 255
@@ -279,14 +281,21 @@ typedef struct _gx_log_kv_entry {
     uint16_t   val_size;
     char      *val;
 } _gx_log_kv_entry;
-
 #define _gx_kv_valsize(STR) ((uint16_t)(strlen(STR) + 1 + sizeof_member(_gx_log_kv_entry,val_size)))
 
 static char _GX_NULLSTRING[] = "";
 
+static uint16_t      _gx_log_time_len  = 3;
+static char          _gx_log_time[256] = {0};
+static unsigned int  _gx_log_last_tick = 0;
+// host
+// program
+// version
+
+
 /// Main logging functionality.
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
-#define _gx_log(SEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, #SEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
+#define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
 /// Temporary macro for _gx_log_inner that iterates over a va_list & populates log_staging_table
 #define _VA_ARG_TO_TBL(VALIST) {                                         \
@@ -334,13 +343,36 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     log_staging_table[K_severity].val_size = _gx_kv_valsize(severity_str);
     log_staging_table[K_severity].val      = severity_str;
 
+    if(_freq(!log_staging_table[K_sys_time].include)) {
+        unsigned int curr_tick = GX_CPU_TS;
+        if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
+            time_t now = time(NULL);
+            struct tm now_tm;
+            gmtime_r(&now, &now_tm);
+            size_t slen = strftime(_gx_log_time, sizeof(_gx_log_time)-1, "%Y-%m-%dT%H:%M:%SZ", &now_tm);
+            _gx_log_time_len = slen + 1 + sizeof_member(_gx_log_kv_entry, val_size);
+            _gx_log_last_tick = curr_tick;
+        }
+        _gx_log_kv_entry *kv = &(log_staging_table[K_sys_time]);
+        kv->include  = 1;
+        kv->val_size = _gx_log_time_len;
+        kv->val      = _gx_log_time;
+        char *ctick_string = $("%llu", curr_tick);
+        kv = &(log_staging_table[K_sys_ticks]);
+        kv->include  = 1;
+        kv->val_size = _gx_kv_valsize(ctick_string);
+        kv->val      = ctick_string;
+    }
+
     ///--------- DEBUG --------
-    fprintf(stderr, "\n\n--------------------------------------------\n");
+    fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
         _gx_log_kv_entry *kv = &(log_staging_table[i]);
-        fprintf(stderr, "/* %3d */ {%d, 0x%04x, '%s', 0x%04x, '%s'}\n",
-                i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
+        if(kv->include)
+            fprintf(stderr, "  /*%3d */ {%d, 0x%04x,  %-17s, 0x%04x,  %-25s}\n",
+                    i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
     }
+    fprintf(stderr, "\n");
 }
 #undef _VA_ARG_TO_TBL
 

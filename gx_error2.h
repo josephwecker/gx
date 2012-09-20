@@ -124,7 +124,7 @@
     exit(errno);                                                 \
 }
 
-#define E_LOG(SEV, ...)  _gx_elog(SEV, KV(__VA_ARGS__))
+#define E_LOG(SEV, ...)  _gx_elog(SEV, #SEV, KV(__VA_ARGS__))
 #define E_EMERGENCY(...) E_LOG(SEV_EMERGENCY, ##__VA_ARGS__)
 #define E_ALERT(...)     E_LOG(SEV_ALERT,     ##__VA_ARGS__)
 #define E_CRITICAL(...)  E_LOG(SEV_CRITICAL,  ##__VA_ARGS__)
@@ -226,7 +226,7 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
     K_err_label,       syserr_info[_gx_error_stack[IDX].error_number].error_label,                  \
     K_err_msg,         syserr_info[_gx_error_stack[IDX].error_number].error_msg
 
-static _noinline void _gx_elog(gx_severity sev, int argc, ...)
+static _noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
 {
     int     i;
     va_list argv;
@@ -237,13 +237,13 @@ static _noinline void _gx_elog(gx_severity sev, int argc, ...)
         for(i=0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
             if(_gx_error_stack[i].error_number) {
                 char *edpth = $("%u", _gx_error_stack[i].chk_level);
-                if(argc > 0) _gx_log(sev, argc, &argv, _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
-                else         _gx_log(sev, 0,    NULL,  _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
+                if(argc > 0) _gx_log(sev, ssev, argc, &argv, _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
+                else         _gx_log(sev, ssev, 0,    NULL,  _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
             } else break;
         }
     } else {
-        if(argc > 0) _gx_log(sev, argc, &argv, _EXPAND(0));
-        else         _gx_log(sev, 0,    NULL,  _EXPAND(0));
+        if(argc > 0) _gx_log(sev, ssev, argc, &argv, _EXPAND(0));
+        else         _gx_log(sev, ssev, 0,    NULL,  _EXPAND(0));
     }
     if(argc > 0) {
         va_end(argv);
