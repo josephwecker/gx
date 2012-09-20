@@ -58,6 +58,9 @@ lists    = raw.scan(renums).map{|n,v| [n,v,v.scan(rentries)]}
 # Run them all as small c programs to get the true value as will be seen by the
 # output function.
 done     = {}
+
+puts "\n\n\n#ifndef NULL\n#define NULL ((void *)0)\n#endif\n\n"
+
 lists.each do |name, raw_entries, entries|
   next if done[name] || name == 'rtmp_mtype'
 
@@ -96,11 +99,20 @@ lists.each do |name, raw_entries, entries|
     actual_vals = actual_vals.split("\n").map{|v| v.split('|')}
     actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label+'"']}
 
+    header  = "/// Looks up string associated with enums in the #{name} enum table by looking at char buffer.\n"+
+              "/// @see $#{name}(int) below for something more useful."
+
+    trailer = "\n\n/// Quick lookup of string for #{name} enum values using integer.\n" +
+              "/// @retval NULL if not found.\n"
+    trailer+= "static __attribute__((__always_inline__,__pure__)) const char * $#{name}(int val)\n{\n"+
+              "    return _#{name}_str_map((const char *)(&val));\n" +
+              "}\n"
     puts "\n\n"
-    header  = "/// $#{name}. Look up string for #{name} enum values. Returns NULL if not found.\n"
-    header += "#define $#{name}(val) ({ " +
-                "int _V_=(int)(val); #{name}_str_map((const char *)(&(_V_))); })\n"
-    puts map_function("#{name}_str_map", actual_vals,
-                      :output_ctype=>'const char *', :header => header);
+    defname = '_' + name.upcase.gsub(/[^A-Z]/,'_')+'_STR_MAP'
+    puts "#ifndef #{defname}"
+    puts "#define #{defname}"
+    puts map_function("_#{name}_str_map", actual_vals, :header=>header, :output_ctype=>'const char *')
+    puts trailer
+    puts "#endif /* #{defname} */"
     done[name] = true
 end
