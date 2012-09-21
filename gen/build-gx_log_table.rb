@@ -20,26 +20,32 @@ keys     = enum_def.split(',').map do |key|
              key    = key.split('=')[0]
              ckey   = key[/^K_([a-z0-9_]+)$/,1]
              abort    "unrecognized key: #{key}" unless ckey
-             vs     = '0x0003'
-             vv     = '_GX_NULLSTRING'
+             vs     = '0'
+             vv     = 'NULL'
              if ckey == 'type'
                vv   = '"unknown"'
-               vs   = '0x%04x' % (vv.size+3 - 2)
+               vs   = '0x%04x' % (vv.size - 2)
              elsif ckey == 'severity'
                vv   = '"SEV_UNKNOWN"'
-               vs   = '0x%04x' % (vv.size+3 - 2)
+               vs   = '0x%04x' % (vv.size - 2)
              end
-             ['0', '0x%04x' % (ckey.size+3), '"'+ckey+'"', vs, vv]
+             ['0', '0x%04x' % (ckey.size), '"'+ckey+'"', vs, vv]
            end
 ah_offs  = keys.size
-keys    += [['0','0x0003','_GX_NULLSTRING','0x0003','_GX_NULLSTRING']]*ADHOCS
+keys    += [['0','0','NULL','0','NULL']]*ADHOCS
 sz       = keys.size
 
 puts <<-OUTPUT
-static const _gx_kv msg_tab_master[] = {
-    #{keys.map{|k|"{#{k.join(',')}}"}.join(",\n    ")}
-};
-static _gx_kv msg_tab[#{sz}];
-#define adhoc_offset #{ah_offs}
-#define adhoc_last   #{sz - 1}
+    static _GX_KV_SIZETYPE _key_sizes_master[] = {#{keys.map{|k| k[1]}.join(',')}};
+    static _GX_KV_SIZETYPE _val_sizes_master[] = {#{keys.map{|k| k[3]}.join(',')}};
+    static _GX_KV_SIZETYPE _key_sizes[#{sz}];
+    static _GX_KV_SIZETYPE _val_sizes[#{sz}];
+
+    static const _gx_kv msg_tab_master[] = {
+        #{keys.each_with_index.map{|k,i| "_make_gx_kv(#{i},#{k[1..-1].join(',')})"}.join(",\n        ")}
+    };
+
+    static _gx_kv msg_tab[#{sz}];
+    #define adhoc_offset #{ah_offs}
+    #define adhoc_last   #{sz - 1}
 OUTPUT

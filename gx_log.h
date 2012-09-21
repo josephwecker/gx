@@ -275,30 +275,52 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-#define gx_iov_set(IOVP,I_VAR,DAT,SIZE) {      \
-    (IOVP)[(I_VAR)].iov_base = (char *)(DAT);  \
-    (IOVP)[(I_VAR)].iov_len  = (SIZE);         \
-}
+#define _GX_KV_SIZETYPE uint16_t                  ///< Type of length headers before strings
+#define kv_base_t typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
+#define kv_size_t typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
 
-#define gx_iov_append_kv(IOVP,I_VAR,KV,S_VAR) {                                         \
-    gx_iov_set(IOVP, I_VAR,     &((KV)->key_size), sizeofm(_gx_kv, key_size));          \
-    gx_iov_set(IOVP, I_VAR + 1, (KV)->key, (KV)->key_size - sizeofm(_gx_kv, key_size)); \
-    gx_iov_set(IOVP, I_VAR + 2, &((KV)->val_size), sizeofm(_gx_kv, val_size));          \
-    gx_iov_set(IOVP, I_VAR + 3, (KV)->val, (KV)->val_size - sizeofm(_gx_kv, val_size)); \
-    (I_VAR) += 4;                                                                       \
-    (S_VAR) += (KV)->key_size + (KV)->val_size;                                         \
-}
+
+/// Key-value structure, set up a bit redundantly so that it already
+/// encapsulates the output format in a layout ready for scatter-io.
 
 typedef struct _gx_kv {
-    char       include;
-    uint16_t   key_size;                ///< Key size including null-term plus 2-byte header
-    char      *key;
-    uint16_t   val_size;
-    char      *val;
-} _gx_kv;
-#define _gx_kv_valsize(STR) ((uint16_t)(strlen(STR) + 1 + sizeofm(_gx_kv,val_size)))
+    struct {
+        kv_base_t key_size_base;
+        kv_size_t key_size_size;
+    };
+    struct {
+        kv_base_t key_data_base;
+        kv_size_t key_data_size;
+    };
+    struct {
+        kv_base_t val_size_base;
+        kv_size_t val_size_size;
+    };
+    struct {
+        kv_base_t val_data_base;
+        kv_size_t val_data_size;
+    };
+} __packed _gx_kv;
 
+/// Change any NULL pointers into values that point to _GX_NULLSTRING
+#define _STR_NULL(P) ({ typeof(P) _p = (P); (void *)_p == (void *)NULL ? _GX_NULLSTRING : _p; })
 static char _GX_NULLSTRING[] = "";
+
+
+/// @note Format always has bodies with at least one byte (a NULL) and
+///       therefore size of at least 1 + sizeof(size-header-type)
+
+#define _make_gx_kv(IDX, KEY_LEN, KEY_P, VAL_LEN, VAL_P) {                        \
+    .key_size_base = &(_key_sizes_master[IDX]),                                   \
+    .key_size_size = sizeof(_GX_KV_SIZETYPE),                                     \
+    .key_data_base = (kv_base_t)(KEY_P == NULL ? _GX_NULLSTRING : KEY_P),         \
+    .key_data_size = KEY_LEN + 1 + sizeof(_GX_KV_SIZETYPE),                       \
+                                                                                  \
+    .val_size_base = &(_val_sizes_master[IDX]),                                   \
+    .val_size_size = sizeof(_GX_KV_SIZETYPE),                                     \
+    .val_data_base = (kv_base_t)(VAL_P == NULL ? _GX_NULLSTRING : VAL_P),         \
+    .val_data_size = VAL_LEN + 1 + sizeof(_GX_KV_SIZETYPE)                        \
+}
 
 static uint16_t      _gx_log_time_len  = 3;
 static char          _gx_log_time[256] = {0};
@@ -312,21 +334,27 @@ static unsigned int  _gx_log_last_tick = 0;
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
 #define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
-/// Temporary macro for _gx_log_inner that iterates over a va_list & populates msg_tab
-#define _VA_ARG_TO_TBL(VALIST) {                                         \
-    unsigned int  _kv_key = va_arg((VALIST), unsigned int);              \
-    char         *_kv_val = va_arg((VALIST), char *);                    \
-    if(_freq(_kv_key < adhoc_offset)) {                                  \
-        msg_tab[_kv_key].include    = 1;                       \
-        msg_tab[_kv_key].val_size   = _gx_kv_valsize(_kv_val); \
-        msg_tab[_kv_key].val        = _kv_val;                 \
-    } else if(_freq(adhoc_idx <= adhoc_last)) {                          \
-        msg_tab[adhoc_idx].include  = 1;                       \
-        msg_tab[adhoc_idx].val_size = _gx_kv_valsize(_kv_val); \
-        msg_tab[adhoc_idx].val      = _kv_val;                 \
-        adhoc_idx ++;                                                    \
-    }                                                                    \
+#define _SET_KV_PART_STR(IDX,KEY_OR_VAL,S) {size_t _len=strlen(S);_SET_KV_PART(IDX,KEY_OR_VAL,S,_len);}
+
+#define _SET_KV_PART(IDX, KEY_OR_VAL, BODY, SIZE) {\
+    msg_tab[(IDX)].KEY_OR_VAL ## _size_base = &(_ ## KEY_OR_VAL ## _sizes[IDX]);  \
+    _ ## KEY_OR_VAL ## _sizes[IDX] = (_GX_KV_SIZETYPE)(SIZE);                     \
+    msg_tab[(IDX)].KEY_OR_VAL ## _data_base = (kv_base_t)(_STR_NULL(BODY));       \
+    msg_tab[(IDX)].KEY_OR_VAL ## _data_size = SIZE + 1 + sizeof(_GX_KV_SIZETYPE); \
 }
+
+#define _VA_ARG_TO_TBL(VALIST) {                                                  \
+    unsigned int  _kv_key = va_arg((VALIST), unsigned int);                       \
+    char         *_kv_val = va_arg((VALIST), char *);                             \
+    if(_freq(_kv_key < adhoc_offset)) {                                           \
+        _SET_KV_PART_STR(_kv_key, val, _kv_val);                                  \
+    } else if(_freq(adhoc_idx <= adhoc_last)) {                                   \
+        _SET_KV_PART_STR(adhoc_idx, val, _kv_val);                                \
+        /* TODO: set key w/ lookup function */                                    \
+        adhoc_idx ++;                                                             \
+    }                                                                             \
+}
+
 static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, int vparam_count, va_list *vparams, int argc, ...)
 {
     int i;
@@ -353,10 +381,11 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     // Passed in at the highest level generally- highest precedence
     if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
 
+#if 0
     // Absolute highest precedence
-    msg_tab[K_severity].include  = 1;
-    msg_tab[K_severity].val_size = _gx_kv_valsize(severity_str);
-    msg_tab[K_severity].val      = severity_str;
+    //msg_tab[K_severity].include  = 1;
+    //msg_tab[K_severity].val_size = _gx_kv_valsize(severity_str);
+    //msg_tab[K_severity].val      = severity_str;
 
     if(_freq(!msg_tab[K_sys_time].include)) {
         uint64_t curr_tick = GX_CPU_TS;
@@ -388,14 +417,17 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
 
     iov[0].
     writev(STDERR_FILENO, iov, curr_idx);
-
+#endif
     /// DEBUG
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
         _gx_kv *kv = &(msg_tab[i]);
-        if(kv->include)
-            fprintf(stderr, "  /*%3d */ {%d, 0x%04x,  %-17s, 0x%04x,  %-25s}\n",
-                    i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
+        if(kv->val_data_size > 3)
+            fprintf(stderr, "  | %3d | 0x%04x | %-17s | 0x%04x | %-25s |\n",
+                    i, *((_GX_KV_SIZETYPE *)kv->key_size_base),
+                       (char *)kv->key_data_base,
+                       *((_GX_KV_SIZETYPE *)kv->val_size_base),
+                       (char *)kv->val_data_base);
     }
     fprintf(stderr, "\n");
 }
