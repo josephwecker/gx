@@ -62,13 +62,14 @@ int main(int argc, char **argv) {
     //  _(-1) E_ERROR ("something",     "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
     //  _(-1) E_ERROR (0,               "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
     //  _(-1) E_ERROR (&_gx_error_cidx, "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) E_ERROR (K_err_brief,     "n", K_src_expression, "wowzers!", K_desired_filename); // no val
 
-    _(-1) E_NOTICE(K_err_brief,  $("first crazy stuff %d %d", 23, 0xDEADE));
-    _(-1) E_NOTICE(K_err_brief,  $("some crazy stuff %d %d", 23, 0xDEAD));
-    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(-1) E_ERROR (K_err_another, "another", K_src_line, "wowzers!");
-    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(-1) E_ERROR (K_err_brief, "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(-1) E_NOTICE(K_err_brief,   $("first crazy stuff %d %d", 23, 0xDEADE));
+    _(-1) E_NOTICE(K_err_brief,   $("some crazy stuff %d %d",  23, 0xDEAD));
+    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(-1) E_ERROR (K_err_another, "another", K_src_line,       "wow!");
+    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
+    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
 
     gx_sleep(2,0);
 
