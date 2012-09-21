@@ -83,14 +83,14 @@
 
   /* Misc */
   #ifndef MIN
-  #define MIN(m,n) ((m) < (n) ? (m) : (n))
+  #define MIN(A,B) ({ typeof(A) _a = (A); typeof(B) _b = (B); _b < _a ? _b : _a; })
   #endif
-  #define MIN3(m,n,o) MIN(MIN(m,n),o)
+  #define MIN3(A,B,C) MIN(MIN(A,B),C)
 
   #ifndef MAX
-  #define MAX(m,n) ((m) > (n) ? (m) : (n))
+  #define MAX(A,B) ({ typeof(A) _a = (A); typeof(B) _b = (B); _b > _a ? _b : _a; })
   #endif
-  #define MAX3(m,n,o) MAX(MAX(m,n),o)
+  #define MAX3(A,B,C) MAX(MAX(A,B),C)
 
 
 /// Compiler-specific intrinsics and fixes: bswap64, ntz, rdtsc, ...
