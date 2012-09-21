@@ -181,6 +181,8 @@ typedef struct gx_error_rpt {
 // Guarantee these variables are put in the .common section so they are
 // globally shared by the linker without us needing to initialize them
 // anywhere.
+//
+/// @todo !!! abstract into macro & put in gx.h
 asm ("\n .comm _gx_error_stack,"  _STR(GX_ERROR_REPORT_SIZE * GX_ERROR_BACKTRACE_SIZE) ",8 \n");
 asm ("\n .comm _gx_error_cidx,"   _STR(__SIZEOF_INT__) ",8 \n");
 asm ("\n .comm _gx_error_depth,"  _STR(__SIZEOF_INT__) ",8 \n");

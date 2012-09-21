@@ -197,6 +197,7 @@
   @todo 
      - (*) update K_sys_* values
      - (*) lookup key string in user-specified lookup function, and fallback if not there
+     - (*) change keys/values etc. to iovecs (? or encapsulate them in iovecs?)
      - (*) determine whether or not it needs to be syslogged, dispatch if necessary
      - (*) determine whether or not it needs to be output to stderr/tty, dispatch if necessary
      - (*) dispatch to message-queue
@@ -274,14 +275,26 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-typedef struct _gx_log_kv_entry {
+
+
+#define gx_iov_append_kv(IOVP,I_VAR,KV) {                                                         \
+    (IOVP)[(I_VAR)    ] = &(struct iovec){(char *) &((KV)->key_size), sizeofm(_gx_kv, key_size)}; \
+    (IOVP)[(I_VAR) + 1] = &(struct iovec){(KV)->key, (KV)->key_size - sizeofm(_gx_kv, key_size)}; \
+    (IOVP)[(I_VAR) + 2] = &(struct iovec){(char *) &((KV)->val_size), sizeofm(_gx_kv, val_size)}; \
+    (IOVP)[(I_VAR) + 3] = &(struct iovec){(KV)->val, (KV)->val_size - sizeofm(_gx_kv, val_size)}; \
+    (I_VAR) += 4;                                                                                 \
+}
+
+
+
+typedef struct _gx_kv {
     char       include;
     uint16_t   key_size;                ///< Key size including null-term plus 2-byte header
     char      *key;
     uint16_t   val_size;
     char      *val;
-} _gx_log_kv_entry;
-#define _gx_kv_valsize(STR) ((uint16_t)(strlen(STR) + 1 + sizeof_member(_gx_log_kv_entry,val_size)))
+} _gx_kv;
+#define _gx_kv_valsize(STR) ((uint16_t)(strlen(STR) + 1 + sizeofm(_gx_kv,val_size)))
 
 static char _GX_NULLSTRING[] = "";
 
@@ -350,10 +363,10 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
             struct tm now_tm;
             gmtime_r(&now, &now_tm);
             size_t slen = strftime(_gx_log_time, sizeof(_gx_log_time)-1, "%Y-%m-%dT%H:%M:%SZ", &now_tm);
-            _gx_log_time_len = slen + 1 + sizeof_member(_gx_log_kv_entry, val_size);
+            _gx_log_time_len = slen + 1 + sizeofm(_gx_kv, val_size);
             _gx_log_last_tick = curr_tick;
         }
-        _gx_log_kv_entry *kv = &(log_staging_table[K_sys_time]);
+        _gx_kv *kv = &(log_staging_table[K_sys_time]);
         kv->include  = 1;
         kv->val_size = _gx_log_time_len;
         kv->val      = _gx_log_time;
@@ -367,7 +380,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     /// DEBUG
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
-        _gx_log_kv_entry *kv = &(log_staging_table[i]);
+        _gx_kv *kv = &(log_staging_table[i]);
         if(kv->include)
             fprintf(stderr, "  /*%3d */ {%d, 0x%04x,  %-17s, 0x%04x,  %-25s}\n",
                     i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
