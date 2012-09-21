@@ -36,10 +36,10 @@ keys    += [['0','0x0003','_GX_NULLSTRING','0x0003','_GX_NULLSTRING']]*ADHOCS
 sz       = keys.size
 
 puts <<-OUTPUT
-static const _gx_log_kv_entry log_staging_table_master[] = {
+static const _gx_kv msg_tab_master[] = {
     #{keys.map{|k|"{#{k.join(',')}}"}.join(",\n    ")}
 };
-static _gx_log_kv_entry log_staging_table[#{sz}];
+static _gx_kv msg_tab[#{sz}];
 #define adhoc_offset #{ah_offs}
 #define adhoc_last   #{sz - 1}
 OUTPUT

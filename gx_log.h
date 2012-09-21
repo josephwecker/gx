@@ -275,17 +275,19 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-
-
-#define gx_iov_append_kv(IOVP,I_VAR,KV) {                                                         \
-    (IOVP)[(I_VAR)    ] = &(struct iovec){(char *) &((KV)->key_size), sizeofm(_gx_kv, key_size)}; \
-    (IOVP)[(I_VAR) + 1] = &(struct iovec){(KV)->key, (KV)->key_size - sizeofm(_gx_kv, key_size)}; \
-    (IOVP)[(I_VAR) + 2] = &(struct iovec){(char *) &((KV)->val_size), sizeofm(_gx_kv, val_size)}; \
-    (IOVP)[(I_VAR) + 3] = &(struct iovec){(KV)->val, (KV)->val_size - sizeofm(_gx_kv, val_size)}; \
-    (I_VAR) += 4;                                                                                 \
+#define gx_iov_set(IOVP,I_VAR,DAT,SIZE) {      \
+    (IOVP)[(I_VAR)].iov_base = (char *)(DAT);  \
+    (IOVP)[(I_VAR)].iov_len  = (SIZE);         \
 }
 
-
+#define gx_iov_append_kv(IOVP,I_VAR,KV,S_VAR) {                                         \
+    gx_iov_set(IOVP, I_VAR,     &((KV)->key_size), sizeofm(_gx_kv, key_size));          \
+    gx_iov_set(IOVP, I_VAR + 1, (KV)->key, (KV)->key_size - sizeofm(_gx_kv, key_size)); \
+    gx_iov_set(IOVP, I_VAR + 2, &((KV)->val_size), sizeofm(_gx_kv, val_size));          \
+    gx_iov_set(IOVP, I_VAR + 3, (KV)->val, (KV)->val_size - sizeofm(_gx_kv, val_size)); \
+    (I_VAR) += 4;                                                                       \
+    (S_VAR) += (KV)->key_size + (KV)->val_size;                                         \
+}
 
 typedef struct _gx_kv {
     char       include;
@@ -310,18 +312,18 @@ static unsigned int  _gx_log_last_tick = 0;
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
 #define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
-/// Temporary macro for _gx_log_inner that iterates over a va_list & populates log_staging_table
+/// Temporary macro for _gx_log_inner that iterates over a va_list & populates msg_tab
 #define _VA_ARG_TO_TBL(VALIST) {                                         \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);              \
     char         *_kv_val = va_arg((VALIST), char *);                    \
     if(_freq(_kv_key < adhoc_offset)) {                                  \
-        log_staging_table[_kv_key].include    = 1;                       \
-        log_staging_table[_kv_key].val_size   = _gx_kv_valsize(_kv_val); \
-        log_staging_table[_kv_key].val        = _kv_val;                 \
+        msg_tab[_kv_key].include    = 1;                       \
+        msg_tab[_kv_key].val_size   = _gx_kv_valsize(_kv_val); \
+        msg_tab[_kv_key].val        = _kv_val;                 \
     } else if(_freq(adhoc_idx <= adhoc_last)) {                          \
-        log_staging_table[adhoc_idx].include  = 1;                       \
-        log_staging_table[adhoc_idx].val_size = _gx_kv_valsize(_kv_val); \
-        log_staging_table[adhoc_idx].val      = _kv_val;                 \
+        msg_tab[adhoc_idx].include  = 1;                       \
+        msg_tab[adhoc_idx].val_size = _gx_kv_valsize(_kv_val); \
+        msg_tab[adhoc_idx].val      = _kv_val;                 \
         adhoc_idx ++;                                                    \
     }                                                                    \
 }
@@ -332,11 +334,11 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     /// The pregenerated header file declares/defines the following:
     /// @param adhoc_offset              index of first adhoc kv pair
     /// @param adhoc_last                index of last element of array
-    /// @param log_staging_table_master  Entry table default data
-    /// @param log_staging_table         Entry table for current run
+    /// @param msg_tab_master  Entry table default data
+    /// @param msg_tab         Entry table for current run
     #include "./gxe/gx_log_table.h"
 
-    memcpy(&log_staging_table, &log_staging_table_master, sizeof(log_staging_table)); // yes it's fastest
+    memcpy(&msg_tab, &msg_tab_master, sizeof(msg_tab)); // yes it's fastest
 
     int adhoc_idx = adhoc_offset;
 
@@ -352,11 +354,11 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
 
     // Absolute highest precedence
-    log_staging_table[K_severity].include  = 1;
-    log_staging_table[K_severity].val_size = _gx_kv_valsize(severity_str);
-    log_staging_table[K_severity].val      = severity_str;
+    msg_tab[K_severity].include  = 1;
+    msg_tab[K_severity].val_size = _gx_kv_valsize(severity_str);
+    msg_tab[K_severity].val      = severity_str;
 
-    if(_freq(!log_staging_table[K_sys_time].include)) {
+    if(_freq(!msg_tab[K_sys_time].include)) {
         uint64_t curr_tick = GX_CPU_TS;
         if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
             time_t now = time(NULL);
@@ -366,21 +368,31 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
             _gx_log_time_len = slen + 1 + sizeofm(_gx_kv, val_size);
             _gx_log_last_tick = curr_tick;
         }
-        _gx_kv *kv = &(log_staging_table[K_sys_time]);
+        _gx_kv *kv = &(msg_tab[K_sys_time]);
         kv->include  = 1;
         kv->val_size = _gx_log_time_len;
         kv->val      = _gx_log_time;
         char *ctick_string = $("%llu", (long long int)curr_tick);
-        kv = &(log_staging_table[K_sys_ticks]);
+        kv = &(msg_tab[K_sys_ticks]);
         kv->include  = 1;
         kv->val_size = _gx_kv_valsize(ctick_string);
         kv->val      = ctick_string;
     }
 
+    static struct iovec iov[adhoc_last + 2];
+    size_t full_size = 0;
+    size_t curr_idx  = 1;
+
+    for(i = 0; i <= adhoc_last; i++)
+        if(msg_tab[i].include) gx_iov_append_kv(iov, curr_idx, &(msg_tab[i]), full_size);
+
+    iov[0].
+    writev(STDERR_FILENO, iov, curr_idx);
+
     /// DEBUG
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     for(i = 0; i <= adhoc_last; i++) {
-        _gx_kv *kv = &(log_staging_table[i]);
+        _gx_kv *kv = &(msg_tab[i]);
         if(kv->include)
             fprintf(stderr, "  /*%3d */ {%d, 0x%04x,  %-17s, 0x%04x,  %-25s}\n",
                     i, kv->include, kv->key_size, kv->key, kv->val_size, kv->val);
