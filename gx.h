@@ -208,6 +208,7 @@
 #define _noinline     __attribute__ ((__noinline__))
 
 #define sizeofm(type, member) sizeof(((type *)0)->member)
+#define typeofm(type, member) typeof(((type *)0)->member)
 
 
 /// A trick to get the number of args passed to a variadic macro
