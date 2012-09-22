@@ -4,14 +4,14 @@ CW = "\\033[30m\\033[1m"
 
 define gcc
   @$(call INFO, gcc, $(notdir $<), $@)
-	$(CC) -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
-	@#clang -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
+	@#$(CC) -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
+	clang -save-temps -O0 -g $(1) $(patsubst %,-I%,$(VPATH)) -MP -MD -MF $B/$(notdir $@).d -o $@ $(filter-out %.h,$<)
 endef
 
 define LINK
   @$(call INFO, link, '*.o', $@)
-	$(CC) $(1) -I$B -o $@ $(filter %.o,$^)
-	@#clang -O0 -g $(1) -I$B -o $@ $(filter %.o,$^)
+	@#$(CC) $(1) -I$B -o $@ $(filter %.o,$^)
+	clang -O0 -g $(1) -I$B -o $@ $(filter %.o,$^)
 endef
 
 define INFO
