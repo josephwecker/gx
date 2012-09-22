@@ -194,17 +194,17 @@
     switch(gx_error_recent_reports[gx_error_curr_report].sys_errno)
 
 #define X_LOG_PANIC(msg, ...) \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_PANIC;1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_PANIC;} while(0)
 #define X_LOG_FATAL(msg, ...) \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_FATAL;1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_FATAL;} while(0)
 #define X_LOG_ERROR(msg, ...) \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_ERROR;1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_ERROR;} while(0)
 #define X_LOG_WARN( msg, ...)  \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_WARN; 1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_WARN; } while(0)
 #define X_LOG_INFO( msg, ...)  \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_INFO; 1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_INFO; } while(0)
 #define X_LOG_DEBUG(msg, ...) \
-    ({_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_DEBUG;1;})
+    do{_GX_X(NULL,0,3,msg,__FILE__,__STR(__LINE__),__FUNCTION__,NULL,##__VA_ARGS__);X_DEBUG;} while(0)
 
 #define X_PANIC _GX_ERROR_LOG(GX_PANIC) ///< Log last captured error at 'panic' severity
 #define X_FATAL _GX_ERROR_LOG(GX_FATAL) ///< Log last captured error at 'fatal' severity
