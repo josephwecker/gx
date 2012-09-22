@@ -194,19 +194,6 @@
      Persistence: Development context
      Action:      Developer specific
 
-  @todo 
-     - (*) update K_sys_* values
-     - (*) lookup key string in user-specified lookup function, and fallback if not there
-     - (*) change keys/values etc. to iovecs (? or encapsulate them in iovecs?)
-     - (*) determine whether or not it needs to be syslogged, dispatch if necessary
-     - (*) determine whether or not it needs to be output to stderr/tty, dispatch if necessary
-     - (*) dispatch to message-queue
-     - (F) module cleanup - put comments where they really go
-     - (F) memoized timer to minimize system calls
-     - (F) runtime loglevel mechanism
-     - (F) high-level logging macros
-     - (F) determine core-logger destinations earlier, abort if no logger wants it
-
 */
 #ifndef GX_LOG_H
 #define GX_LOG_H

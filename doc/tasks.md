@@ -1,0 +1,31 @@
+- (~) gx_error
+  - (~) Abort early if severity below runtime threshold
+  - (~) Ifdefs for compiletime thresholds
+  - (~) Abort early if gx_log doesn't want it
+  - (~) Move a bunch more out of the primary test expressions
+  - (~) Makeover makefile and gen/* files (for goodness sake)
+  - (~) Port existing error-logging in other headers over to new gx_error! w00t!
+- (~) gx_log
+  - (~) Expansion
+    - (d) Change keys/values etc. to iovecs (? or encapsulate them in iovecs?)
+    - (d) Memoized timer to minimize system calls
+    - (~) Lookup key string in user-specified lookup function, and fallback if not there
+    - (*) Update K_sys_* values
+      - (~) Correctly enable the key sizes
+      - (~) Hooks for user program to set the more slowly changing parts
+  - (*) Dispatch
+    - (~) Determine whether or not it needs to be syslogged, dispatch if necessary
+    - (*) stderr/tty/daemon discovery for automatic stderr logging
+    - (*) Determine whether or not it needs to be output to stderr/tty, dispatch if necessary
+      - (*) iovec transformation
+      - (*) formatting/colors etc. back to par
+    - (~) Dispatch to message-queue
+      - (~) Minimally portable wrapper
+      - (~) Test against reverb
+  - (~) Module cleanup - put comments where they really go
+  - (~) Runtime loglevel mechanism
+  - (~) High-level logging macros
+  - (~) Determine core-logger destinations earlier, abort if no logger wants it
+  - (~) Abort early if the queue is backed up and it won't bump any existing priorities in the backup queue
+  - (~) Hook into env and makefile flags
+
