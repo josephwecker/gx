@@ -6,6 +6,11 @@
 # This could be pretty easily rewritten as a shellscript if someone really felt
 # the urge. I don't have the patience for it though at the moment.
 #
+# TODO:
+#   - Pull ADHOCS (number of slots for adhoc key-value pairs) from C source
+#   - Pull default values from C source
+#
+
 ADHOCS   = 40
 
 gx_root  = File.join(File.dirname(__FILE__), '..')
@@ -16,43 +21,28 @@ src      = src.gsub(/\s+/m,' ').gsub(/ ?([=,;})({]) /, '\\1')  # condense whites
 enum_def = src[/\btypedef\s*enum\s*gx_log_standard_keys\s*\{([^\}]+)\}/,1]
 abort      "gx_log_standard_keys enum not found in #{srcf}" if enum_def.nil?
 
-keys     = enum_def.split(',').map do |key|
-             key    = key.split('=')[0]
-             ckey   = key[/^K_([a-z0-9_]+)$/,1]
-             abort    "unrecognized key: #{key}" unless ckey
-             vs     = '0'
-             vv     = 'NULL'
-             if ckey == 'type'
-               vv   = '"unknown"'
-               vs   = '0x%04x' % (vv.size - 2)
-             elsif ckey == 'severity'
-               vv   = '"SEV_UNKNOWN"'
-               vs   = '0x%04x' % (vv.size - 2)
-             end
-             ['0', '0x%04x' % (ckey.size), '"'+ckey+'"', vs, vv]
-           end
-ah_offs  = keys.size
-keys    += [['0','0','NULL','0','NULL']]*ADHOCS
+keys     = enum_def.split(',').map{|key|
+             { :label   => key = key.split('=')[0][/^K_([a-z0-9_]+)$/,1],
+               :default => (key == 'type' ? 'unknown' : (key == 'severity' ? 'SEV_UNKNOWN' : nil))}} +
+           [ { :label   => nil, :default => nil} ] * ADHOCS
 sz       = keys.size
+ah_offs  = sz - ADHOCS
 
+def ssize(str) "#{(str||'').size.to_s.ljust 3} + 1 + sizeof(kv_head_t)" end # string size + null-terminator + "pkt-length"-header
+def quo(str)   "\"#{str.gsub('"','\\"')}\"".ljust(14)      end
 puts <<-OUTPUT
-    static kv_plen_t _key_sizes_master[] = {#{keys.map{|k| k[1]+' + 1 + sizeof(kv_plen_t)'}.join(',')}};
-    static kv_plen_t _val_sizes_master[] = {#{keys.map{|k| k[3]+' + 1 + sizeof(kv_plen_t)'}.join(',')}};
-    static kv_plen_t _key_sizes[#{sz}];
-    static kv_plen_t _val_sizes[#{sz}];
+  #define ADHOC_OFFSET #{ah_offs}
+  #define KV_ENTRIES   #{sz}
 
-    static const _gx_kv msg_tab_master[] = {
-        #{keys.each_with_index.map{|k,i| "_make_gx_kv(#{i},#{k[1..-1].join(',')})"}.join(",\n        ")}
-    };
-
-    typedef struct kv_msg_iov {
-        struct {
-            kv_base_t full_plen_base;
-            kv_size_t full_plen_size;
-        };
-        _gx_kv msg_tab[#{sz}];
-    } __packed kv_msg_iov;
-    static kv_msg_iov msg_iov;
-    #define adhoc_offset #{ah_offs}
-    #define adhoc_last   #{sz - 1}
+  static kv_head_t _key_sizes_master[] = {
+      #{keys.map{|k| ssize(k[:label]  )}.join(",\n        ")}
+  };
+  static kv_head_t _val_sizes_master[] = {
+      #{keys.map{|k| ssize(k[:default])}.join(",\n        ")}
+  };
+  static const _gx_kv msg_tab_master[] = {
+      #{keys.each_with_index.map{|k,i|
+          "{&(_key_sizes_master[#{i.to_s.rjust 2}]), 0, #{k[:label]  .nil? ? '_GX_NULLSTRING' : quo(k[:label])}, 0," +
+          " &(_val_sizes_master[#{i.to_s.rjust 2}]), 0, #{k[:default].nil? ? '_GX_NULLSTRING' : quo(k[:default])}, 0}"}.join(",\n        ")}
+  };
 OUTPUT
