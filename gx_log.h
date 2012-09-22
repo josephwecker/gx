@@ -321,6 +321,19 @@ static char _GX_NULLSTRING[] = "";
     .val_data_base = (kv_base_t)(VAL_P == NULL ? _GX_NULLSTRING : VAL_P),         \
     .val_data_size = VAL_LEN + 1 + sizeof(_GX_KV_SIZETYPE)                        \
 }
+#define _SET_KV_VAL2(IDX,BUF,LEN)        _SET_KV_PART    (IDX, val, BUF, LEN)
+#define _SET_KV_KEY2(IDX,BUF,LEN)        _SET_KV_PART    (IDX, key, BUF, LEN)
+#define _SET_KV_VAL(IDX,STR)             _SET_KV_PART_STR(IDX, val, STR)
+#define _SET_KV_KEY(IDX,STR)             _SET_KV_PART_STR(IDX, key, STR)
+#define _SET_KV_PART_STR(IDX,PART,S)     do {                                     \
+    size_t _len=strlen(S);_SET_KV_PART(IDX,PART,S,_len);}while(0)
+#define _SET_KV_PART(IDX,PART,BODY,SIZE) do {                                     \
+    msg_tab[(IDX)].PART ## _size_base = &(_ ## PART ## _sizes[IDX]);              \
+    _ ## PART ## _sizes[IDX] = (_GX_KV_SIZETYPE)(SIZE);                           \
+    msg_tab[(IDX)].PART ## _data_base = (kv_base_t)(_STR_NULL(BODY));             \
+    msg_tab[(IDX)].PART ## _data_size = SIZE + 1 + sizeof(_GX_KV_SIZETYPE);       \
+}while(0)
+
 
 static uint16_t      _gx_log_time_len  = 3;
 static char          _gx_log_time[256] = {0};
@@ -334,21 +347,11 @@ static unsigned int  _gx_log_last_tick = 0;
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
 #define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...) _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
-#define _SET_KV_PART_STR(IDX,KEY_OR_VAL,S) {size_t _len=strlen(S);_SET_KV_PART(IDX,KEY_OR_VAL,S,_len);}
-
-#define _SET_KV_PART(IDX, KEY_OR_VAL, BODY, SIZE) {\
-    msg_tab[(IDX)].KEY_OR_VAL ## _size_base = &(_ ## KEY_OR_VAL ## _sizes[IDX]);  \
-    _ ## KEY_OR_VAL ## _sizes[IDX] = (_GX_KV_SIZETYPE)(SIZE);                     \
-    msg_tab[(IDX)].KEY_OR_VAL ## _data_base = (kv_base_t)(_STR_NULL(BODY));       \
-    msg_tab[(IDX)].KEY_OR_VAL ## _data_size = SIZE + 1 + sizeof(_GX_KV_SIZETYPE); \
-}
-
 #define _VA_ARG_TO_TBL(VALIST) {                                                  \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                       \
     char         *_kv_val = va_arg((VALIST), char *);                             \
-    if(_freq(_kv_key < adhoc_offset)) {                                           \
-        _SET_KV_PART_STR(_kv_key, val, _kv_val);                                  \
-    } else if(_freq(adhoc_idx <= adhoc_last)) {                                   \
+    if(_freq(_kv_key < adhoc_offset)) _SET_KV_VAL(_kv_key, _kv_val);              \
+    else if(_freq(adhoc_idx <= adhoc_last)) {                                     \
         _SET_KV_PART_STR(adhoc_idx, val, _kv_val);                                \
         /* TODO: set key w/ lookup function */                                    \
         adhoc_idx ++;                                                             \
@@ -381,53 +384,49 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     // Passed in at the highest level generally- highest precedence
     if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
 
-#if 0
     // Absolute highest precedence
-    //msg_tab[K_severity].include  = 1;
-    //msg_tab[K_severity].val_size = _gx_kv_valsize(severity_str);
-    //msg_tab[K_severity].val      = severity_str;
+    _SET_KV_VAL(K_severity, severity_str);
 
-    if(_freq(!msg_tab[K_sys_time].include)) {
+
+    if(_freq(msg_tab[K_sys_time].val_data_size <= 3)) {
         uint64_t curr_tick = GX_CPU_TS;
         if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
             time_t now = time(NULL);
             struct tm now_tm;
             gmtime_r(&now, &now_tm);
-            size_t slen = strftime(_gx_log_time, sizeof(_gx_log_time)-1, "%Y-%m-%dT%H:%M:%SZ", &now_tm);
-            _gx_log_time_len = slen + 1 + sizeofm(_gx_kv, val_size);
+            _gx_log_time_len = strftime(_gx_log_time, sizeof(_gx_log_time)-1, "%Y-%m-%dT%H:%M:%SZ", &now_tm);
             _gx_log_last_tick = curr_tick;
         }
-        _gx_kv *kv = &(msg_tab[K_sys_time]);
-        kv->include  = 1;
-        kv->val_size = _gx_log_time_len;
-        kv->val      = _gx_log_time;
+        _SET_KV_VAL2(K_sys_time, &(_gx_log_time[0]), _gx_log_time_len);
         char *ctick_string = $("%llu", (long long int)curr_tick);
-        kv = &(msg_tab[K_sys_ticks]);
-        kv->include  = 1;
-        kv->val_size = _gx_kv_valsize(ctick_string);
-        kv->val      = ctick_string;
+        _SET_KV_VAL (K_sys_ticks, ctick_string);
     }
 
-    static struct iovec iov[adhoc_last + 2];
-    size_t full_size = 0;
-    size_t curr_idx  = 1;
 
-    for(i = 0; i <= adhoc_last; i++)
-        if(msg_tab[i].include) gx_iov_append_kv(iov, curr_idx, &(msg_tab[i]), full_size);
+    //static struct iovec iov[adhoc_last + 2];
+    //size_t full_size = 0;
+    //size_t curr_idx  = 1;
 
-    iov[0].
-    writev(STDERR_FILENO, iov, curr_idx);
-#endif
+    //for(i = 0; i <= adhoc_last; i++)
+    //    if(msg_tab[i].include) gx_iov_append_kv(iov, curr_idx, &(msg_tab[i]), full_size);
+
+    //iov[0].
+    //writev(STDERR_FILENO, iov, curr_idx);
+
     /// DEBUG
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
+    int row_num = 0;
     for(i = 0; i <= adhoc_last; i++) {
         _gx_kv *kv = &(msg_tab[i]);
-        if(kv->val_data_size > 3)
-            fprintf(stderr, "  | %3d | 0x%04x | %-17s | 0x%04x | %-25s |\n",
-                    i, *((_GX_KV_SIZETYPE *)kv->key_size_base),
-                       (char *)kv->key_data_base,
-                       *((_GX_KV_SIZETYPE *)kv->val_size_base),
-                       (char *)kv->val_data_base);
+        if(kv->val_data_size > 3) {
+            fprintf(stderr, "| %3d | %3d | 0x%04x | %-17s | 0x%04x | %-25s |\n",
+                    row_num, i,
+                    *((_GX_KV_SIZETYPE *)kv->key_size_base),
+                    (char *)kv->key_data_base,
+                    *((_GX_KV_SIZETYPE *)kv->val_size_base),
+                    (char *)kv->val_data_base);
+            row_num ++;
+        }
     }
     fprintf(stderr, "\n");
 }
