@@ -36,16 +36,23 @@ keys    += [['0','0','NULL','0','NULL']]*ADHOCS
 sz       = keys.size
 
 puts <<-OUTPUT
-    static _GX_KV_SIZETYPE _key_sizes_master[] = {#{keys.map{|k| k[1]}.join(',')}};
-    static _GX_KV_SIZETYPE _val_sizes_master[] = {#{keys.map{|k| k[3]}.join(',')}};
-    static _GX_KV_SIZETYPE _key_sizes[#{sz}];
-    static _GX_KV_SIZETYPE _val_sizes[#{sz}];
+    static kv_plen_t _key_sizes_master[] = {#{keys.map{|k| k[1]+' + 1 + sizeof(kv_plen_t)'}.join(',')}};
+    static kv_plen_t _val_sizes_master[] = {#{keys.map{|k| k[3]+' + 1 + sizeof(kv_plen_t)'}.join(',')}};
+    static kv_plen_t _key_sizes[#{sz}];
+    static kv_plen_t _val_sizes[#{sz}];
 
     static const _gx_kv msg_tab_master[] = {
         #{keys.each_with_index.map{|k,i| "_make_gx_kv(#{i},#{k[1..-1].join(',')})"}.join(",\n        ")}
     };
 
-    static _gx_kv msg_tab[#{sz}];
+    typedef struct kv_msg_iov {
+        struct {
+            kv_base_t full_plen_base;
+            kv_size_t full_plen_size;
+        };
+        _gx_kv msg_tab[#{sz}];
+    } __packed kv_msg_iov;
+    static kv_msg_iov msg_iov;
     #define adhoc_offset #{ah_offs}
     #define adhoc_last   #{sz - 1}
 OUTPUT

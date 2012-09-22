@@ -275,7 +275,7 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-#define _GX_KV_SIZETYPE uint16_t                  ///< Type of length headers before strings
+#define kv_plen_t uint16_t                        ///< Type of length headers before strings
 #define kv_base_t typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
 #define kv_size_t typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
 
@@ -285,16 +285,16 @@ typedef enum gx_severity {
 
 typedef struct _gx_kv {
     struct {
-        kv_base_t key_size_base;
-        kv_size_t key_size_size;
+        kv_base_t key_plen_base;     ///< For protocol, size(dat) + 1 (null-term) + 2 (size-size)
+        kv_size_t key_plen_size;     ///< 2 (size-size)
     };
     struct {
-        kv_base_t key_data_base;
-        kv_size_t key_data_size;
+        kv_base_t key_data_base;     ///< Point to payload for key, plus null-term byte
+        kv_size_t key_data_size;     ///< Size of key_data_base including null-term byte.
     };
     struct {
-        kv_base_t val_size_base;
-        kv_size_t val_size_size;
+        kv_base_t val_plen_base;
+        kv_size_t val_plen_size;
     };
     struct {
         kv_base_t val_data_base;
@@ -311,27 +311,29 @@ static char _GX_NULLSTRING[] = "";
 ///       therefore size of at least 1 + sizeof(size-header-type)
 
 #define _make_gx_kv(IDX, KEY_LEN, KEY_P, VAL_LEN, VAL_P) {                        \
-    .key_size_base = &(_key_sizes_master[IDX]),                                   \
-    .key_size_size = sizeof(_GX_KV_SIZETYPE),                                     \
+    .key_plen_base = &(_key_sizes_master[IDX]),                                   \
+    .key_plen_size = sizeof(kv_plen_t),                                           \
     .key_data_base = (kv_base_t)(KEY_P == NULL ? _GX_NULLSTRING : KEY_P),         \
-    .key_data_size = KEY_LEN + 1 + sizeof(_GX_KV_SIZETYPE),                       \
+    .key_data_size = KEY_LEN + 1,                                                 \
                                                                                   \
-    .val_size_base = &(_val_sizes_master[IDX]),                                   \
-    .val_size_size = sizeof(_GX_KV_SIZETYPE),                                     \
+    .val_plen_base = &(_val_sizes_master[IDX]),                                   \
+    .val_plen_size = sizeof(kv_plen_t),                                           \
     .val_data_base = (kv_base_t)(VAL_P == NULL ? _GX_NULLSTRING : VAL_P),         \
-    .val_data_size = VAL_LEN + 1 + sizeof(_GX_KV_SIZETYPE)                        \
+    .val_data_size = VAL_LEN + 1                                                  \
 }
 #define _SET_KV_VAL2(IDX,BUF,LEN)        _SET_KV_PART    (IDX, val, BUF, LEN)
 #define _SET_KV_KEY2(IDX,BUF,LEN)        _SET_KV_PART    (IDX, key, BUF, LEN)
 #define _SET_KV_VAL(IDX,STR)             _SET_KV_PART_STR(IDX, val, STR)
 #define _SET_KV_KEY(IDX,STR)             _SET_KV_PART_STR(IDX, key, STR)
 #define _SET_KV_PART_STR(IDX,PART,S)     do {                                     \
-    size_t _len=strlen(S);_SET_KV_PART(IDX,PART,S,_len);}while(0)
+    size_t _len=strlen(S);                                                        \
+    _SET_KV_PART(IDX,PART,S,_len);                                                \
+}while(0)
 #define _SET_KV_PART(IDX,PART,BODY,SIZE) do {                                     \
-    msg_tab[(IDX)].PART ## _size_base = &(_ ## PART ## _sizes[IDX]);              \
-    _ ## PART ## _sizes[IDX] = (_GX_KV_SIZETYPE)(SIZE);                           \
-    msg_tab[(IDX)].PART ## _data_base = (kv_base_t)(_STR_NULL(BODY));             \
-    msg_tab[(IDX)].PART ## _data_size = SIZE + 1 + sizeof(_GX_KV_SIZETYPE);       \
+    msg_iov.msg_tab[(IDX)].PART ## _plen_base = &(_ ## PART ## _sizes[IDX]);      \
+    _ ## PART ## _sizes[IDX] = (kv_plen_t)(SIZE + 1 + sizeof(kv_plen_t));         \
+    msg_iov.msg_tab[(IDX)].PART ## _data_base = (kv_base_t)(_STR_NULL(BODY));     \
+    msg_iov.msg_tab[(IDX)].PART ## _data_size = SIZE + 1;                         \
 }while(0)
 
 
@@ -369,7 +371,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     /// @param msg_tab         Entry table for current run
     #include "./gxe/gx_log_table.h"
 
-    memcpy(&msg_tab, &msg_tab_master, sizeof(msg_tab)); // yes it's fastest
+    memcpy(&msg_iov.msg_tab, &msg_tab_master, sizeofm(kv_msg_iov,msg_tab)); // yes it's fastest
 
     int adhoc_idx = adhoc_offset;
 
@@ -388,7 +390,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     _SET_KV_VAL(K_severity, severity_str);
 
 
-    if(_freq(msg_tab[K_sys_time].val_data_size <= 3)) {
+    if(_freq(msg_iov.msg_tab[K_sys_time].val_data_size <= 3)) {
         uint64_t curr_tick = GX_CPU_TS;
         if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
             time_t now = time(NULL);
@@ -402,6 +404,12 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
         _SET_KV_VAL (K_sys_ticks, ctick_string);
     }
 
+
+    for(i = 0; i <= adhoc_last; i++) {
+        // TODO: YOU ARE HERE- probably don't want to do this- have all *_size
+        // stuff set to 0 in the master table and set them to correct vals as
+        // they get populated in the normal table.
+    }
 
     //static struct iovec iov[adhoc_last + 2];
     //size_t full_size = 0;
@@ -417,14 +425,16 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str, in
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     int row_num = 0;
     for(i = 0; i <= adhoc_last; i++) {
-        _gx_kv *kv = &(msg_tab[i]);
+        _gx_kv *kv = &(msg_iov.msg_tab[i]);
         if(kv->val_data_size > 3) {
-            fprintf(stderr, "| %3d | %3d | 0x%04x | %-17s | 0x%04x | %-25s |\n",
+            fprintf(stderr, "|%3d|%3d "
+                            "|%zu> 0x%04x(=%2u) |%2zu>   %-17s "
+                            "|%zu> 0x%04x(=%2u) |%2zu>   %-25s\n",
                     row_num, i,
-                    *((_GX_KV_SIZETYPE *)kv->key_size_base),
-                    (char *)kv->key_data_base,
-                    *((_GX_KV_SIZETYPE *)kv->val_size_base),
-                    (char *)kv->val_data_base);
+                    kv->key_plen_size, *((kv_plen_t *)kv->key_plen_base),*((kv_plen_t *)kv->key_plen_base),
+                    kv->key_data_size, (char *)kv->key_data_base,
+                    kv->val_plen_size, *((kv_plen_t *)kv->val_plen_base),*((kv_plen_t *)kv->val_plen_base),
+                    kv->val_data_size, (char *)kv->val_data_base);
             row_num ++;
         }
     }
