@@ -3,9 +3,5 @@
 #include "../gx_error2.h"
 #include <stdio.h>
 
-GX_LOG_SET_FKEYSTR(&$kv_log_keys);
-
-//gx_log_keystring_callback = &$kv_log_keys;
-//gx_log_keystring_callback = NULL;
-
+gx_log_set_key_lookup(&$kv_log_keys);
 void set_loglevel(int);

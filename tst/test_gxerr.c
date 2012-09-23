@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
     _gx_error_cidx = 0;
     set_loglevel(0);
 
+    gx_log_set_version("---BEST VERSION 0.1!---");
     if_esys(0)  return __LINE__;
     if_esys(5)  return __LINE__;
     if_esys(-5) return __LINE__;

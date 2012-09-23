@@ -86,7 +86,11 @@ lists.each do |name, raw_entries, entries|
 
     actual_vals = actual_vals.split("\n").map{|v| v.split('|')}
     #actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+strsz(label)+label+'"']}
-    actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label+'"']}
+    if name =~ /^kv_log/
+      actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label.sub(/^K_/,'')+'"']}
+    else
+      actual_vals.map!{|label, vals| [vals.split(',').map{|v| v.hex}, '"'+label+'"']}
+    end
 
     header  = "/// Looks up string associated with enums in the #{name} enum table by looking at char buffer.\n"+
               "/// @see $#{name}(int) below for something more useful."
