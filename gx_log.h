@@ -229,15 +229,23 @@ typedef enum gx_log_standard_keys {
     K_err_group,
     K_err_stack,
 
-    K_sys_cpuid,
     K_sys_time,
     K_sys_ticks,
-    K_sys_host,
+
     K_sys_program,
     K_sys_version,
+
+    K_sys_cpuid,
     K_sys_pid,
     K_sys_ppid,
-    K_sys_tid
+    K_sys_tid,
+
+    K_net_host,
+    K_net_bound_ip,
+    K_net_bound_port,
+    K_net_peer_ip,
+    K_net_peer_port,
+    K_net_peer_state
 } gx_log_standard_keys;
 #define K_END_ADHOC (K_sys_tid)
 
@@ -256,10 +264,13 @@ typedef enum gx_severity {
 
 #define gx_log_set_key_lookup(FUN) static const char * (*_gx_log_keystr)(int) = FUN
 #define gx_log_update_pids()       NYI
-#define gx_log_update_cpuid()      NYI
+#define gx_log_update_cpuid()      NYI ///< Not going to implement until I find an OS/CPU free-license portable fast apic-id finder
 #define gx_log_set_program(PROG)   gx_log_set(K_sys_program, PROG)
 #define gx_log_set_version(VER)    gx_log_set(K_sys_version, VER)
-#define gx_log_set_host(HOST)      gx_log_set(K_sys_host, HOST)
+#define gx_log_set_host(HOST)      gx_log_set(K_sys_host,    HOST)
+
+
+
 #define gx_log_set(KEY, VALUE)     do {                                        \
     int     _idx   = (KEY);                                                    \
     char   *_val   = (VALUE);                                                  \
