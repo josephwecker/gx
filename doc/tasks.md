@@ -12,9 +12,11 @@
     - (d) Change keys/values etc. to iovecs (? or encapsulate them in iovecs?)
     - (d) Memoized timer to minimize system calls
     - (d) Lookup key string in user-specified lookup function, and fallback if not there
-    - (*) Update K_sys_* values
+    - (~) Populate main_head and main_tail in full iovec
+    - (d) Rename kv_base_t / kv_size_t to indicate iovec relationship
+    - (d) Update K_sys_* values
       - (d) Correctly enable the key sizes
-      - (~) Hooks for user program to set the more slowly changing parts
+      - (d) Hooks for user program to set the more slowly changing parts
   - (*) Dispatch
     - (~) Determine whether or not it needs to be syslogged, dispatch if necessary
     - (*) stderr/tty/daemon discovery for automatic stderr logging

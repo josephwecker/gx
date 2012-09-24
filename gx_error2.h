@@ -213,7 +213,7 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
 }
 
 /// Core Error expansion / logging
-/// @note _gx_log call does RESET_S so be careful trying to use any values after that (although it'll still probably work...)
+/// @note _gx_log call does $reset so be careful trying to use any values after that (although it'll still probably work...)
 
 #define _EXPAND(IDX)                                                                                \
     K_type,            "syserr",                                                                    \
@@ -249,7 +249,7 @@ static _noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
     }
     if(argc > 0) {
         va_end(argv);
-        RESET_S(); // Reset temporary string buffer for adhoc sprintfs (S(...))
+        $reset(); // Reset temporary string buffer for adhoc sprintfs ($(...))
     }
 }
 #undef _EXPAND

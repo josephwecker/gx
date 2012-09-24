@@ -262,62 +262,52 @@ typedef enum gx_severity {
     SEV_UNKNOWN
 } gx_severity;
 
-#define gx_log_set_key_lookup(FUN) static const char * (*_gx_log_keystr)(int) = FUN
-#define gx_log_update_pids()       NYI
-#define gx_log_update_cpuid()      NYI ///< Not going to implement until I find an OS/CPU free-license portable fast apic-id finder
+#define gx_log_set_key_lookup(FUN)                                             \
+    static const char * (*_gx_log_keystr)(int) = FUN
+
+#define gx_log_update_sysinfo()    do{                                         \
+    $Sreset(_gx_log_sysinfo);                                                  \
+    _gx_log_update_pids();                                                     \
+    _gx_log_update_cpuid();                                                    \
+    _gx_log_update_host();                                                     \
+} while(0)
+
+#define gx_log_set_prog(PROG,VER)  do{                                         \
+    gx_log_set_program(PROG);                                                  \
+    gx_log_set_version(VER);                                                   \
+} while(0)
+
 #define gx_log_set_program(PROG)   gx_log_set(K_sys_program, PROG)
 #define gx_log_set_version(VER)    gx_log_set(K_sys_version, VER)
-#define gx_log_set_host(HOST)      gx_log_set(K_sys_host,    HOST)
-
-
-
-#define gx_log_set(KEY, VALUE)     do {                                        \
-    int     _idx   = (KEY);                                                    \
-    char   *_val   = (VALUE);                                                  \
-    size_t  _vsize = strlen(_val) + 1;                                         \
-    if(_rare(_idx > curr_adhoc_offset)) {                                      \
-        /* SORRY NOT YET IMPLEMENTED                                    */     \
-        /* curr_adhoc_offset ++;                                        */     \
-        /* put key-head-base, key-data-base,                            */     \
-        /* and _key_sizes_master for key_data_size... but which index?? */     \
-        break;                                                                 \
-    }                                                                          \
-    _val_sizes_master[_idx]                 =                                  \
-        (kv_head_t)(_vsize + sizeof(kv_head_t));                               \
-    msg_tab_master[_idx].key_head_size      =                                  \
-    msg_tab_master[_idx].val_head_size      = sizeof(kv_head_t);               \
-    msg_tab_master[_idx].key_data_size      =                                  \
-        (kv_size_t)(_key_sizes_master[_idx] - sizeof(kv_head_t));              \
-    msg_tab_master[_idx].val_data_size      = (kv_size_t)_vsize;               \
-    msg_tab_master[_idx].val_data_base      = (kv_base_t)_val;                 \
-} while(0)
+#define gx_log_set(KEY, VALUE)     _gx_log_set_inner(KEY,    VALUE)
 
 
 /// Some static variables that hold state for some system key/value entries
 static const char * (*_gx_log_keystr)(int);
-static uint16_t       _gx_log_time_len  = 3;
-static char           _gx_log_time[256] = {0};
-static unsigned int   _gx_log_last_tick = 0;
+static uint16_t       _gx_log_time_len   = 3;
+static char           _gx_log_time[256]  = {0};
+static unsigned int   _gx_log_last_tick  = 0;
+static gx_strbuf      _gx_log_sysinfo    = {{0},NULL};
 
 static char _GX_NULLSTRING[] = "";
 
 
 #define kv_head_t uint16_t                        ///< Type of length headers before strings
-#define kv_base_t typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
-#define kv_size_t typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
+#define _iov_base typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
+#define _iov_size typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
 
 /// Key-value structure, set up a bit redundantly so that it already
 /// encapsulates the output format in a layout ready for scatter-io.
 typedef struct _gx_kv {
-    kv_base_t key_head_base;     ///< For protocol, size(dat) + 1 (null-term) + 2 (size-size)
-    kv_size_t key_head_size;     ///< 2 (size-size)
-    kv_base_t key_data_base;     ///< Point to payload for key, plus null-term byte
-    kv_size_t key_data_size;     ///< Size of key_data_base including null-term byte.
+    _iov_base key_head_base;     ///< For protocol, size(dat) + 1 (null-term) + 2 (size-size)
+    _iov_size key_head_size;     ///< 2 (size-size)
+    _iov_base key_data_base;     ///< Point to payload for key, plus null-term byte
+    _iov_size key_data_size;     ///< Size of key_data_base including null-term byte.
 
-    kv_base_t val_head_base;
-    kv_size_t val_head_size;
-    kv_base_t val_data_base;
-    kv_size_t val_data_size;
+    _iov_base val_head_base;
+    _iov_size val_head_size;
+    _iov_base val_data_base;
+    _iov_size val_data_size;
 } __packed _gx_kv;
 
 /// gen/build-gx_log_table.rb reads in the standard_keys enum above and uses
@@ -334,13 +324,22 @@ static kv_head_t _val_sizes[KV_ENTRIES];     ///< Val header + payload sizes
 static int curr_adhoc_offset = ADHOC_OFFSET; ///< Changes as "semi-permanent" k/v pairs are added/removed
 
 typedef struct kv_msg_iov {
-    struct {
-        kv_base_t main_head_base;
-        kv_size_t main_head_size;
-    };
-    _gx_kv msg_tab[KV_ENTRIES];
+    _iov_base  main_head_base;
+    _iov_size  main_head_size;
+    _gx_kv     msg_tab[KV_ENTRIES];
+    _gx_kv     main_tail;
 } __packed kv_msg_iov;
-static kv_msg_iov msg_iov;
+
+static const kv_head_t kv_head_empty = (kv_head_t)(1 + sizeof(kv_head_t));
+static kv_msg_iov msg_iov = {
+    .main_head_base = NULL,
+    .main_head_size = 0x00,
+    .main_tail      = {(_iov_base)&kv_head_empty, sizeof(kv_head_empty),
+                       (_iov_base)_GX_NULLSTRING, 0x01,
+                       (_iov_base)&kv_head_empty, sizeof(kv_head_empty),
+                       (_iov_base)_GX_NULLSTRING, 0x01}
+};
+
 
 /// Change any NULL pointers into values that point to _GX_NULLSTRING
 #define _STR_NULL(P) ({                                                        \
@@ -370,7 +369,7 @@ static kv_msg_iov msg_iov;
 #define KV_DEFAULT_KEY(IDX)             do {                                   \
     msg_iov.msg_tab[(IDX)].key_head_size = sizeof(kv_head_t);                  \
     msg_iov.msg_tab[(IDX)].key_data_size =                                     \
-            (kv_size_t)(_key_sizes_master[IDX] - sizeof(kv_head_t));           \
+            (_iov_size)(_key_sizes_master[IDX] - sizeof(kv_head_t));           \
 }while(0)
 
 
@@ -382,10 +381,45 @@ static kv_msg_iov msg_iov;
     msg_iov.msg_tab[(IDX)].PART ## _head_base = &(_ ## PART ## _sizes[IDX]);   \
     _ ## PART ## _sizes[IDX] = (kv_head_t)(LEN + 1 + sizeof(kv_head_t));       \
     msg_iov.msg_tab[(IDX)].PART ## _head_size = sizeof(kv_head_t);             \
-    msg_iov.msg_tab[(IDX)].PART ## _data_base = (kv_base_t)(_STR_NULL(BODY));  \
+    msg_iov.msg_tab[(IDX)].PART ## _data_base = (_iov_base)(_STR_NULL(BODY));  \
     msg_iov.msg_tab[(IDX)].PART ## _data_size = LEN + 1;                       \
 }while(0)
 
+#define _gx_log_set_inner(KEY, VALUE)     do {                                 \
+    int     _idx   = (KEY);                                                    \
+    char   *_val   = (VALUE);                                                  \
+    size_t  _vsize = strlen(_val) + 1;                                         \
+    if(_rare(_idx > curr_adhoc_offset)) {                                      \
+        /* SORRY NOT YET IMPLEMENTED                                    */     \
+        /* curr_adhoc_offset ++;                                        */     \
+        /* put key-head-base, key-data-base,                            */     \
+        /* and _key_sizes_master for key_data_size... but which index?? */     \
+        break;                                                                 \
+    }                                                                          \
+    _val_sizes_master[_idx]                 =                                  \
+        (kv_head_t)(_vsize + sizeof(kv_head_t));                               \
+    msg_tab_master[_idx].key_head_size      =                                  \
+    msg_tab_master[_idx].val_head_size      = sizeof(kv_head_t);               \
+    msg_tab_master[_idx].key_data_size      =                                  \
+        (_iov_size)(_key_sizes_master[_idx] - sizeof(kv_head_t));              \
+    msg_tab_master[_idx].val_data_size      = (_iov_size)_vsize;               \
+    msg_tab_master[_idx].val_data_base      = (_iov_base)_val;                 \
+} while(0)
+
+
+static _inline void _gx_log_update_cpuid() {
+    /// Waiting for an OS/CPU portable enencumbered fast apic-id finder
+}
+
+static _inline void _gx_log_update_pids() {
+    gx_log_set(K_sys_pid,  $S(_gx_log_sysinfo, "%u", getpid ()));
+    gx_log_set(K_sys_ppid, $S(_gx_log_sysinfo, "%u", getppid()));
+}
+
+static _inline void _gx_log_update_host() {
+    /// @todo use sysctl on mac osx for better hostid
+    gx_log_set(K_net_host, $S(_gx_log_sysinfo, "0x%08lx", gethostid()));
+}
 
 /// Main logging functionality.
 /// @note gx.h's KV(...) macro needs to continue to ensure that there is a value for every key
@@ -396,7 +430,7 @@ static kv_msg_iov msg_iov;
 #define _VA_ARG_TO_TBL(VALIST) {                                               \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                    \
     char         *_kv_val = va_arg((VALIST), char *);                          \
-    if(_freq(_kv_key < curr_adhoc_offset)) {                                        \
+    if(_freq(_kv_key < curr_adhoc_offset)) {                                   \
         KV_SET_VAL (_kv_key, _kv_val);                                         \
     } else if(_freq(adhoc_idx < KV_ENTRIES)) {                                 \
         KV_SET_VAL_O(adhoc_idx, _kv_val);                                      \

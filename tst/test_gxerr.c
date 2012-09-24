@@ -48,8 +48,9 @@ int main(int argc, char **argv) {
     printf("Call set:    %d\n", _gx_error_cidx);
     _gx_error_cidx = 0;
     set_loglevel(0);
-
-    gx_log_set_version("---BEST VERSION 0.1!---");
+    gx_log_update_sysinfo();
+    gx_log_set_prog("gx-error/gx-log test", "VERSION who knows");
+    //gx_log_set_version("---BEST VERSION 0.1!---");
     if_esys(0)  return __LINE__;
     if_esys(5)  return __LINE__;
     if_esys(-5) return __LINE__;
