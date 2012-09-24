@@ -28,7 +28,6 @@ KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null  \
 if [ ${#KV_KEYS[@]} -lt 1 ]; then
   echo    "Warning: no keys found. Enum not emitted." >&2
 else
-  echo    "#include <gx_log.h>"
   echo    "typedef enum ${ENUM_NAME} {"
   printf  "    %s = ${STD_KV_NUM} + 1,\n" ${KV_KEYS[0]}
   unset   KV_KEYS[0]
