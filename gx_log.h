@@ -291,10 +291,10 @@ static gx_strbuf      _gx_log_sysinfo    = {{0},NULL};
 
 static char _GX_NULLSTRING[] = "";
 
-
-#define kv_head_t uint16_t                        ///< Type of length headers before strings
-#define _iov_base typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
-#define _iov_size typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
+#define kv_main_head_t uint32_t                        ///< Type of full-message header (gives length of msg)
+#define kv_head_t      uint16_t                        ///< Type of length headers before strings
+#define _iov_base      typeofm(struct iovec, iov_base) ///< Usually 'void *' or 'char *'
+#define _iov_size      typeofm(struct iovec, iov_len ) ///< Usually 'size_t' or 'int'
 
 /// Key-value structure, set up a bit redundantly so that it already
 /// encapsulates the output format in a layout ready for scatter-io.
@@ -330,10 +330,18 @@ typedef struct kv_msg_iov {
     _gx_kv     main_tail;
 } __packed kv_msg_iov;
 
+/// Number of iov-elements in a "flattened" kv_msg_iov:
+/// ((message-table-entries + main-tail) * iovs-per-_gx_kv) + main-head
+#define KV_IOV_COUNT ((KV_ENTRIES + 1) * 4) + 1
+/// msg_iov static variable as an array of iovecs
+#define MSG_IOV_IOV  ((struct iovec *)&msg_iov)
+
 static const kv_head_t kv_head_empty = (kv_head_t)(1 + sizeof(kv_head_t));
+static kv_main_head_t  kv_main_head  = 0;
+
 static kv_msg_iov msg_iov = {
-    .main_head_base = NULL,
-    .main_head_size = 0x00,
+    .main_head_base = &kv_main_head,
+    .main_head_size = sizeof(kv_main_head),
     .main_tail      = {(_iov_base)&kv_head_empty, sizeof(kv_head_empty),
                        (_iov_base)_GX_NULLSTRING, 0x01,
                        (_iov_base)&kv_head_empty, sizeof(kv_head_empty),
@@ -478,9 +486,12 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         KV_SET_VAL  (K_sys_ticks, ctick_string);
     }
 
-    //writev(STDERR_FILENO, (struct iovec *)&msg_iov, (KV_ENTRIES)*4 + 1);
+    kv_main_head = 0;
+    for(i = 0; i < KV_IOV_COUNT; i++) kv_main_head += (kv_main_head_t)(MSG_IOV_IOV[i].iov_len);
 
-//#ifdef DEBUG_LOGGING
+    //ssize_t actual_len = writev(STDERR_FILENO, MSG_IOV_IOV, KV_IOV_COUNT);
+
+#ifdef DEBUG_LOGGING
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     int row_num = 0;
     for(i = 0; i < KV_ENTRIES; i++) {
@@ -498,7 +509,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         }
     }
     fprintf(stderr, "\n");
-//#endif
+#endif
 }
 
 #undef _VA_ARG_TO_TBL

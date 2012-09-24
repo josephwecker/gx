@@ -8,15 +8,6 @@
   - (~) Makeover makefile and gen/* files (for goodness sake)
   - (~) Port existing error-logging in other headers over to new gx_error! w00t!
 - (*) gx_log
-  - (*) Expansion
-    - (d) Change keys/values etc. to iovecs (? or encapsulate them in iovecs?)
-    - (d) Memoized timer to minimize system calls
-    - (d) Lookup key string in user-specified lookup function, and fallback if not there
-    - (~) Populate main_head and main_tail in full iovec
-    - (d) Rename kv_base_t / kv_size_t to indicate iovec relationship
-    - (d) Update K_sys_* values
-      - (d) Correctly enable the key sizes
-      - (d) Hooks for user program to set the more slowly changing parts
   - (*) Dispatch
     - (~) Determine whether or not it needs to be syslogged, dispatch if necessary
     - (*) stderr/tty/daemon discovery for automatic stderr logging
@@ -33,4 +24,8 @@
   - (~) Abort early if the queue is backed up and it won't bump any existing priorities in the backup queue
   - (~) Hook into env and makefile flags
   - (~) Abstract out the key/value stuff (including macros sitting in gx.h currently)
+  - (~) Expansion (leftovers)
+    - (d) Populate main_head and main_tail in full iovec
+    - (~) hostid doesn't seem to be implemented in any meaningful way on computers these days. Use alternative
+      more network related.
 
