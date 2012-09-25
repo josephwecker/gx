@@ -10,10 +10,10 @@
 - (*) gx_log
   - (*) Dispatch
     - (~) Determine whether or not it needs to be syslogged, dispatch if necessary
-    - (*) stderr/tty/daemon discovery for automatic stderr logging
-    - (*) Determine whether or not it needs to be output to stderr/tty, dispatch if necessary
-      - (*) iovec transformation
-      - (*) formatting/colors etc. back to par
+    - (d) stderr/tty/daemon discovery for automatic stderr logging
+    - (d) Determine whether or not it needs to be output to stderr/tty, dispatch if necessary
+    - (*) iovec transformation
+    - (*) formatting/colors etc. back to par
     - (~) Dispatch to message-queue
       - (~) Minimally portable wrapper
       - (~) Test against reverb

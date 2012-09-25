@@ -199,6 +199,7 @@
 #define GX_LOG_H
 
 #include "./gx.h"
+#include "./gx_token.h"
 #include "./gxe/gx_enum_lookups.h"
 #include <time.h>
 #include <sys/uio.h>
@@ -231,6 +232,7 @@ typedef enum gx_log_standard_keys {
 
     K_sys_time,
     K_sys_ticks,
+    K_sys_ticks2,
 
     K_sys_program,
     K_sys_version,
@@ -247,19 +249,19 @@ typedef enum gx_log_standard_keys {
     K_net_peer_port,
     K_net_peer_state
 } gx_log_standard_keys;
-#define K_END_ADHOC (K_sys_tid)
+#define K_END_STANDARD (K_net_peer_state)
 
 typedef enum gx_severity {
     SEV_EMERGENCY,   ///< Whole system disruption or serious destabilization.
     SEV_ALERT,       ///< Full application disruption or serious destabilization.
     SEV_CRITICAL,    ///< Process-level disruption or destabilization needing intervention.
     SEV_ERROR,       ///< Session-level disruptions. Failures. Defects.
+    SEV_UNKNOWN,     ///< Unknown severity. (Usually for native syserr severities)
     SEV_WARNING,     ///< Potential instability needing attention.
     SEV_NOTICE,      ///< Normal but significant condition needing some monitoring- high priority stat.
     SEV_STAT,        ///< Information being gathered for specific analytics or monitoring
     SEV_INFO,        ///< General informational messages/reports possibly useful for analysis.
-    SEV_DEBUG,       ///< Assistance for development/debugging but not useful during operations.
-    SEV_UNKNOWN
+    SEV_DEBUG        ///< Assistance for development/debugging but not useful during operations.
 } gx_severity;
 
 #define gx_log_set_key_lookup(FUN)                                             \
@@ -330,11 +332,33 @@ typedef struct kv_msg_iov {
     _gx_kv     main_tail;
 } __packed kv_msg_iov;
 
+typedef struct gx_logger {
+    int            enabled;
+    void         (*logger_function)(gx_severity, kv_msg_iov *);
+    gx_severity    min_severity;
+} gx_logger;
+
+#define GX_NUM_STD_LOGGERS 3
+static gx_logger gx_loggers[GX_NUM_STD_LOGGERS];
+
+/// Standard loggers... don't really need this more configurable at the moment...
+#include "./gxe/log_stderr.h"
+#include "./gxe/log_syslogd.h"
+#include "./gxe/log_mq.h"
+
+static gx_logger gx_loggers[3] = {
+    {1, &log_stderr,  SEV_DEBUG},
+//    {1, &log_syslogd, SEV_CRITICAL},
+//    {1, &log_mq,      SEV_DEBUG}
+};
+
+
 /// Number of iov-elements in a "flattened" kv_msg_iov:
 /// ((message-table-entries + main-tail) * iovs-per-_gx_kv) + main-head
+/// If you really wanted to you could also divide sizeof(kv_msg_iov) by sizeof(struct iovec)
 #define KV_IOV_COUNT ((KV_ENTRIES + 1) * 4) + 1
 /// msg_iov static variable as an array of iovecs
-#define MSG_IOV_IOV  ((struct iovec *)&msg_iov)
+#define MSG_AS_IOV(MSG)  ((struct iovec *)&(MSG))
 
 static const kv_head_t kv_head_empty = (kv_head_t)(1 + sizeof(kv_head_t));
 static kv_main_head_t  kv_main_head  = 0;
@@ -347,7 +371,6 @@ static kv_msg_iov msg_iov = {
                        (_iov_base)&kv_head_empty, sizeof(kv_head_empty),
                        (_iov_base)_GX_NULLSTRING, 0x01}
 };
-
 
 /// Change any NULL pointers into values that point to _GX_NULLSTRING
 #define _STR_NULL(P) ({                                                        \
@@ -415,6 +438,16 @@ static kv_msg_iov msg_iov = {
 } while(0)
 
 
+// Forward declarations
+static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
+                                    int vparam_count, va_list *vparams, int
+                                    argc, ...);
+static _inline   void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg);
+static _inline   void _gx_log_update_host();
+static _inline   void _gx_log_update_pids();
+static _inline   void _gx_log_update_cpuid();
+
+
 static _inline void _gx_log_update_cpuid() {
     /// Waiting for an OS/CPU portable enencumbered fast apic-id finder
 }
@@ -448,10 +481,19 @@ static _inline void _gx_log_update_host() {
     }                                                                          \
 }
 
+typedef union _ctick {
+    char ctick_buf[9];
+    struct {
+        char     empty_head;
+        uint64_t ctick_data;
+    } __packed;
+} _ctick;
+
 static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         int vparam_count, va_list *vparams, int argc, ...)
 {
     int i;
+    char ctick_base64[64];
 
     memcpy(&msg_iov.msg_tab, &msg_tab_master, sizeofm(kv_msg_iov,msg_tab)); // yes it's fastest
 
@@ -482,16 +524,24 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
             _gx_log_last_tick = curr_tick;
         }
         KV_SET_VAL_L(K_sys_time, &(_gx_log_time[0]), _gx_log_time_len);
-        char *ctick_string = $("%llu", (long long int)curr_tick);
-        KV_SET_VAL  (K_sys_ticks, ctick_string);
+
+        _ctick ctick_transformer;
+        ctick_transformer.empty_head = 0;
+        ctick_transformer.ctick_data = curr_tick;
+        ctick_transformer.ctick_data = bswap64(ctick_transformer.ctick_data);
+
+        gx_base64_urlencode_m3(ctick_transformer.ctick_buf, 9, (char *)ctick_base64);
+        char *p = ctick_base64;
+        while(*p == '0') p++;
+        KV_SET_VAL  (K_sys_ticks, p);
     }
 
     kv_main_head = 0;
-    for(i = 0; i < KV_IOV_COUNT; i++) kv_main_head += (kv_main_head_t)(MSG_IOV_IOV[i].iov_len);
+    for(i = 0; i < KV_IOV_COUNT; i++) kv_main_head += (kv_main_head_t)(MSG_AS_IOV(msg_iov)[i].iov_len);
 
-    //ssize_t actual_len = writev(STDERR_FILENO, MSG_IOV_IOV, KV_IOV_COUNT);
+    _gx_log_dispatch(severity, &msg_iov);
 
-#ifdef DEBUG_LOGGING
+//#ifdef DEBUG_LOGGING
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     int row_num = 0;
     for(i = 0; i < KV_ENTRIES; i++) {
@@ -509,7 +559,17 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         }
     }
     fprintf(stderr, "\n");
-#endif
+//#endif
+}
+
+static _inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
+    //ssize_t actual_len = writev(STDERR_FILENO, MSG_IOV_IOV, KV_IOV_COUNT);
+    int i;
+    for(i = 0; i < GX_NUM_STD_LOGGERS; i ++) {
+        if(_freq(gx_loggers[i].enabled)) {
+            if(gx_loggers[i].min_severity >= severity) (gx_loggers[i].logger_function)(severity, msg);
+        }
+    }
 }
 
 #undef _VA_ARG_TO_TBL

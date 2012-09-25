@@ -1,4 +1,6 @@
-gxe/*
+gxe/gx_enum_lookups.h
+gxe/gx_log_table.h
+gxe/syserr.h
 *.i
 *.s
 *.o
