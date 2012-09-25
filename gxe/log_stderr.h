@@ -34,11 +34,13 @@
         severity
         type
    
+
+
+
     | src_file       | notice |
     | src_line       | error  |
     | src_function   | error  |
     | src_expression | error  |
-    | src_
 
     | severity      |
     | ------------- |
@@ -97,14 +99,43 @@ static _inline int check_stderr()
     return 0;
 }
 
+static struct iovec out_iov[100] = {{NULL,0}};
+static int    iov_out_count      = 0;
+
+#define padby(N) scatn(" ",1,N)
+#define sep()    scat(" │ ",5)
+#define scatn(BUF, LEN, N) if(N > 0){size_t _i; for(_i=0; _i<N; _i++) scat(BUF, LEN);}
+#define scat(BUF,LEN) do {                    \
+    out_iov[iov_out_count].iov_len  = (LEN);  \
+    out_iov[iov_out_count].iov_base = (BUF);  \
+    iov_out_count ++;                         \
+} while(0)
+
+#define kv_vdb(KEY) (msg->msg_tab[KEY].val_data_base)
+#define kv_vds(KEY) ((size_t)(msg->msg_tab[KEY].val_data_size))
+#define kv_isset(KEY) (kv_vds(KEY) > 0)
+
 static _inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 {
-    if(_rare(!log_stderr_verified))
-        if(check_stderr()) return;
-
-    
-
-    fprintf(stderr, "%s: some message...\n", &($gx_severity(severity)[4]));
+    ssize_t len, len2, pad, i;
+    if(_rare(!log_stderr_verified) && check_stderr()) return;
+    iov_out_count = 0;
+    scat (kv_vdb(K_sys_time) + 11,       kv_vds(K_sys_time ) - 13);  scat (":",1);
+    len = 7 - kv_vds(K_sys_ticks);
+    scat (kv_vdb(K_sys_ticks) - len,     len2 = kv_vds(K_sys_ticks) - 1 + len);  padby(7 - len2);
+    sep();
+    scat (kv_vdb(K_severity) + 4,  len = kv_vds(K_severity) - 5); padby(7 - len); padby(1);
+    sep();
+    if(_rare(kv_isset(K_err_group))) {
+        scat ("[",1);
+        scat (kv_vdb(K_err_group),     kv_vds(K_err_group) - 1);
+        scat (":",1);
+        scat (kv_vdb(K_err_depth),     kv_vds(K_err_depth) - 1);
+        scat ("]",1);
+    }
+    scat ("\n",1);
+    writev(STDERR_FILENO, out_iov, iov_out_count);
+    //fprintf(stderr, "%s: some message...\n", &($gx_severity(severity)[4]));
 }
 
 

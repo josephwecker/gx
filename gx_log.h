@@ -438,12 +438,12 @@ static kv_msg_iov msg_iov = {
 
 
 // Forward declarations
-static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
-                                    int vparam_count, va_list *vparams, int
-                                    argc, ...);
-static _inline   void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg);
-static _inline   void _gx_log_update_host();
-static _inline   void _gx_log_update_pids();
+static _inline   void  gx_writev_buf      (char *dst, const struct iovec *iov, int iovcnt);
+static _noinline void _gx_log_inner       (gx_severity severity, char *severity_str,
+                                           int vparam_count, va_list *vparams, int argc, ...);
+static _inline   void _gx_log_dispatch    (gx_severity severity, kv_msg_iov *msg);
+static _inline   void _gx_log_update_host ();
+static _inline   void _gx_log_update_pids ();
 static _inline   void _gx_log_update_cpuid();
 
 
@@ -543,7 +543,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
 
     _gx_log_dispatch(severity, &msg_iov);
 
-//#ifdef DEBUG_LOGGING
+#ifdef DEBUG_LOGGING
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     int row_num = 0;
     for(i = 0; i < KV_ENTRIES; i++) {
@@ -561,10 +561,12 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         }
     }
     fprintf(stderr, "\n");
-//#endif
+#endif
     
     if(argc > 0) va_end(argv);
 }
+#undef _VA_ARG_TO_TBL
+
 
 static _inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
     //ssize_t actual_len = writev(STDERR_FILENO, MSG_IOV_IOV, KV_IOV_COUNT);
@@ -576,6 +578,16 @@ static _inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
     }
 }
 
-#undef _VA_ARG_TO_TBL
+/*
+static _inline size_t  gx_writev_buf (char *dst, size_t maxsize, const struct iovec *iov, int iovcnt) {
+    int    i;
+    size_t copied;
+    for(i = 0; i < iovcnt; i++) {
+        size_t len = iovec[i].iov_len;
+        if(_rare(len > (maxsize - copied - 1)) return copied;
+    }
+
+}
+*/
 
 #endif
