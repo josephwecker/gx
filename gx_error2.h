@@ -235,7 +235,9 @@ static _noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
     if(argc > 0) va_start(argv, argc);
     if(_rare(_gx_error_stack[1].error_number)) {
         // Several errors to report, all "linked" to the last one
-        char *egrp = $("%u", GX_CPU_TS);
+        //char *egrp = $("%u", GX_CPU_TS);
+        static char egroup[64];
+        char *egrp = _gx_cpu_ts_str(egrp, GX_CPU_TS);
         for(i=0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
             if(_gx_error_stack[i].error_number) {
                 char *edpth = $("%u", _gx_error_stack[i].chk_level);

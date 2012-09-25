@@ -232,7 +232,6 @@ typedef enum gx_log_standard_keys {
 
     K_sys_time,
     K_sys_ticks,
-    K_sys_ticks2,
 
     K_sys_program,
     K_sys_version,
@@ -489,23 +488,35 @@ typedef union _ctick {
     } __packed;
 } _ctick;
 
+static _inline char *_gx_cpu_ts_str(char *dest, uint64_t ts) {
+    _ctick ctick_transformer;
+    ctick_transformer.empty_head = 0;
+    ctick_transformer.ctick_data = bswap64(ts);
+    gx_base64_urlencode_m3(ctick_transformer.ctick_buf, 9, dest);
+    char *p = dest;
+    while(*p == '0') p++;
+    return p;
+}
+
 static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         int vparam_count, va_list *vparams, int argc, ...)
 {
-    int i;
-    char ctick_base64[64];
+    va_list argv;
+    int     i;
+    char    ctick_base64[64];
 
     memcpy(&msg_iov.msg_tab, &msg_tab_master, sizeofm(kv_msg_iov,msg_tab)); // yes it's fastest
 
     int adhoc_idx = curr_adhoc_offset;
 
     // Usually "expanded" values
+
+    //gx_hexdump(&(msg_iov.msg_tab), sizeof(msg_iov.msg_tab), 0);
     if(argc > 0) {
-        va_list argv;
         va_start(argv, argc);
         for(i = 0; i < argc; i+=2) _VA_ARG_TO_TBL(argv);
-        va_end(argv);
     }
+    //gx_hexdump(&(msg_iov.msg_tab), sizeof(msg_iov.msg_tab), 0);
 
     // Passed in at the highest level generally- highest precedence
     if(vparam_count > 0) for(i = 0; i < vparam_count; i+=2) _VA_ARG_TO_TBL(*vparams);
@@ -523,17 +534,8 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
                     "%Y-%m-%dT%H:%M:%SZ", &now_tm);
             _gx_log_last_tick = curr_tick;
         }
-        KV_SET_VAL_L(K_sys_time, &(_gx_log_time[0]), _gx_log_time_len);
-
-        _ctick ctick_transformer;
-        ctick_transformer.empty_head = 0;
-        ctick_transformer.ctick_data = curr_tick;
-        ctick_transformer.ctick_data = bswap64(ctick_transformer.ctick_data);
-
-        gx_base64_urlencode_m3(ctick_transformer.ctick_buf, 9, (char *)ctick_base64);
-        char *p = ctick_base64;
-        while(*p == '0') p++;
-        KV_SET_VAL  (K_sys_ticks, p);
+        KV_SET_VAL_L(K_sys_time,  &(_gx_log_time[0]), _gx_log_time_len);
+        KV_SET_VAL  (K_sys_ticks, _gx_cpu_ts_str(ctick_base64,curr_tick));
     }
 
     kv_main_head = 0;
@@ -546,7 +548,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
     int row_num = 0;
     for(i = 0; i < KV_ENTRIES; i++) {
         _gx_kv *kv = &(msg_iov.msg_tab[i]);
-        if(kv->val_data_size > 3) {
+        if(kv->val_data_size > 0) {
             fprintf(stderr, "|%3d|%3d "
                             "|%zu> 0x%04x(=%2u) |%2zu>   %-17s "
                             "|%zu> 0x%04x(=%2u) |%2zu>   %-25s\n",
@@ -560,6 +562,8 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
     }
     fprintf(stderr, "\n");
 //#endif
+    
+    if(argc > 0) va_end(argv);
 }
 
 static _inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
