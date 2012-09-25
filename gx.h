@@ -775,8 +775,16 @@ static char  _gx_tstr_empty[]   = "";
         // exit(fn(arg)); // (in child)  wait- also release the stack here.
     #endif
 
+#define gx_sleep(...)           _GX_SLEEP(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define _GX_SLEEP(N,...)        _GX_SLEEP_(N, ##__VA_ARGS__)
+#define _GX_SLEEP_(N,...)       _GX_SLEEP_ ## N (__VA_ARGS__)
+#define _GX_SLEEP_0()           _gx_sleep(1,0)
+#define _GX_SLEEP_1(S)          _gx_sleep(S,0)
+#define _GX_SLEEP_2(S,MS)       _gx_sleep(S, 1 ## MS ## 000000    - 1000000000)
+#define _GX_SLEEP_3(S,MS,US)    _gx_sleep(S, 1 ## MS ## US ## 000 - 1000000000)
+#define _GX_SLEEP_4(S,MS,US,NS) _gx_sleep(S, 1 ## MS ## US ## NS  - 1000000000)
 
-    static GX_INLINE int gx_sleep(time_t seconds, long nanoseconds) {
+    static GX_INLINE int _gx_sleep(time_t seconds, long nanoseconds) {
         int s;
         struct timespec ts;
         ts.tv_sec  = seconds;
