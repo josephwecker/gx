@@ -70,14 +70,14 @@ lists.each do |name, raw_entries, entries|
           return 0;
       }
     ctemplate
-    
+
     actual_vals = ''
     Tempfile.open('bld-enum-maps') do |csrc|
       csrc.write c_template
       csrc.flush
       src_path    = csrc.path
       bin_path    = csrc.path + '__compiled'
-      
+
       compile_cmd = "gcc -x c -o '#{bin_path}' '#{src_path}'"
       compile_res = `#{compile_cmd}`
       actual_vals = `'#{bin_path}'`

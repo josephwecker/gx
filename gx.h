@@ -61,13 +61,13 @@
  *   Constants
  *   -------------------
  *   (Ensures that the following are defined- sometimes missing from older preprocessors)
- *   
+ *
  *   | __LINUX__          | set if host OS is linux |
  *   | __OSX__            | set if host OS is mach/apple/osx |
  *   | __SIZEOF_INT__     | in bytes |
  *   | __SIZEOF_POINTER__ | in bytes |
- *     
- *     
+ *
+ *
  *   Macros
  *   -------------------
  *   (may sometimes be implemented as macros, inline-functions, functions, or
@@ -103,14 +103,14 @@
  *   | rare(expr)         | expr | alias for _unlikely                              |
  *   | likely(expr)       | expr | compiler optimizes for expr to succeed often     |
  *   | freq(expr)         | expr | alias for _likely                                |
- *   | gx_pagesize()      | expr | memoized current pagesize                                   |
+ *   | pagesize()         | expr | memoized current pagesize                                   |
  *   | gx_sleep(...)      | sfx  | gx_sleep(8,004,720,010) would sleep for 8.004720010 seconds |
  *
  *   | $(FMT,...)         | val  | quick sprintf, useful for function args, uses static buff |
  *   | $reset()           | sfx  | resets static buffer when existing $(...) strings aren't needed |
  *   | $s(BUF,FMT,...)    | val  | like $(), but specify your own static char buffer |
  *   | $sreset(BUF)       | sfx  | like $reset(), but specify a buffer               |
- *   | 
+ *   |
  *
  *   | NARG(...)          | pp   | number of arguments given                       |
  *
@@ -141,81 +141,76 @@
 #define GX_H
 
 /// Normalize some OS names
-#if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(__LINUX__)
+#if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
   #define __LINUX__ 1
   #undef  __OSX__
-#elif defined(__APPLE__) || defined(__MACH__)
+#elif defined(__APPLE__) || defined(__MACH__) || defined(__OSX__) || defined(__MACH) || defined(_MACH)
   #define __OSX__ 1
   #undef  __LINUX__
 #endif
 
-///
-#if defined(__LINUX__)
-  #ifndef _GNU_SOURCE
-    #define _GNU_SOURCE
-  #endif
+#ifdef  __LINUX__
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #endif
 
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <unistd.h>
-  #include <sys/stat.h>
-  #include <fcntl.h>
-  #include <string.h>
-  #include <pthread.h> // For pool mutexes / gx_clone
-  #include <sys/wait.h>
-  #ifdef __LINUX__
-    #include <syscall.h>
-  #else
-    #include <sys/syscall.h>
-  #endif
+/// Main system includes needed below
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <pthread.h> // For pool mutexes / gx_clone
+#include <sys/wait.h>
+#ifdef __LINUX__
+  #include <syscall.h>
+#else
+  #include <sys/syscall.h>
+#endif
 
-  /// Types
-  //
-  #include <stdint.h>
-  #include <inttypes.h>
-  #include <sys/types.h>
-  typedef uint8_t     U8,    byte,     uint8,       uint8_bitmask;
-  typedef uint16_t    U16,   uint16,   uint16_be,   uint16_le;
-  typedef int16_t     S16,   sint16,   sint16_be,   sint16_le;
-  typedef uint32_t    U32,   uint32,   uint32_be,   uint32_le;
-  typedef int32_t     S32,   sint32,   sint32_be,   sint32_le;
-  typedef uint64_t    U64,   uint64,   uint64_be,   uint64_le;
-  typedef int64_t     S64,   sint64,   sint64_be,   sint64_le;
-  typedef struct
-  __uint24{U8 b[3];}  U24,   uint24,   uint24_be,   uint24_le;
-  typedef float       F32,   float32,  float32_be,  float32_le;
-  typedef double      F64,   float64,  float64_be,  float64_le;
-  typedef long double F96,   float96,  float96_be,  float96_le;
+/// Typedefs
+#include <stdint.h>
+#include <inttypes.h>
+#include <sys/types.h>
+typedef uint8_t                    U8,    byte,     uint8,       uint8_bitmask;
+typedef uint16_t                   U16,   uint16,   uint16_be,   uint16_le;
+typedef int16_t                    S16,   sint16,   sint16_be,   sint16_le;
+typedef uint32_t                   U32,   uint32,   uint32_be,   uint32_le;
+typedef int32_t                    S32,   sint32,   sint32_be,   sint32_le;
+typedef uint64_t                   U64,   uint64,   uint64_be,   uint64_le;
+typedef int64_t                    S64,   sint64,   sint64_be,   sint64_le;
+typedef struct __uint24{U8 b[3];}  U24,   uint24,   uint24_be,   uint24_le;
+typedef float                      F32,   float32,  float32_be,  float32_le;
+typedef double                     F64,   float64,  float64_be,  float64_le;
+typedef long double                F96,   float96,  float96_be,  float96_le;
 
 
-  /// @todo Generalize min/max to use variadic input
-  #ifndef MIN
-  #define MIN(A,B) ({ typeof(A) _a = (A); typeof(B) _b = (B); _b < _a ? _b : _a; })
-  #endif
-  #define MIN3(A,B,C) MIN(MIN(A,B),C)
+/// @todo Generalize min/max to use variadic input
+#define min(A,B)     ({ typeof(A) _a = (A); typeof(B) _b = (B); _b < _a ? _b : _a; })
+#define min3(A,B,C)  min(min(A,B),C)
 
-  #ifndef MAX
-  #define MAX(A,B) ({ typeof(A) _a = (A); typeof(B) _b = (B); _b > _a ? _b : _a; })
-  #endif
-  #define MAX3(A,B,C) MAX(MAX(A,B),C)
+#define max(A,B)     ({ typeof(A) _a = (A); typeof(B) _b = (B); _b > _a ? _b : _a; })
+#define max3(A,B,C)  max(max(A,B),C)
 
 
 /// Compiler-specific intrinsics and fixes: bswap64, ntz, rdtsc, ...
 
 #if __INTEL_COMPILER
-  #define GX_CPU_TS ((unsigned)__rdtsc())
+  #define cpu_ts ((unsigned)__rdtsc())
 #elif (__GNUC__ && (__x86_64__ || __amd64__ || __i386__))
-  #define GX_CPU_TS ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
+  #define cpu_ts ({unsigned res; __asm__ __volatile__ ("rdtsc" : "=a"(res) : : "edx"); res;})
 #elif (_M_IX86)
   #include <intrin.h>
   #pragma intrinsic(__rdtsc)
-  #define GX_CPU_TS ((unsigned)__rdtsc())
+  #define cpu_ts ((unsigned)__rdtsc())
 #else
   #warning "Don't know how to implement RDTSC intrinsic on your system."
 #endif
 
 /// bswap64 - most useful for big to little-endian
+/// @todo (builtin bswap32?)
 #if __GNUC__
 	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
 	#define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
@@ -231,10 +226,10 @@
 		out.u32[1] = bswap32(in.u32[0]);
 		return out.u64;
 	}
-    
+
 	#if (L_TABLE_SZ <= 9) && (L_TABLE_SZ_IS_ENOUGH)   /* < 2^13 byte texts */
 	static inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[] = {0, 
+		static const unsigned char tz_table[] = {0,
 		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
 		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,8,
 		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
@@ -243,8 +238,8 @@
 	}
 	#else       /* From http://supertech.csail.mit.edu/papers/debruijn.pdf */
 	static inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[32] = 
-		{ 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8, 
+		static const unsigned char tz_table[32] =
+		{ 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8,
 		 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18,  6, 11,  5, 10, 9};
 		return tz_table[((uint32_t)((x & -x) * 0x077CB531u)) >> 27];
 	}
@@ -253,40 +248,33 @@
 
 
 
-  #if          __GNUC__ > 3
-    #ifndef    gx_likely
-      #define  gx_likely(x)   __builtin_expect(!!(x), 1)
-      #define  gx_unlikely(x) __builtin_expect(!!(x), 0)
-    #endif
-    #ifndef    gx_cold_f
-      #define  gx_pure_f      __attribute__((pure))
-      #define  gx_cold_f      __attribute__((cold))
-      #define  gx_hot_f       __attribute__((hot))
-    #endif
-    #ifndef    GX_INLINE
-      #ifdef   DEBUG
-        #define GX_INLINE
-      #else 
-        #define  GX_INLINE   inline __attribute__((always_inline))
-      #endif
-    #endif
-    #define    GX_OPTIONAL    __attribute__((unused))
+#if __GNUC__ > 3
+  #define    freq(X)       __builtin_expect(!!(X), 1)
+  #define    rare(X)       __builtin_expect(!!(X), 0)
+  #define    optional      __attribute__ ((__unused__))
+  #define    noinline      __attribute__ ((__noinline__))
+  #define    packed        __attribute__ ((__packed__))
+  #ifndef    DEBUG
+    #define  pure          __attribute__ ((__pure__))
+    #define  cold          __attribute__ ((__cold__))
+    #define  hot           __attribute__ ((__hot__))
+    #define  always_inline __attribute__ ((__always_inline__))
   #else
-    #ifndef    gx_likely
-      #define  gx_likely(x)   (x)
-      #define  gx_unlikely(x) (x)
-    #endif
-    #ifndef    gx_cold_f
-      #define  gx_cold_f
-      #define  gx_hot_f
-      #define  gx_pure_f
-    #endif
-    #ifndef    GX_INLINE
-    #define    GX_INLINE   inline
-    #endif
+    #define  inline
+    #define  pure
+    #define  cold
+    #define  hot
+    #define  always_inline
   #endif
+#else
+  #define    freq(X)       (X)
+  #define    rare(X)       (X)
+  #define    cold
+  #define    hot
+  #define    pure
+  #define    inline        __inline__
+#endif
 
-  #define      __packed  __attribute__ ((packed))
 
 
 #ifndef __SIZEOF_INT__
@@ -294,29 +282,25 @@
     #if (__INT_MAX__ == 0x7fffffff) || (__INT_MAX__ == 0xffffffff)
       #define __SIZEOF_INT__ 4
     #else
-      //#warning Guessing the size of an integer is 2 bytes
+      // Warning: Guessing the size of an integer is 2 bytes
       #define __SIZEOF_INT__ 2
     #endif
   #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64)
     #define __SIZEOF_INT__ 4
   #else
-    //#warning Guessing the size of an integer is 2 bytes
+    // Warning: Guessing the size of an integer is 2 bytes
     #define __SIZEOF_INT__ 2
   #endif
 #endif
 
 #ifndef __SIZEOF_POINTER__
-  //#warning Guessing the size of a pointer is 2 * __SIZEOF_INT__
+  // Warning Guessing the size of a pointer is 2 * __SIZEOF_INT__
   #define __SIZEOF_POINTER__ (2 * __SIZEOF_INT__)
 #endif
 
 #define _STR2(x)      #x
 #define _STR(x)       _STR2(x)
 #define __LINE_STR__  _STR(__LINE__)
-#define _rare(X)      __builtin_expect(!!(X), 0)
-#define _freq(X)      __builtin_expect(!!(X), 1)
-#define _inline       __attribute__ ((__always_inline__))
-#define _noinline     __attribute__ ((__noinline__))
 
 #define sizeofm(type, member) sizeof(((type *)0)->member)
 #define typeofm(type, member) typeof(((type *)0)->member)
@@ -325,9 +309,9 @@
 /// A trick to get the number of args passed to a variadic macro
 /// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
 /// @author Joseph Wecker (fixed zero-va_args bug)
-#define PP_NARG(...)  PP_NARG_(DUMMY, ##__VA_ARGS__,PP_RSEQ_N())
-#define PP_NARG_(...) PP_ARG_N(__VA_ARGS__)
-#define PP_ARG_N( \
+#define NARG(...)  _NARG_(DUMMY, ##__VA_ARGS__,_RSEQ_N())
+#define _NARG_(...) _ARG_N(__VA_ARGS__)
+#define _ARG_N( \
           _0, _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
          _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
          _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
@@ -335,7 +319,7 @@
          _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
          _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
          _61,_62,_63,N,...) N
-#define PP_RSEQ_N() \
+#define _RSEQ_N() \
          63,62,61,60,                   \
          59,58,57,56,55,54,53,52,51,50, \
          49,48,47,46,45,44,43,42,41,40, \
@@ -345,13 +329,15 @@
          9,8,7,6,5,4,3,2,1,0
 
 
-#define GX_BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#define build_bug_on(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
+
+/// @todo generalize these a little better and perhaps combine w/ gx_log's kv stuff in its own module
 // Quick and dirty check to make sure that keys are only integers in a range
 // reserved for key-value pair keys.
-#define M_K(KEY) ({ GX_BUILD_BUG_ON(sizeof(KEY) != sizeof(int) || KEY > 512); KEY; })
+#define M_K(KEY) ({ build_bug_on(sizeof(KEY) != sizeof(int) || KEY > 512); KEY; })
 
-#define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define KV(...) NARG(__VA_ARGS__) KV2(NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define KV2(N,...) KV3(N, ##__VA_ARGS__)
 #define KV3(N,...) KV_ ## N (__VA_ARGS__)
 #define   KV_0()
@@ -427,16 +413,16 @@ static char  _gx_tstr_empty[]   = "";
 #define $reset() $Sreset(_gx_tstr_buf)
 
 #define $S(STRBUF, FMT, ...) (char *)({                                   \
-        if(_rare(!(STRBUF).p)) (STRBUF).p = (STRBUF).buf;                 \
+        if(rare(!(STRBUF).p)) (STRBUF).p = (STRBUF).buf;                  \
         char *_res = (STRBUF).p;                                          \
         int   _rem = sizeof((STRBUF).buf) - ((STRBUF).p - (STRBUF).buf);  \
-        if(_rare(_rem < 25)) _res = _gx_tstr_empty;                       \
+        if(rare(_rem < 25)) _res = _gx_tstr_empty;                        \
         else {                                                            \
             int _len = snprintf((STRBUF).p,                               \
                 sizeof((STRBUF).buf) - ((STRBUF).p - (STRBUF).buf),       \
                 FMT, ##__VA_ARGS__);                                      \
-            if(_freq(_len > 0)) (STRBUF).p += _len;                       \
-            if(_rare((STRBUF).p > (STRBUF).buf + sizeof((STRBUF).buf)))   \
+            if(freq(_len > 0)) (STRBUF).p += _len;                        \
+            if(rare((STRBUF).p > (STRBUF).buf + sizeof((STRBUF).buf)))    \
                 (STRBUF).p = &((STRBUF).buf[sizeof((STRBUF).buf) - 2]);   \
             (STRBUF).p[0] = (STRBUF).p[1] = '\0';                         \
             (STRBUF).p += 1;                                              \
@@ -451,7 +437,7 @@ static char  _gx_tstr_empty[]   = "";
 
 
 /// @todo Move to gx_log
-  static GX_INLINE void gx_hexdump(void *buf, size_t len, int more) {
+  static inline void gx_hexdump(void *buf, size_t len, int more) {
       size_t i=0, tch; int val, grp, outsz=0, begin_col;
       size_t begin_line;
       uint8_t *bf = (uint8_t *)buf;
@@ -493,7 +479,7 @@ static char  _gx_tstr_empty[]   = "";
           else                     fprintf(stderr, "·");
       }
       fprintf(stderr,"\n     \\");
-      for(val=0; val<MIN(outsz, ((3 * 4 /* 1group */) + 2 /* front-bar+spc */) * 3 + 1) - 2; val++) fprintf(stderr,"_");
+      for(val=0; val<min(outsz, ((3 * 4 /* 1group */) + 2 /* front-bar+spc */) * 3 + 1) - 2; val++) fprintf(stderr,"_");
       fprintf(stderr,"/\n");
       funlockfile(stderr);
   }
@@ -516,17 +502,17 @@ static char  _gx_tstr_empty[]   = "";
         size_t                               total_items;                                \
         TYPE                                *available_head;                             \
         TYPE                                *active_head, *active_tail;                  \
-        TYPE                                *prereleased[0x10000];                         \
+        TYPE                                *prereleased[0x10000];                       \
         pool_memory_segment ## TYPE         *memseg_head;                                \
     } TYPE ## _pool;                                                                     \
                                                                                          \
     static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
-    static GX_INLINE TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {    \
+    static inline TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {       \
         TYPE ## _pool *res;                                                              \
         Xn(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) X_RAISE(NULL);            \
         memset(res, 0, sizeof(TYPE ## _pool));                                           \
         TYPE ## _pool_extend(res, initial_number);                                       \
-        X (pthread_mutex_init(&(res->mutex), NULL)) X_RAISE(NULL);                          \
+        X (pthread_mutex_init(&(res->mutex), NULL)) X_RAISE(NULL);                       \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
@@ -553,26 +539,26 @@ static char  _gx_tstr_empty[]   = "";
         return 0;                                                                        \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void _prepend_ ## TYPE (TYPE ## _pool *pool, TYPE *entry) {         \
+    static inline void _prepend_ ## TYPE (TYPE ## _pool *pool, TYPE *entry) {            \
         /* put an object at the front of the active list */                              \
         entry->_next = pool->active_head;                                                \
-        if (gx_likely(pool->active_head != NULL)) { pool->active_head->_prev = entry; }  \
+        if (freq(pool->active_head != NULL)) { pool->active_head->_prev = entry; }       \
         pool->active_head = entry;                                                       \
-        if (gx_unlikely(pool->active_tail == NULL)) { pool->active_tail = entry; }       \
+        if (rare(pool->active_tail == NULL)) { pool->active_tail = entry; }              \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void _remove_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
+    static inline void _remove_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {              \
         /* remove an object from the active list */                                      \
-        if (gx_likely(entry->_prev != NULL)) { entry->_prev->_next = entry->_next; }     \
+        if (freq(entry->_prev != NULL)) { entry->_prev->_next = entry->_next; }          \
         else { pool->active_head = entry->_next; }                                       \
-        if (gx_likely(entry->_next != NULL)) { entry->_next->_prev = entry->_prev; }     \
+        if (freq(entry->_next != NULL)) { entry->_next->_prev = entry->_prev; }          \
         else { pool->active_tail = entry->_prev; }                                       \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                       \
+    static inline TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                          \
         TYPE *res = NULL;                                                                \
         pthread_mutex_lock(&(pool->mutex));                                              \
-        if(gx_unlikely(!pool->available_head))                                           \
+        if(rare(!pool->available_head))                                                  \
             if(TYPE ## _pool_extend(pool, pool->total_items) == -1) goto fin;            \
         res = pool->available_head;                                                      \
         pool->available_head = res->_next;                                               \
@@ -583,22 +569,22 @@ static char  _gx_tstr_empty[]   = "";
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void prerelease_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {        \
+    static inline void prerelease_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
         pthread_mutex_lock(&(pool->mutex));                                              \
         pid_t cpid;                                                                      \
         cpid = syscall(SYS_getpid);                                                      \
         unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
-        if(gx_unlikely(pool->prereleased[idx]))                                          \
+        if(rare(pool->prereleased[idx]))                                                 \
             X_LOG_ERROR("Snap, prerelease snafu: %d", idx);                              \
         pool->prereleased[idx] = entry;                                                  \
         pthread_mutex_unlock(&(pool->mutex));                                            \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void finrelease_ ## TYPE(TYPE ## _pool *pool, pid_t cpid) {         \
+    static inline void finrelease_ ## TYPE(TYPE ## _pool *pool, pid_t cpid) {            \
         pthread_mutex_lock(&(pool->mutex));                                              \
         unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
         TYPE *entry = pool->prereleased[idx];                                            \
-        if(gx_unlikely(!entry)) X_LOG_ERROR("Snap, prerelease snafu: %d", idx);          \
+        if(rare(!entry)) X_LOG_ERROR("Snap, prerelease snafu: %d", idx);                 \
         _remove_ ## TYPE(pool, entry);                                                   \
         entry->_next = pool->available_head;                                             \
         pool->available_head = entry;                                                    \
@@ -606,7 +592,7 @@ static char  _gx_tstr_empty[]   = "";
         pthread_mutex_unlock(&(pool->mutex));                                            \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
+    static inline void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {              \
         pthread_mutex_lock(&(pool->mutex));                                              \
         _remove_ ## TYPE(pool, entry);                                                   \
         entry->_next = pool->available_head;                                             \
@@ -614,14 +600,14 @@ static char  _gx_tstr_empty[]   = "";
         pthread_mutex_unlock(&(pool->mutex));                                            \
     }                                                                                    \
                                                                                          \
-    static GX_INLINE void move_to_front_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {     \
+    static inline void move_to_front_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {        \
         /* move an object to the front of the active list */                             \
         _remove_ ## TYPE(pool, entry);                                                   \
         _prepend_ ## TYPE(pool, entry);                                                  \
     }
 
 
-    static GX_INLINE int gx_to_vlq(uint64_t x, uint8_t *out) {
+    static inline int uint_to_vlq(uint64_t x, uint8_t *out) {
         int i, j, count=0;
         for (i = 9; i > 0; i--) { if (x & 127ULL << i * 7) break; }
         for (j = 0; j <= i; j++) {
@@ -632,13 +618,15 @@ static char  _gx_tstr_empty[]   = "";
         return ++count;
     }
 
-    static GX_INLINE uint64_t gx_from_vlq(uint8_t *in) {
+    static inline uint64_t vlq_to_uint(uint8_t *in) {
         uint64_t r = 0;
         do r = (r << 7) | (uint64_t)(*in & 127);
         while (*in++ & 128);
         return r;
     }
 
+
+/// @todo refactor, check, rename, and restyle (ugh)
   /*=============================================================================
    * MISC MATH
    * gx_pos_ceil(x)                - Integer ceiling (for positive values)
@@ -646,22 +634,22 @@ static char  _gx_tstr_empty[]   = "";
    *---------------------------------------------------------------------------*/
   #define gx_pos_ceil(x) (((x)-(int)(x)) > 0 ? (int)((x)+1) : (int)(x))
   #define gx_fits_in(container_size, x) gx_pos_ceil((float)(x) / (float)(container_size))
-  #define gx_in_pages(SIZE) (((SIZE) & ~(gx_pagesize - 1)) + gx_pagesize)
+  #define gx_in_pages(SIZE) (((SIZE) & ~(pagesize() - 1)) + pagesize())
 
   /*=============================================================================
    * OS PARAMETERS
-   * gx_pagesize                   - Gets OS kernel page size
+   * pagesize()                   - Gets OS kernel page size
    * Yeah, needs to coordinate somewhat w/ a config file or something...
    *---------------------------------------------------------------------------*/
-  static int _GXPS GX_OPTIONAL = 0;
+  static int _GXPS optional = 0;
 
   /// @todo don't use HAS_SYSCONF - use __LINUX__ etc. instead
   #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
-    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
+    #define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
   #elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
-    #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
+    #define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
   #else
-    #define gx_pagesize ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
+    #define pagesize() ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
   #endif
 
 
@@ -674,9 +662,6 @@ static char  _gx_tstr_empty[]   = "";
     /// new, _small_ stack. The parent is not signaled when the child
     /// finishes [at least on linux... don't know yet for other...]
     #ifdef __LINUX__
-      #ifndef _GNU_SOURCE
-        #define _GNU_SOURCE
-      #endif
       #include <sched.h>
       #include <sys/prctl.h>
       #include <signal.h>
@@ -692,7 +677,7 @@ static char  _gx_tstr_empty[]   = "";
       } __attribute__((aligned)) _gx_clone_stack;
 
       gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp GX_OPTIONAL = NULL;
+      static _gx_clone_stack_pool *_gx_csp optional = NULL;
 
       static void sigchld_clone_handler(int sig) {
           int status, saved_errno;
@@ -713,12 +698,12 @@ static char  _gx_tstr_empty[]   = "";
           return res;
       }
 
-      static GX_INLINE int gx_clone(int (*fn)(void *), void *arg) {
+      static inline int gx_clone(int (*fn)(void *), void *arg) {
           int flags = SIGCHLD | CLONE_FILES   | CLONE_FS      | CLONE_IO      | CLONE_PTRACE |
                                 CLONE_SYSVSEM | CLONE_VM;
           _gx_clone_stack *cstack;
 
-          if(gx_unlikely(!_gx_csp)) {
+          if(rare(!_gx_csp)) {
               // "Global" setup
               Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
               struct sigaction sa;
@@ -744,7 +729,7 @@ static char  _gx_tstr_empty[]   = "";
           // NO EXPLICIT STACK FOR NOW IN GENERAL CASE
       } __attribute__((aligned)) _gx_clone_stack;
       gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp GX_OPTIONAL = NULL;
+      static _gx_clone_stack_pool *_gx_csp optional = NULL;
 
       static void *_gx_clone_launch(void *arg) {
           // Yes, a rather complex way to essentially change a void * callback
@@ -760,10 +745,10 @@ static char  _gx_tstr_empty[]   = "";
           return NULL;
       }
 
-      static GX_INLINE int gx_clone(int (*fn)(void *), void *arg) {
+      static inline int gx_clone(int (*fn)(void *), void *arg) {
           pthread_t tid;
           _gx_clone_stack *cstack; // Not really needed for the stack in this context, but for the callbacks
-          if(gx_unlikely(!_gx_csp))
+          if(rare(!_gx_csp))
               Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
 
           Xn(cstack = acquire__gx_clone_stack(_gx_csp)) {X_FATAL; X_RAISE(-1);}
@@ -775,7 +760,7 @@ static char  _gx_tstr_empty[]   = "";
         // exit(fn(arg)); // (in child)  wait- also release the stack here.
     #endif
 
-#define gx_sleep(...)           _GX_SLEEP(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define gx_sleep(...)           _GX_SLEEP(NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define _GX_SLEEP(N,...)        _GX_SLEEP_(N, ##__VA_ARGS__)
 #define _GX_SLEEP_(N,...)       _GX_SLEEP_ ## N (__VA_ARGS__)
 #define _GX_SLEEP_0()           _gx_sleep(1,0)
@@ -784,20 +769,19 @@ static char  _gx_tstr_empty[]   = "";
 #define _GX_SLEEP_3(S,MS,US)    _gx_sleep(S, 1 ## MS ## US ## 000 - 1000000000)
 #define _GX_SLEEP_4(S,MS,US,NS) _gx_sleep(S, 1 ## MS ## US ## NS  - 1000000000)
 
-    static GX_INLINE int _gx_sleep(time_t seconds, long nanoseconds) {
-        int s;
-        struct timespec ts;
-        ts.tv_sec  = seconds;
-        ts.tv_nsec = nanoseconds;
-        for(;;) {
-            Xs(s = nanosleep(&ts, &ts)) {
-                case EINTR: break;
-                default:    X_RAISE(-1);
-            }
-            if(!s) break;
+static inline int _gx_sleep(time_t seconds, long nanoseconds) {
+    int s;
+    struct timespec ts;
+    ts.tv_sec  = seconds;
+    ts.tv_nsec = nanoseconds;
+    for(;;) {
+        Xs(s = nanosleep(&ts, &ts)) {
+            case EINTR: break;
+            default:    X_RAISE(-1);
         }
-        return 0;
+        if(!s) break;
     }
-
+    return 0;
+}
 
 #endif

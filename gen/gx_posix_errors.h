@@ -1,7 +1,7 @@
 #ifndef GX_POSIX_ERRORS_H
 #define GX_POSIX_ERRORS_H
 
-// 
+//
 // FATAL
 // ERROR
 // WARN
@@ -10,7 +10,7 @@
 // DEBUG
 //
 
-GX_ERROR_CLASS(PFATAL, 
+GX_ERROR_CLASS(PFATAL,
 
 
 

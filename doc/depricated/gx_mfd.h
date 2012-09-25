@@ -18,7 +18,7 @@
  *  http://gustedt.wordpress.com/2011/01/28/linux-futexes-non-blocking-integer-valued-condition-variables/
  * Also, for mac-osx mremap emulation, see:
  *  https://dank.qemfd.net/bugzilla/show_bug.cgi?id=119
- * 
+ *
  * USAGE:
 
 
@@ -49,7 +49,7 @@
  *
  *
  *  MFD_DEPRICATE   = MADV_FREE |\ MADV_REMOVE
- *  
+ *
  * - Header, then, needs to include
  *    - persistence
  *    - (start_freed is always the second page)
@@ -188,7 +188,7 @@
 #define GXMFDW 1
 
 
-static GX_INLINE int _gx_futex(int *f, int op, int val) {
+static inline int _gx_futex(int *f, int op, int val) {
     #ifdef __LINUX__
       return syscall(SYS_futex, f, op, val, (void *)NULL, (int *)NULL, 0);
     #else
@@ -196,7 +196,7 @@ static GX_INLINE int _gx_futex(int *f, int op, int val) {
     #endif
 }
 
-static GX_INLINE int gx_futex_wake(uint64_t *f) {
+static inline int gx_futex_wake(uint64_t *f) {
     #ifdef __LINUX__
       return _gx_futex((int *)f, FUTEX_WAKE, 0xFFFF);
     #else
@@ -204,15 +204,15 @@ static GX_INLINE int gx_futex_wake(uint64_t *f) {
     #endif
 }
 
-static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
+static inline int gx_futex_wait(void *f, int curr_val) {
     register int volatile * const p = (int volatile *)f;
     for(;;) {
         register int v = *p;
         if(v != curr_val) return v;
         #ifdef __LINUX__
-            if(gx_unlikely(_gx_futex(f, FUTEX_WAIT, v) < 0)) {
+            if(rare(_gx_futex(f, FUTEX_WAIT, v) < 0)) {
                 int errn = errno;
-                if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return -1;
+                if(rare(errn != EAGAIN && errn != EINTR)) return -1;
                 errno = 0;
             }
         #endif
@@ -270,11 +270,11 @@ typedef struct gx_mfd {
 gx_pool_init(gx_mfd);
 
 /// Some forward declarations
-static GX_OPTIONAL int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
-static GX_OPTIONAL int _gx_initial_mapping (gx_mfd *mfd);
-static GX_INLINE   int _gx_advise_map      (gx_mfd *mfd);
-static GX_INLINE   int _gx_update_eof      (gx_mfd *mfd);
-static GX_INLINE   int _gx_update_fpos     (gx_mfd *mfd);
+static optional int  gx_mfd_create_w    (gx_mfd *mfd, int pages_at_a_time, const char *path);
+static optional int _gx_initial_mapping (gx_mfd *mfd);
+static inline   int _gx_advise_map      (gx_mfd *mfd);
+static inline   int _gx_update_eof      (gx_mfd *mfd);
+static inline   int _gx_update_fpos     (gx_mfd *mfd);
 
 
 
@@ -285,7 +285,7 @@ static GX_INLINE   int _gx_update_fpos     (gx_mfd *mfd);
  * memory is being sucked up (will help, at the expense of speed & processor
  * resources and slightly more churn earlier on).
  */
-static GX_OPTIONAL int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+static optional int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     #ifdef __LINUX__
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND | O_NOATIME | O_NOCTTY;
     #else
@@ -337,7 +337,7 @@ static int _gx_mfd_readloop(void *vmfd) {
     return 0;
 }
 
-static GX_OPTIONAL int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
+static optional int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     int pipes[2];
     #ifdef __LINUX__
       int h_open_flags = O_RDWR   | O_NONBLOCK | O_NOATIME | O_NOCTTY;
@@ -381,34 +381,34 @@ static int _gx_initial_mapping(gx_mfd *mfd) {
 
     X (fstat(mfd->fd, &filestat) ) X_RAISE(-1);
     mfd->off_eof = fsz = filestat.st_size;
-    mfd->off_eom = gx_in_pages(fsz) + (gx_pagesize * mfd->premap);
+    mfd->off_eom = gx_in_pages(fsz) + (pagesize() * mfd->premap);
     if(mfd->type == GXMFDW) {
         protection |= PROT_WRITE; // Otherwise will stay read-only for performance
-        Xm(mfd->head_map=mmap(NULL,gx_pagesize,
+        Xm(mfd->head_map=mmap(NULL,pagesize(),
                     protection,MAP_SHARED,mfd->fd,0)                       ) {X_FATAL; X_RAISE(-1);}
         X(_gx_update_eof(mfd)                                              ) {X_FATAL; X_RAISE(-1);}
     } else {
-        Xm(mfd->head_map=mmap(NULL,gx_pagesize,
+        Xm(mfd->head_map=mmap(NULL,pagesize(),
                     protection|PROT_WRITE,MAP_SHARED,mfd->fdh,0)           ) {X_FATAL; X_RAISE(-1);}
     }
-    X (madvise(mfd->head_map, gx_pagesize, head_flags)                     ) {X_FATAL; X_RAISE(-1);}
-    X (mlock(mfd->head_map, gx_pagesize)                                   ) {X_FATAL; X_RAISE(-1);}
+    X (madvise(mfd->head_map, pagesize(), head_flags)                     ) {X_FATAL; X_RAISE(-1);}
+    X (mlock(mfd->head_map, pagesize())                                   ) {X_FATAL; X_RAISE(-1);}
     Xm(mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
     X (_gx_advise_map(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
     return fsz;
 }
 
-static GX_INLINE int _gx_advise_map(gx_mfd *mfd) {
+static inline int _gx_advise_map(gx_mfd *mfd) {
     // TODO: mark DONTNEEDs & SEQUENTIALs based on current cursor position
     return 0;
 }
 
-static GX_INLINE int _gx_update_eof(gx_mfd *mfd) {
+static inline int _gx_update_eof(gx_mfd *mfd) {
     // Truncates just within last page to avoid sigbus but not to the very
     // end to avoid intermediate disk flushes (at least on the last page)
     // before it's really ready. Feel free to just ftruncate it to off_eom
     // size if this seems to be causing strangeness.
-    size_t new_pos = mfd->off_eom - gx_pagesize + 2;
+    size_t new_pos = mfd->off_eom - pagesize() + 2;
     if(mfd->off_eof < new_pos) {
         X(ftruncate(mfd->fd, new_pos)) X_RAISE(-1);
         mfd->off_eof = new_pos;
@@ -419,15 +419,15 @@ static GX_INLINE int _gx_update_eof(gx_mfd *mfd) {
 /// Gets the file position cursor (used for normal IO) synced up with the
 /// position indicated by the mfd structure- when off_w or off_r has changed,
 /// etc.
-static GX_INLINE int _gx_update_fpos(gx_mfd *mfd) {
+static inline int _gx_update_fpos(gx_mfd *mfd) {
     size_t used_offset = mfd->type == GXMFDW ? mfd->off_w : mfd->off_r;
     X(lseek(mfd->fd,used_offset+sizeof(gx_mfd_head),SEEK_SET)) X_RAISE(-1);
     return 0;
 }
 
-static GX_INLINE void *mfd_w(gx_mfd *mfd) { return mfd->data + mfd->off_w; }
+static inline void *mfd_w(gx_mfd *mfd) { return mfd->data + mfd->off_w; }
 
-static GX_INLINE int mfd_write(gx_mfd *mfd, const void *buf, size_t len) {
+static inline int mfd_write(gx_mfd *mfd, const void *buf, size_t len) {
     Xn(memcpy(mfd_w(mfd), buf, len)) X_RAISE(-1);
     mfd->off_w += len;
     mfd->head->size = mfd->off_w;

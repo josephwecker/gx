@@ -50,7 +50,7 @@ static int gx_rb_create(gx_rb *rb, ssize_t min_size, int stay_in_ram) {
 #endif
     int     fd;
     void   *addr;
-    int     page_size = gx_pagesize; // Configurable, so discover @ runtime
+    int     page_size = pagesize(); // Configurable, so discover @ runtime
     X (fd=mkstemp(path) )      {X_ERROR; X_RAISE(-1)};
     X (unlink(path)     )      {X_ERROR; X_RAISE(-1)};
     rb->len = gx_fits_in(page_size, min_size) * page_size;
@@ -71,19 +71,19 @@ static int gx_rb_create(gx_rb *rb, ssize_t min_size, int stay_in_ram) {
 }
 
 /// Address for the current write position for directly writing.
-static GX_INLINE void *rb_w(gx_rb *rb) {return rb->addr + rb->w;}
+static inline void *rb_w(gx_rb *rb) {return rb->addr + rb->w;}
 /// Address for the current read position for directly reading.
-static GX_INLINE void *rb_r(gx_rb *rb) {return rb->addr + rb->r;}
+static inline void *rb_r(gx_rb *rb) {return rb->addr + rb->r;}
 
 /// Address for the current write position for directly writing.
-static GX_INLINE uint8_t *rb_uintw(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->w);}
+static inline uint8_t *rb_uintw(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->w);}
 /// Address for the current read position for directly reading.
-static GX_INLINE uint8_t *rb_uintr(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->r);}
+static inline uint8_t *rb_uintr(gx_rb *rb) {return (uint8_t*) (rb->addr + rb->r);}
 
 /// Advance write cursor (after writing directly usually).
-static GX_INLINE void rb_advw (gx_rb *rb, ssize_t len) {rb->w += len;}
+static inline void rb_advw (gx_rb *rb, ssize_t len) {rb->w += len;}
 /// Advance read cursor (after reading directly usually).
-static GX_INLINE void rb_advr (gx_rb *rb, ssize_t len) {
+static inline void rb_advr (gx_rb *rb, ssize_t len) {
     rb->r+=len;
     if(rb->r >= rb->len) {
         rb->r -= rb->len;
@@ -91,45 +91,45 @@ static GX_INLINE void rb_advr (gx_rb *rb, ssize_t len) {
     }
 }
 /// Write into ringbuffer from other buffer and advance write head. Essentially memcpy
-static GX_INLINE ssize_t rb_write (gx_rb *rb, const void *src, ssize_t len) {
+static inline ssize_t rb_write (gx_rb *rb, const void *src, ssize_t len) {
     memcpy(rb_w(rb), src, len);
     rb_advw(rb, len);
     return len;
 }
 
-static GX_INLINE void rb_wbyte(gx_rb *rb, uint8_t data) {
+static inline void rb_wbyte(gx_rb *rb, uint8_t data) {
     ((uint8_t *)rb_w(rb))[0] = data;
     rb_advw(rb, 1);
 }
 
-static GX_INLINE void rb_wbe16(gx_rb *rb, uint16_t data) {
+static inline void rb_wbe16(gx_rb *rb, uint16_t data) {
     rb_wbyte(rb, (data & 0xFF00) >> 8);
     rb_wbyte(rb, (data & 0x00FF)     );
 }
 
-static GX_INLINE void rb_wbe24(gx_rb *rb, uint32_t data) {
+static inline void rb_wbe24(gx_rb *rb, uint32_t data) {
     rb_wbyte(rb, (data & 0x00FF0000U) >> 16);
     rb_wbyte(rb, (data & 0x0000FF00U) >>  8);
     rb_wbyte(rb, (data & 0x000000FFU)      );
 }
 
-static GX_INLINE void rb_wbe32(gx_rb *rb, uint32_t data) {
+static inline void rb_wbe32(gx_rb *rb, uint32_t data) {
     rb_wbyte(rb, (data & 0xFF000000U) >> 24);
     rb_wbyte(rb, (data & 0x00FF0000U) >> 16);
     rb_wbyte(rb, (data & 0x0000FF00U) >>  8);
     rb_wbyte(rb, (data & 0x000000FFU)      );
 }
 
-static GX_INLINE void rb_wse32(gx_rb *rb, uint32_t data) {
-    if(gx_unlikely(gx_is_big_endian())) {
+static inline void rb_wse32(gx_rb *rb, uint32_t data) {
+    if(rare(gx_is_big_endian())) {
         X_LOG_FATAL("Small endian conversion not implemented.");
         return;
     }
     rb_write(rb, &data, 4);
 }
 
-//static GX_INLINE void rb_wbe64(gx_rb *rb, uint64_t data) {
-static GX_INLINE void rb_wbe64(gx_rb *rb, void *dat) {
+//static inline void rb_wbe64(gx_rb *rb, uint64_t data) {
+static inline void rb_wbe64(gx_rb *rb, void *dat) {
     uint64_t data = *((uint64_t *)dat);
     rb_wbyte(rb, (data & 0xFF00000000000000ULL) >> 56);
     rb_wbyte(rb, (data & 0x00FF000000000000ULL) >> 48);
@@ -143,25 +143,25 @@ static GX_INLINE void rb_wbe64(gx_rb *rb, void *dat) {
 
 /// Gives the current write position and pre-advances the write-head however
 /// many bytes you're about to write.
-static GX_INLINE void *rb_write_adv(gx_rb *rb, ssize_t length) {
+static inline void *rb_write_adv(gx_rb *rb, ssize_t length) {
     void *res = rb_w(rb);
     rb_advw(rb, length);
     return res;
 }
 
-static GX_INLINE void *rb_read_adv(gx_rb *rb, ssize_t length) {
+static inline void *rb_read_adv(gx_rb *rb, ssize_t length) {
     void *res = rb_r(rb);
     rb_advr(rb, length);
     return res;
 }
 /// Reset ringbuffer.
-static GX_INLINE void rb_clear(gx_rb *rb) {rb->w = rb->r = 0;}
+static inline void rb_clear(gx_rb *rb) {rb->w = rb->r = 0;}
 /// Number of bytes currently stored in ringbuffer but not read yet.
-static GX_INLINE ssize_t rb_used(gx_rb *rb) {return rb->w - rb->r;}
+static inline ssize_t rb_used(gx_rb *rb) {return rb->w - rb->r;}
 /// Bytes available still for writing
-static GX_INLINE ssize_t rb_available (gx_rb *rb) {return rb->len - rb_used(rb);}
+static inline ssize_t rb_available (gx_rb *rb) {return rb->len - rb_used(rb);}
 /// Free allocated memory for internal structures (and close filehandle).
-static GX_INLINE int rb_free (gx_rb *rb) {
+static inline int rb_free (gx_rb *rb) {
     X (munmap(rb->addr, rb->len << 1)) X_RAISE(-1);
     close(rb->fd);
     return 0;
@@ -207,15 +207,15 @@ typedef struct gx_rb_pool {
     gx_rb_poolseg        *memseg_head;
 } gx_rb_pool;
 
-static GX_INLINE int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in_ram);
+static inline int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in_ram);
 
 /*---------------------------------------------------------------------------*/
-static GX_INLINE gx_rb_pool *gx_rb_pool_new (ssize_t initial_number, ssize_t min_rbsize,
+static inline gx_rb_pool *gx_rb_pool_new (ssize_t initial_number, ssize_t min_rbsize,
                                          ssize_t num_in_ram) {
     gx_rb_pool *res;
     Xn(res=(gx_rb_pool *)malloc(sizeof(gx_rb_pool))      ) X_RAISE(NULL);
     memset(res, 0, sizeof(gx_rb_pool));
-    if(min_rbsize <= 0) min_rbsize = gx_pagesize;
+    if(min_rbsize <= 0) min_rbsize = pagesize();
     res->min_rbsize = min_rbsize;
     X (gx_rb_pool_extend(res, initial_number, num_in_ram)) X_RAISE(NULL);
     return res;
@@ -265,9 +265,9 @@ static int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in
 }
 
 /*---------------------------------------------------------------------------*/
-static GX_INLINE gx_rb *gx_rb_acquire(gx_rb_pool *pool) {
+static inline gx_rb *gx_rb_acquire(gx_rb_pool *pool) {
     gx_rb *res;
-    if(gx_unlikely(!pool->available_head))
+    if(rare(!pool->available_head))
         if(gx_rb_pool_extend(pool, pool->total_items, 0) == -1) return NULL;
     res = pool->available_head;
     pool->available_head = res->next;
@@ -276,7 +276,7 @@ static GX_INLINE gx_rb *gx_rb_acquire(gx_rb_pool *pool) {
 }
 
 /*---------------------------------------------------------------------------*/
-static GX_INLINE void gx_rb_release(gx_rb_pool *pool, gx_rb *entry) {
+static inline void gx_rb_release(gx_rb_pool *pool, gx_rb *entry) {
     entry->next = pool->available_head;
     pool->available_head = entry;
 }

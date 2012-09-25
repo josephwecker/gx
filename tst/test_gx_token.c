@@ -20,8 +20,8 @@ int main(int argc, char **argv) {
     X (gx_node_uid(nuid)) X_ERROR;
     X_LOG_INFO("Returned network UID (pass 2): %s", nuid);
 
-    X_LOG_INFO("CPU timestamp: %llx", GX_CPU_TS);
-    X_LOG_INFO("CPU timestamp: %llx", GX_CPU_TS);
+    X_LOG_INFO("CPU timestamp: %llx", cpu_ts);
+    X_LOG_INFO("CPU timestamp: %llx", cpu_ts);
 
     char     thedata[] = {0x12,0xff,0x31,0x12,0x90,0x05,0x74,0x12,0x75,0x19,0x02,0x12};
     #define  b64_len GX_BASE64_SIZE(sizeof(thedata))

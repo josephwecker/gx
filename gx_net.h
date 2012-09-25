@@ -18,7 +18,7 @@
 #include "./ext/sha2.h"
 
 
-static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {
+static inline int gx_net_tcp_open(const char *host, const char *port) {
     int             ires;
     struct addrinfo hints, *servinfo, *p;
     int             sockfd;
@@ -37,7 +37,7 @@ static GX_INLINE int gx_net_tcp_open(const char *host, const char *port) {
 }
 
 /// @todo: Use gai_strerror combined w/ gx_error when something goes wrong w/ getaddrinfo
-static GX_INLINE int gx_net_tcp_listen(const char *node, const char *port, char *bound_node, size_t bound_node_len) {
+static inline int gx_net_tcp_listen(const char *node, const char *port, char *bound_node, size_t bound_node_len) {
     int              fd      = -1;
     int              bindres = -1;
     int              optval  =  1;
@@ -89,7 +89,7 @@ gx_tcp_listen_err:
     X_RAISE(-1);
 }
 
-static GX_INLINE int gx_net_daemonize(void) {
+static inline int gx_net_daemonize(void) {
     /* TODO: chroot option? */
     /* TODO: it should be possible to make this much lighter with clone. */
     pid_t pid, sid;
@@ -127,8 +127,8 @@ static GX_INLINE int gx_net_daemonize(void) {
 static char _gx_node_uid_memoized[GX_NODE_UID_LEN] = "";
 static int  _gx_node_uid_is_memoized = 0;
 
-static GX_INLINE int gx_node_uid(char *buf) {
-    if(gx_unlikely(!_gx_node_uid_is_memoized)) {
+static inline int gx_node_uid(char *buf) {
+    if(rare(!_gx_node_uid_is_memoized)) {
         char             rawdat[1024];
         size_t           len = 0;
         struct ifaddrs  *ifaddr, *ifa;

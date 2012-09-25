@@ -309,7 +309,7 @@ typedef struct _gx_kv {
     _iov_size val_head_size;
     _iov_base val_data_base;
     _iov_size val_data_size;
-} __packed _gx_kv;
+} packed _gx_kv;
 
 /// gen/build-gx_log_table.rb reads in the standard_keys enum above and uses
 /// the information to declare / define the following:
@@ -329,7 +329,7 @@ typedef struct kv_msg_iov {
     _iov_size  main_head_size;
     _gx_kv     msg_tab[KV_ENTRIES];
     _gx_kv     main_tail;
-} __packed kv_msg_iov;
+} packed kv_msg_iov;
 
 typedef struct gx_logger {
     int            enabled;
@@ -419,7 +419,7 @@ static kv_msg_iov msg_iov = {
     int     _idx   = (KEY);                                                    \
     char   *_val   = (VALUE);                                                  \
     size_t  _vsize = strlen(_val) + 1;                                         \
-    if(_rare(_idx > curr_adhoc_offset)) {                                      \
+    if(rare(_idx > curr_adhoc_offset)) {                                      \
         /* SORRY NOT YET IMPLEMENTED                                    */     \
         /* curr_adhoc_offset ++;                                        */     \
         /* put key-head-base, key-data-base,                            */     \
@@ -438,25 +438,25 @@ static kv_msg_iov msg_iov = {
 
 
 // Forward declarations
-static _inline   void  gx_writev_buf      (char *dst, const struct iovec *iov, int iovcnt);
-static _noinline void _gx_log_inner       (gx_severity severity, char *severity_str,
+static inline   void  gx_writev_buf      (char *dst, const struct iovec *iov, int iovcnt);
+static noinline void _gx_log_inner       (gx_severity severity, char *severity_str,
                                            int vparam_count, va_list *vparams, int argc, ...);
-static _inline   void _gx_log_dispatch    (gx_severity severity, kv_msg_iov *msg);
-static _inline   void _gx_log_update_host ();
-static _inline   void _gx_log_update_pids ();
-static _inline   void _gx_log_update_cpuid();
+static inline   void _gx_log_dispatch    (gx_severity severity, kv_msg_iov *msg);
+static inline   void _gx_log_update_host ();
+static inline   void _gx_log_update_pids ();
+static inline   void _gx_log_update_cpuid();
 
 
-static _inline void _gx_log_update_cpuid() {
+static inline void _gx_log_update_cpuid() {
     /// Waiting for an OS/CPU portable enencumbered fast apic-id finder
 }
 
-static _inline void _gx_log_update_pids() {
+static inline void _gx_log_update_pids() {
     gx_log_set(K_sys_pid,  $S(_gx_log_sysinfo, "%u", getpid ()));
     gx_log_set(K_sys_ppid, $S(_gx_log_sysinfo, "%u", getppid()));
 }
 
-static _inline void _gx_log_update_host() {
+static inline void _gx_log_update_host() {
     /// @todo use sysctl on mac osx for better hostid
     gx_log_set(K_net_host, $S(_gx_log_sysinfo, "0x%08lx", gethostid()));
 }
@@ -470,9 +470,9 @@ static _inline void _gx_log_update_host() {
 #define _VA_ARG_TO_TBL(VALIST) {                                               \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                    \
     char         *_kv_val = va_arg((VALIST), char *);                          \
-    if(_freq(_kv_key < curr_adhoc_offset)) {                                   \
+    if(freq(_kv_key < curr_adhoc_offset)) {                                   \
         KV_SET_VAL (_kv_key, _kv_val);                                         \
-    } else if(_freq(adhoc_idx < KV_ENTRIES)) {                                 \
+    } else if(freq(adhoc_idx < KV_ENTRIES)) {                                 \
         KV_SET_VAL_O(adhoc_idx, _kv_val);                                      \
         if(_gx_log_keystr) KV_SET_KEY(adhoc_idx, _gx_log_keystr(_kv_key));     \
         else               KV_SET_KEY(adhoc_idx, $("custom_%u", _kv_key));     \
@@ -485,7 +485,7 @@ typedef union _ctick {
     struct {
         char     empty_head;
         uint64_t ctick_data;
-    } __packed;
+    } packed;
 } _ctick;
 
 static char ctick_base64[64];
@@ -500,7 +500,7 @@ static inline char *_gx_cpu_ts_str(char *dest, uint64_t ts) {
     return p;
 }
 
-static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
+static noinline void _gx_log_inner(gx_severity severity, char *severity_str,
         int vparam_count, va_list *vparams, int argc, ...)
 {
     va_list argv;
@@ -525,8 +525,8 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
     // Absolute highest precedence
     KV_SET_VAL(K_severity, severity_str);
 
-    if(_freq(msg_iov.msg_tab[K_sys_time].val_data_size <= 3)) {
-        uint64_t curr_tick = GX_CPU_TS;
+    if(freq(msg_iov.msg_tab[K_sys_time].val_data_size <= 3)) {
+        uint64_t curr_tick = cpu_ts;
         if(!_gx_log_last_tick || abs(curr_tick - _gx_log_last_tick) > 250000000) {
             time_t now = time(NULL);
             struct tm now_tm;
@@ -563,29 +563,29 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
     }
     fprintf(stderr, "\n");
 #endif
-    
+
     if(argc > 0) va_end(argv);
 }
 #undef _VA_ARG_TO_TBL
 
 
-static _inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
+static inline void _gx_log_dispatch(gx_severity severity, kv_msg_iov *msg) {
     //ssize_t actual_len = writev(STDERR_FILENO, MSG_IOV_IOV, KV_IOV_COUNT);
     int i;
     for(i = 0; i < GX_NUM_STD_LOGGERS; i ++) {
-        if(_freq(gx_loggers[i].enabled)) {
+        if(freq(gx_loggers[i].enabled)) {
             if(gx_loggers[i].min_severity >= severity) (gx_loggers[i].logger_function)(severity, msg);
         }
     }
 }
 
 /*
-static _inline size_t  gx_writev_buf (char *dst, size_t maxsize, const struct iovec *iov, int iovcnt) {
+static inline size_t  gx_writev_buf (char *dst, size_t maxsize, const struct iovec *iov, int iovcnt) {
     int    i;
     size_t copied;
     for(i = 0; i < iovcnt; i++) {
         size_t len = iovec[i].iov_len;
-        if(_rare(len > (maxsize - copied - 1)) return copied;
+        if(rare(len > (maxsize - copied - 1)) return copied;
     }
 
 }

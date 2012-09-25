@@ -20,7 +20,7 @@
  *   | sock   | pipe   | splice   |
  *   | pipe   | sock   | splice   |
  *   | sock   | sock   | piped splice |
- *   
+ *
  *
  *
  *   src
@@ -40,7 +40,7 @@
  *
  *   - handles EINTR
  *   - when return length<desired, assume EAGAIN / EWOULDBLOCK / not enough source
- *   
+ *
  *   mbuf  -- mmap buffer, i.e., page-aligned etc. ready for vm_splice
  *   mmfd  -- memory-mappable or mmapped fd / file
  *   sock  -- inet or unix-domain socket
@@ -78,32 +78,32 @@
 
 //                                    | Source    | Source offset | Xfr amt   |Destination | Dest. offset  | Consume?   |
 //------------------------------------|-----------|---------------|-----------|------------|---------------|------------|
-static GX_INLINE ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
-static GX_INLINE ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
-static GX_INLINE ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
-static GX_INLINE ssize_t zc_rbuf_mmfd2(gx_rb *rbuf,                 size_t len, int    mmfd,                 int consume);
+static inline ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
+static inline ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
+static inline ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
+static inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf,                 size_t len, int    mmfd,                 int consume);
 
-static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
+static inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
 
-static GX_INLINE ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
+static inline ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
 
-static GX_INLINE ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
+static inline ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
 
-static GX_INLINE ssize_t zc_sock_null (int    sock,                 size_t len                                          );
-static GX_INLINE ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
-static GX_INLINE ssize_t zc_sock_sock (int    in  ,                 size_t len, int    out ,                 int consume);
-static GX_INLINE ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf,                 int consume);
+static inline ssize_t zc_sock_null (int    sock,                 size_t len                                          );
+static inline ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
+static inline ssize_t zc_sock_sock (int    in  ,                 size_t len, int    out ,                 int consume);
+static inline ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf,                 int consume);
 //static ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
 
 /// Just like sendfile, but with a ringbuffer instead of file
-static GX_INLINE ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int sock, int consume) {
+static inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int sock, int consume) {
     ssize_t res = zc_mmfd_sock(rbuf->fd, rbuf->r + src_off, len, sock);
     if(consume) rb_advr(rbuf, len);
     return res;
 }
 
 /// Assume portion of ringbuffer that hasn't been read yet.
-static GX_INLINE ssize_t zc_rbuf_sock(gx_rb *rbuf, int sock, int consume) {
+static inline ssize_t zc_rbuf_sock(gx_rb *rbuf, int sock, int consume) {
     return zc_rbuf_sock2(rbuf, 0, rb_used(rbuf), sock, consume);
 }
 
@@ -116,7 +116,7 @@ static ssize_t zc_mbuf_sock(void *mbuf, size_t src_off, size_t len, int sock) {
 /// AKA sendfile
 /// TODO: header/footer like bsd implementation- esp. if it makes sense for the
 ///       other zero-copy functions.
-static GX_INLINE ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
+static inline ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
   #if defined(__LINUX__)
     int     tries=1;
     ssize_t sent;
@@ -162,13 +162,13 @@ sendagain:
 }
 
 /// Discard len bytes of a ringbuffer
-static GX_INLINE ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
+static inline ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
     rb_advr(rbuf, len);
     if(rbuf->r > rbuf->w) rb_clear(rbuf);
     return len;
 }
 
-static GX_INLINE ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
+static inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
     ssize_t sent;
 do_write:
     Xs(sent = write(mmfd, rb_r(rbuf), len)) {
@@ -183,7 +183,7 @@ do_write:
     return sent;
 }
 
-static GX_INLINE ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
+static inline ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
     return zc_rbuf_mmfd2(rbuf, len, mmfd, 1);
 }
 
@@ -194,7 +194,7 @@ static GX_INLINE ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
 /// is very straightforward- similar to:
 /// http://blog.superpat.com/2010/06/01/zero-copy-in-linux-with-sendfile-and-splice/
 ///
-static GX_INLINE ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
+static inline ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
     int     tries = 0;
     uint8_t tmp_buf[4096];
     size_t  sent = 0, remaining;
@@ -203,7 +203,7 @@ static GX_INLINE ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consu
 
     do {
         remaining = len - sent;
-        Xs(just_sent = recv(sock, tmp_buf, MIN(remaining, 4096), rflags)) {
+        Xs(just_sent = recv(sock, tmp_buf, min(remaining, 4096), rflags)) {
             case EAGAIN: return sent;
             case EINTR:  if(tries++ < 2) continue;
             default:     X_RAISE(-1);
@@ -222,8 +222,8 @@ do_file_write:
 }
 
 #ifdef __LINUX__
-static GX_OPTIONAL int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
-static GX_OPTIONAL int zc_devnull_fd = -1;
+static optional int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
+static optional int zc_devnull_fd = -1;
 #endif
 
 /// Discard len bytes from a socket. Who would have thought it would be so much
@@ -252,8 +252,8 @@ sendagain:
     // TODO: automatically break it down if too big, because we can't use
     //       devnull_off with a pipe- gives "ESPIPE" error
     res = splice(sock, NULL, zc_pipe_in, NULL, len_to_send, SPLICE_F_MOVE);
-    //just_sent = MAX(res, devnull_off);
-    just_sent = MAX(res, 0);
+    //just_sent = max(res, devnull_off);
+    just_sent = max(res, 0);
     total_sent += just_sent;
     if(res == -1) {
         switch(errno) {
@@ -262,7 +262,7 @@ sendagain:
             default: return -1;
         }
     }
-    if(gx_likely(just_sent > 0)) {
+    if(freq(just_sent > 0)) {
         // TODO: make this a _separate_ zc call so it can handle EINTR etc. appropriately.
         X (splice(zc_pipe_out, NULL, zc_devnull_fd, NULL, just_sent, SPLICE_F_MOVE)) {X_ERROR;X_RAISE(-1);}
     }
@@ -279,7 +279,7 @@ sendagain:
 
     do {
         remaining = len - sent;
-        just_sent = recv(sock, devnull_buf, MIN(remaining, 4096), 0);
+        just_sent = recv(sock, devnull_buf, min(remaining, 4096), 0);
         if(just_sent == -1) {
             if(errno == EINTR && tries++ < 3) continue;
             if(errno == EAGAIN) return sent;
@@ -290,7 +290,7 @@ sendagain:
     return sent;
 #endif
 }
-static GX_INLINE ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
+static inline ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
     int     tries = 0;
     uint8_t tmp_buf[4096];
     size_t  sent = 0, remaining;
@@ -299,7 +299,7 @@ static GX_INLINE ssize_t zc_sock_sock (int in, size_t len, int out, int consume)
 
     do {
         remaining = len - sent;
-        Xs(just_sent = recv(in, tmp_buf, MIN(remaining, 4096), rflags)) {
+        Xs(just_sent = recv(in, tmp_buf, min(remaining, 4096), rflags)) {
             case EAGAIN: continue;
             case EINTR:  if(tries++ < 2) continue;
             default:     X_RAISE(-1);
@@ -316,7 +316,7 @@ do_file_write:
     } while(sent < len && (just_sent > 0 || tries));
     return sent;
 }
-static GX_INLINE ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int consume) {
+static inline ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int consume) {
     ssize_t rcvd;
     do {
         Xs(rcvd = recv(sock, rb_w(rbuf), len, 0)) {

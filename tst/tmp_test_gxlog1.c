@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#define PP_NARG(...)  PP_NARG_(DUMMY, ##__VA_ARGS__,PP_RSEQ_N())
-#define PP_NARG_(...) PP_ARG_N(__VA_ARGS__)
-#define PP_ARG_N( \
+#define NARG(...)  _NARG_(DUMMY, ##__VA_ARGS__,_RSEQ_N())
+#define _NARG_(...) _ARG_N(__VA_ARGS__)
+#define _ARG_N( \
           _0, _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
          _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
          _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
@@ -11,7 +11,7 @@
          _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
          _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
          _61,_62,_63,N,...) N
-#define PP_RSEQ_N() \
+#define _RSEQ_N() \
          63,62,61,60,                   \
          59,58,57,56,55,54,53,52,51,50, \
          49,48,47,46,45,44,43,42,41,40, \
@@ -20,7 +20,7 @@
          19,18,17,16,15,14,13,12,11,10, \
          9,8,7,6,5,4,3,2,1,0
 
-#define KV(...) PP_NARG(__VA_ARGS__) KV2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define KV(...) NARG(__VA_ARGS__) KV2(NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define KV2(N,...) KV3(N, ##__VA_ARGS__)
 #define KV3(N,...) KV_ ## N (__VA_ARGS__)
 #define  KV_0()
@@ -58,7 +58,7 @@ static char null_str[] = "";
 
 
 
-//#define FMT(...)    (FMT2(PP_NARG(__VA_ARGS__), ##__VA_ARGS__))
+//#define FMT(...)    (FMT2(NARG(__VA_ARGS__), ##__VA_ARGS__))
 //#define FMT2(N,...) FMT3(N, ##__VA_ARGS__)
 //#define FMT3(N,...) FMT_ ## N (__VA_ARGS__)
 //#define FMT_0()     NULL
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     //blah(hello-there, 3, another-tag, FMT("crazy stuff %s:%d"));
 
     blah(some-tag, SF("first value fjewio fjoiwej foaijwe foifj"), another-tag, SF("(special value: %d)", 18));
-    
+
 
     return 0;
 }

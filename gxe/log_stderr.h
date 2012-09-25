@@ -33,7 +33,7 @@
         terminal-width
         severity
         type
-   
+
 
 
 
@@ -72,12 +72,12 @@ static int log_stderr_256c     = 0;
 
 static int _gx_log_maxwidths[K_END_STANDARD] = {0};
 
-static _inline int is_fd_open(int fd)
+static inline int is_fd_open(int fd)
 {
     return fcntl(fd, F_GETFL) != 1 || errno != EBADF;
 }
 
-static _inline int check_stderr()
+static inline int check_stderr()
 {
     log_stderr_verified = 1;
     // Verify that stderr is open and see if it is a tty or not. e.g., setup
@@ -168,7 +168,7 @@ static char *sev_highlight[] = {C0, C1, C2, C3, C4, C5, C6, C7, C8, C9};
 static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 {
     ssize_t len, len2, pad, i;
-    if(_rare(!log_stderr_verified) && check_stderr()) return;
+    if(rare(!log_stderr_verified) && check_stderr()) return;
     memset(out_iov, 0, sizeof(out_iov));
     iov_out_count = 0;
 
@@ -186,7 +186,7 @@ static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
     sep    ();
 
     // Groupings
-    if(_rare(ISSET(K_err_group))) {
+    if(rare(ISSET(K_err_group))) {
         scatc(C_D "[" C_N ); scats(DT(K_err_group)); scatc(C_D ":" C_N);
         scats(DT(K_err_depth)); scatc(C_D "] " C_N);
     }
@@ -202,7 +202,7 @@ static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
     scatsd (K_msg);
     scat   ("\n",1);
 
-    
+
     //fprintf(stderr, "OK, got this far. %d\n", iov_out_count);
     writev(STDERR_FILENO, out_iov, iov_out_count);
 }

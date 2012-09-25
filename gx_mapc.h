@@ -78,12 +78,12 @@ typedef struct mapc {
     char             type;           ///< Reader or writer
     char             is_volatile;    ///< Used to record whether or not the file is RAM-based
 
-} __packed mapc;
+} packed mapc;
 
 gx_pool_init(mapc);
 
 
-static GX_OPTIONAL mapc_open(mapc *mm, const char *path, int flags) {
+static optional mapc_open(mapc *mm, const char *path, int flags) {
 
 }
 

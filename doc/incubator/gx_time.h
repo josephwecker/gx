@@ -40,7 +40,7 @@
 
 
 typedef struct gx_datetime {
-    
+
 
 } gx_datetime;
 

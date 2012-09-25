@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
     X (parent = fork()) ERR;
     if(parent) {
         int wake_res;
-        Xm(fut_write = mmap(NULL, gx_pagesize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
-        X (mlock(fut_write, gx_pagesize)) ERR;
+        Xm(fut_write = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
+        X (mlock(fut_write, pagesize())) ERR;
         sleep(1);
         printf("Parent: Changing data from 0 to 2\n");
         ((int *)fut_write)[0] = 2;
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
         printf("Parent: Done, got %d from wake\n", wake_res);
     } else { // Child
         int res;
-        Xm(fut_read  = mmap(NULL, gx_pagesize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
-        X (mlock(fut_read,  gx_pagesize)) ERR;
+        Xm(fut_read  = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
+        X (mlock(fut_read,  pagesize())) ERR;
         X (res = gx_futex_wait(fut_read, 0)) ERR;
         printf("Child: Done waiting- got %d\n", res);
     }

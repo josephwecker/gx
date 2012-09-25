@@ -169,27 +169,27 @@
 #define XDBG X_LOG_DEBUG(NULL, "-- XDBG position reached --")
 
 /// For system errors- detects -1 and uses errno
-#define X(expr) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?        \
+#define X(expr) if( ({errno=0; (rare((int)(expr) == -1)) ?        \
     ({_GX_X(NULL,errno,0,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// Checks for null values
-#define Xn(expr) if( ({errno=0; (gx_unlikely((void *)(expr) == NULL)) ?  \
+#define Xn(expr) if( ({errno=0; (rare((void *)(expr) == NULL)) ?  \
     ({_GX_X(NULL,errno,1,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// Check for mmap errors
-#define Xm(expr) if( ({errno=0; (gx_unlikely((expr) == MAP_FAILED)) ?    \
+#define Xm(expr) if( ({errno=0; (rare((expr) == MAP_FAILED)) ?    \
     ({_GX_X(NULL,errno,2,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// For functions that return zero on success, and errno on error
-#define Xz(expr) if( ({int _gx_tmp_errno=0; errno=0; (gx_unlikely((_gx_tmp_errno = (int)(expr)) != 0)) ? \
+#define Xz(expr) if( ({int _gx_tmp_errno=0; errno=0; (rare((_gx_tmp_errno = (int)(expr)) != 0)) ? \
     ({errno=_gx_tmp_errno; _GX_X(NULL,_gx_tmp_errno,2,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// For functions that return zero on error and set errno
-#define Xnz(expr) if( ({errno=0; (gx_unlikely((expr) == 0)) ?  \
+#define Xnz(expr) if( ({errno=0; (rare((expr) == 0)) ?  \
     ({_GX_X(NULL,errno,1,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;}))
 
 /// Checks for system errors, but drops you into a switch statement
-#define Xs(expr) if( ({errno=0; (gx_unlikely((int)(expr) == -1)) ?       \
+#define Xs(expr) if( ({errno=0; (rare((int)(expr) == -1)) ?       \
     ({_GX_X(NULL,errno,0,NULL,__FILE__,__STR(__LINE__),__FUNCTION__,#expr);1;}):0;})) \
     switch(gx_error_recent_reports[gx_error_curr_report].sys_errno)
 
@@ -224,7 +224,7 @@
 #define X_GOTO(LBL) goto LBL
 
 //-----------------------------------------------------------------------------
- 
+
 #define GX_PANIC         0
 #define GX_FATAL         1
 #define GX_ERROR         2
@@ -250,66 +250,66 @@ extern int             gx_error_loglevel;
 // Generate these with build-ename.sh
 #if defined(__OSX__)
     static char *_gx_ename[] = {
-        /*   0 */ "", 
-        /*   1 */ "EPERM  ", "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 
-        /*   7 */ "E2BIG  ", "ENOEXEC", "EBADF  ", "ECHILD ", "EDEADLK", 
-        /*  12 */ "ENOMEM ", "EACCES ", "EFAULT ", "ENOTBLK", "EBUSY  ", 
-        /*  17 */ "EEXIST ", "EXDEV  ", "ENODEV ", "ENOTDIR", "EISDIR ", 
-        /*  22 */ "EINVAL ", "ENFILE ", "EMFILE ", "ENOTTY ", "ETXTBSY", 
-        /*  27 */ "EFBIG  ", "ENOSPC ", "ESPIPE ", "EROFS  ", "EMLINK ", "EPIPE  ", 
-        /*  33 */ "EDOM   ", "ERANGE ", "EAGAIN ", "EINPROGRESS", 
-        /*  37 */ "EALREADY", "ENOTSOCK", "EDESTADDRREQ", "EMSGSIZE", 
-        /*  41 */ "EPROTOTYPE", "ENOPROTOOPT", "EPROTONOSUPPORT", 
-        /*  44 */ "ESOCKTNOSUPPORT", "ENOTSUP", "EPFNOSUPPORT", 
-        /*  47 */ "EAFNOSUPPORT", "EADDRINUSE", "EADDRNOTAVAIL", 
-        /*  50 */ "ENETDOWN", "ENETUNREACH", "ENETRESET", "ECONNABORTED", 
-        /*  54 */ "ECONNRESET", "ENOBUFS", "EISCONN", "ENOTCONN", 
-        /*  58 */ "ESHUTDOWN", "ETOOMANYREFS", "ETIMEDOUT", "ECONNREFUSED", 
-        /*  62 */ "ELOOP  ", "ENAMETOOLONG", "EHOSTDOWN", "EHOSTUNREACH", 
-        /*  66 */ "ENOTEMPTY", "EPROCLIM", "EUSERS ", "EDQUOT ", "ESTALE ", 
-        /*  71 */ "EREMOTE", "EBADRPC", "ERPCMISMATCH", "EPROGUNAVAIL", 
-        /*  75 */ "EPROGMISMATCH", "EPROCUNAVAIL", "ENOLCK ", "ENOSYS ", 
-        /*  79 */ "EFTYPE ", "EAUTH  ", "ENEEDAUTH", "EPWROFF", "EDEVERR", 
-        /*  84 */ "EOVERFLOW", "EBADEXEC", "EBADARCH", "ESHLIBVERS", 
-        /*  88 */ "EBADMACHO", "ECANCELED", "EIDRM  ", "ENOMSG ", "EILSEQ ", 
-        /*  93 */ "ENOATTR", "EBADMSG", "EMULTIHOP", "ENODATA", "ENOLINK", 
-        /*  98 */ "ENOSR  ", "ENOSTR ", "EPROTO ", "ETIME  ", "EOPNOTSUPP", 
+        /*   0 */ "",
+        /*   1 */ "EPERM  ", "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ",
+        /*   7 */ "E2BIG  ", "ENOEXEC", "EBADF  ", "ECHILD ", "EDEADLK",
+        /*  12 */ "ENOMEM ", "EACCES ", "EFAULT ", "ENOTBLK", "EBUSY  ",
+        /*  17 */ "EEXIST ", "EXDEV  ", "ENODEV ", "ENOTDIR", "EISDIR ",
+        /*  22 */ "EINVAL ", "ENFILE ", "EMFILE ", "ENOTTY ", "ETXTBSY",
+        /*  27 */ "EFBIG  ", "ENOSPC ", "ESPIPE ", "EROFS  ", "EMLINK ", "EPIPE  ",
+        /*  33 */ "EDOM   ", "ERANGE ", "EAGAIN ", "EINPROGRESS",
+        /*  37 */ "EALREADY", "ENOTSOCK", "EDESTADDRREQ", "EMSGSIZE",
+        /*  41 */ "EPROTOTYPE", "ENOPROTOOPT", "EPROTONOSUPPORT",
+        /*  44 */ "ESOCKTNOSUPPORT", "ENOTSUP", "EPFNOSUPPORT",
+        /*  47 */ "EAFNOSUPPORT", "EADDRINUSE", "EADDRNOTAVAIL",
+        /*  50 */ "ENETDOWN", "ENETUNREACH", "ENETRESET", "ECONNABORTED",
+        /*  54 */ "ECONNRESET", "ENOBUFS", "EISCONN", "ENOTCONN",
+        /*  58 */ "ESHUTDOWN", "ETOOMANYREFS", "ETIMEDOUT", "ECONNREFUSED",
+        /*  62 */ "ELOOP  ", "ENAMETOOLONG", "EHOSTDOWN", "EHOSTUNREACH",
+        /*  66 */ "ENOTEMPTY", "EPROCLIM", "EUSERS ", "EDQUOT ", "ESTALE ",
+        /*  71 */ "EREMOTE", "EBADRPC", "ERPCMISMATCH", "EPROGUNAVAIL",
+        /*  75 */ "EPROGMISMATCH", "EPROCUNAVAIL", "ENOLCK ", "ENOSYS ",
+        /*  79 */ "EFTYPE ", "EAUTH  ", "ENEEDAUTH", "EPWROFF", "EDEVERR",
+        /*  84 */ "EOVERFLOW", "EBADEXEC", "EBADARCH", "ESHLIBVERS",
+        /*  88 */ "EBADMACHO", "ECANCELED", "EIDRM  ", "ENOMSG ", "EILSEQ ",
+        /*  93 */ "ENOATTR", "EBADMSG", "EMULTIHOP", "ENODATA", "ENOLINK",
+        /*  98 */ "ENOSR  ", "ENOSTR ", "EPROTO ", "ETIME  ", "EOPNOTSUPP",
         /* 103 */ "ELAST  ", "ENOPOLICY"
     };
 
   #define MAX_ENAME 103
 #elif defined(__LINUX__)
     static char *_gx_ename[] = {
-        /*   0 */ "", 
-        /*   1 */ "EPERM  ",   "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 
-        /*   7 */ "E2BIG  ",   "ENOEXEC", "EBADF  ", "ECHILD ", 
-        /*  11 */ "EAGAIN ",   "ENOMEM ", "EACCES ", "EFAULT ", 
-        /*  15 */ "ENOTBLK",   "EBUSY  ", "EEXIST ", "EXDEV  ", "ENODEV ", 
-        /*  20 */ "ENOTDIR",   "EISDIR ", "EINVAL ", "ENFILE ", "EMFILE ", 
-        /*  25 */ "ENOTTY ",   "ETXTBSY", "EFBIG  ", "ENOSPC ", "ESPIPE ", 
-        /*  30 */ "EROFS  ",   "EMLINK ", "EPIPE  ", "EDOM   ", "ERANGE ", 
-        /*  35 */ "EDEADLK",   "ENAMETOOLONG",       "ENOLCK ", "ENOSYS ", 
-        /*  39 */ "ENOTEMPTY", "ELOOP  ", "",        "ENOMSG ", "EIDRM  ", "ECHRNG ", 
-        /*  45 */ "EL2NSYNC",  "EL3HLT ", "EL3RST ", "ELNRNG ", "EUNATCH", 
-        /*  50 */ "ENOCSI ",   "EL2HLT ", "EBADE  ", "EBADR  ", "EXFULL ", "ENOANO ", 
-        /*  56 */ "EBADRQC",   "EBADSLT", "", "EBFONT", "ENOSTR", "ENODATA", 
-        /*  62 */ "ETIME  ",   "ENOSR  ", "ENONET ", "ENOPKG ", "EREMOTE", 
-        /*  67 */ "ENOLINK",   "EADV   ", "ESRMNT ", "ECOMM  ", "EPROTO ", 
-        /*  72 */ "EMULTIHOP", "EDOTDOT", "EBADMSG", "EOVERFLOW", 
-        /*  76 */ "ENOTUNIQ",  "EBADFD ", "EREMCHG", "ELIBACC", "ELIBBAD", 
-        /*  81 */ "ELIBSCN",   "ELIBMAX", "ELIBEXEC","EILSEQ ", "ERESTART", 
-        /*  86 */ "ESTRPIPE",  "EUSERS ", "ENOTSOCK", "EDESTADDRREQ", 
-        /*  90 */ "EMSGSIZE",  "EPROTOTYPE", "ENOPROTOOPT", 
-        /*  93 */ "EPROTONOSUPPORT", "ESOCKTNOSUPPORT", 
-        /*  95 */ "ENOTSUP",   "EPFNOSUPPORT", "EAFNOSUPPORT", 
-        /*  98 */ "EADDRINUSE","EADDRNOTAVAIL", "ENETDOWN", "ENETUNREACH", 
-        /* 102 */ "ENETRESET", "ECONNABORTED", "ECONNRESET", "ENOBUFS", 
-        /* 106 */ "EISCONN",   "ENOTCONN", "ESHUTDOWN", "ETOOMANYREFS", 
-        /* 110 */ "ETIMEDOUT", "ECONNREFUSED", "EHOSTDOWN", "EHOSTUNREACH", 
-        /* 114 */ "EALREADY",  "EINPROGRESS", "ESTALE ", "EUCLEAN", 
-        /* 118 */ "ENOTNAM",   "ENAVAIL", "EISNAM ", "EREMOTEIO", "EDQUOT ", 
-        /* 123 */ "ENOMEDIUM", "EMEDIUMTYPE", "ECANCELED", "ENOKEY ", 
-        /* 127 */ "EKEYEXPIRED","EKEYREVOKED", "EKEYREJECTED", 
+        /*   0 */ "",
+        /*   1 */ "EPERM  ",   "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ",
+        /*   7 */ "E2BIG  ",   "ENOEXEC", "EBADF  ", "ECHILD ",
+        /*  11 */ "EAGAIN ",   "ENOMEM ", "EACCES ", "EFAULT ",
+        /*  15 */ "ENOTBLK",   "EBUSY  ", "EEXIST ", "EXDEV  ", "ENODEV ",
+        /*  20 */ "ENOTDIR",   "EISDIR ", "EINVAL ", "ENFILE ", "EMFILE ",
+        /*  25 */ "ENOTTY ",   "ETXTBSY", "EFBIG  ", "ENOSPC ", "ESPIPE ",
+        /*  30 */ "EROFS  ",   "EMLINK ", "EPIPE  ", "EDOM   ", "ERANGE ",
+        /*  35 */ "EDEADLK",   "ENAMETOOLONG",       "ENOLCK ", "ENOSYS ",
+        /*  39 */ "ENOTEMPTY", "ELOOP  ", "",        "ENOMSG ", "EIDRM  ", "ECHRNG ",
+        /*  45 */ "EL2NSYNC",  "EL3HLT ", "EL3RST ", "ELNRNG ", "EUNATCH",
+        /*  50 */ "ENOCSI ",   "EL2HLT ", "EBADE  ", "EBADR  ", "EXFULL ", "ENOANO ",
+        /*  56 */ "EBADRQC",   "EBADSLT", "", "EBFONT", "ENOSTR", "ENODATA",
+        /*  62 */ "ETIME  ",   "ENOSR  ", "ENONET ", "ENOPKG ", "EREMOTE",
+        /*  67 */ "ENOLINK",   "EADV   ", "ESRMNT ", "ECOMM  ", "EPROTO ",
+        /*  72 */ "EMULTIHOP", "EDOTDOT", "EBADMSG", "EOVERFLOW",
+        /*  76 */ "ENOTUNIQ",  "EBADFD ", "EREMCHG", "ELIBACC", "ELIBBAD",
+        /*  81 */ "ELIBSCN",   "ELIBMAX", "ELIBEXEC","EILSEQ ", "ERESTART",
+        /*  86 */ "ESTRPIPE",  "EUSERS ", "ENOTSOCK", "EDESTADDRREQ",
+        /*  90 */ "EMSGSIZE",  "EPROTOTYPE", "ENOPROTOOPT",
+        /*  93 */ "EPROTONOSUPPORT", "ESOCKTNOSUPPORT",
+        /*  95 */ "ENOTSUP",   "EPFNOSUPPORT", "EAFNOSUPPORT",
+        /*  98 */ "EADDRINUSE","EADDRNOTAVAIL", "ENETDOWN", "ENETUNREACH",
+        /* 102 */ "ENETRESET", "ECONNABORTED", "ECONNRESET", "ENOBUFS",
+        /* 106 */ "EISCONN",   "ENOTCONN", "ESHUTDOWN", "ETOOMANYREFS",
+        /* 110 */ "ETIMEDOUT", "ECONNREFUSED", "EHOSTDOWN", "EHOSTUNREACH",
+        /* 114 */ "EALREADY",  "EINPROGRESS", "ESTALE ", "EUCLEAN",
+        /* 118 */ "ENOTNAM",   "ENAVAIL", "EISNAM ", "EREMOTEIO", "EDQUOT ",
+        /* 123 */ "ENOMEDIUM", "EMEDIUMTYPE", "ECANCELED", "ENOKEY ",
+        /* 127 */ "EKEYEXPIRED","EKEYREVOKED", "EKEYREJECTED",
         /* 130 */ "EOWNERDEAD","ENOTRECOVERABLE", "ERFKILL"
     };
 
@@ -381,14 +381,14 @@ static void _GX_X(
     va_end(ap);
 }
 
-static GX_INLINE void _gx_get_basename(const char *fn, char *basename) {
+static inline void _gx_get_basename(const char *fn, char *basename) {
     memset(basename, 0, 20);
     char *last = strrchr(fn, '/');
     if(last == NULL) strncpy(basename, fn, 19);
     else strncpy(basename, last+1, 19);
 }
 
-static GX_INLINE void _gx_get_expr_part(char *expr, char *exprpart) {
+static inline void _gx_get_expr_part(char *expr, char *exprpart) {
     memset(exprpart, 0, 20);
     char *start_at = strrchr(expr, '=');
     if(start_at == NULL) start_at = expr;
@@ -397,7 +397,7 @@ static GX_INLINE void _gx_get_expr_part(char *expr, char *exprpart) {
     char *fin_at = strchr(start_at, '(');
     if(fin_at == NULL) strncpy(exprpart, start_at, 19);
     else {
-        int len = MIN(19, fin_at - start_at);
+        int len = min(19, fin_at - start_at);
         strncpy(exprpart, start_at, len);
     }
 }
@@ -407,7 +407,7 @@ static GX_INLINE void _gx_get_expr_part(char *expr, char *exprpart) {
 #define LOG_JSON  1
 #define LOG_STDOUT 1
 #define LOG_STDERR 2
-#ifndef LOG_FORMAT 
+#ifndef LOG_FORMAT
     #define LOG_FORMAT LOG_PIPES
 #endif
 
@@ -432,27 +432,27 @@ typedef struct context {
 } context;
 
 // >> log(ctx, level, msg("hello %s", "jeff"), "key", "value")
-// >> inner_log(ctx, level, 
-//      PP_NARG("key", "value") + 6, 
+// >> inner_log(ctx, level,
+//      NARG("key", "value") + 6,
 //      msg("hello %s", "jeff"), "key", "value", "line", line, "function", function, "file", file)
-// >> inner_log(ctx, level, 
-//      PP_NARG("key", "value") + 6, 
+// >> inner_log(ctx, level,
+//      NARG("key", "value") + 6,
 //      "hello %s", "jeff", "key", "value", "line", line, "function", function, "file", file)
-// >> inner_log(ctx, level, 
-//      8, 
+// >> inner_log(ctx, level,
+//      8,
 //      "hello %s", "jeff", "key", "value", "line", line, "function", function, "file", file)
 
 
 #define LOG(ctx, level, message, ...)                                        \
     log_inner(ctx, level,                                                    \
-        PP_NARG(__VA_ARGS__) + 8,                                            \
+        NARG(__VA_ARGS__) + 8,                                            \
         message,                                                             \
         __VA_ARGS__,                                                         \
         "levl", _gx_eloglvl[level],                                          \
         "file", __FILE__,                                                    \
         "func", __FUNCTION__,                                                \
         "line", __STR(__LINE__)                                              \
-    )                                                      
+    )
 
 #define MSG(str, ...) str, __VA_ARGS__
 
@@ -519,7 +519,7 @@ write_done:
 }
 
 static void _GX_ERROR_LOG(int severity) {
-    if(gx_unlikely(gx_error_loglevel >= severity)) {
+    if(rare(gx_error_loglevel >= severity)) {
         gx_error_report *rp = &gx_error_recent_reports[gx_error_curr_report];
         char basename[20];
         char expr_part[20];
@@ -544,16 +544,16 @@ static void _GX_ERROR_LOG(int severity) {
         strncat(rp->function, expr_part, 255 - len_fun - 2);
 
         if (rp->sys_errno != 0) {
-            log_inner(NULL, severity, 10, sys_errormsg, 
+            log_inner(NULL, severity, 10, sys_errormsg,
                 "levl", _gx_eloglvl[severity],
-                "name", _gx_ename[rp->sys_errno], 
-                "file", basename, 
+                "name", _gx_ename[rp->sys_errno],
+                "file", basename,
                 "line", rp->linenum,
                 "func", rp->function);
         } else {
-            log_inner(NULL, severity, 8, sys_errormsg, 
+            log_inner(NULL, severity, 8, sys_errormsg,
                 "levl", _gx_eloglvl[severity],
-                "file", basename, 
+                "file", basename,
                 "line", rp->linenum,
                 "func", rp->function);
         }

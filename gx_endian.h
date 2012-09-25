@@ -97,7 +97,7 @@
   const uint64_t NAME ## __tsoh=0x ## B8 ## B7 ## B6 ## B5 ## B4 ## B3 ## B2 ## B1
 
 #define gx_econst64_use(NAME) \
-  (gx_unlikely(gx_is_big_endian()) ? NAME ## __host : NAME ## __tsoh)
+  (rare(gx_is_big_endian()) ? NAME ## __host : NAME ## __tsoh)
 
 
 /// TODO: Use as Fallbacks for when things are not determined above at
@@ -107,21 +107,21 @@
 /// below that depend only on this conditional effectively have the dead branch
 /// eliminated.
 ///
-static GX_INLINE int gx_is_big_endian(void) {
+static inline int gx_is_big_endian(void) {
     union {
         uint32_t i;
         char c[4];
     } check_int = {(uint32_t)0x01020304};
-    return check_int.c[0] == 1; 
+    return check_int.c[0] == 1;
 }
 
 
-static GX_INLINE uint16_t big_endian16(uint16_t x) {
+static inline uint16_t big_endian16(uint16_t x) {
     if(gx_is_big_endian()) return x;
     return ((x & 0x00FFU) << 8) | ((x & 0xFF00U) >> 8);
 }
 
-static GX_INLINE uint32_t big_endian32(uint32_t x) {
+static inline uint32_t big_endian32(uint32_t x) {
     if(gx_is_big_endian()) return x;
     return ((x & 0x000000FFU) << 24) |
            ((x & 0x0000FF00U) <<  8) |
@@ -129,7 +129,7 @@ static GX_INLINE uint32_t big_endian32(uint32_t x) {
            ((x & 0xFF000000U) >> 24) ;
 }
 
-static GX_INLINE uint64_t big_endian64(uint64_t x) {
+static inline uint64_t big_endian64(uint64_t x) {
     if(gx_is_big_endian()) return x;
     return ((x & 0x00000000000000FFULL) << 56) |
            ((x & 0x000000000000FF00ULL) << 40) |

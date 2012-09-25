@@ -31,7 +31,7 @@
 
 
 /*
-// Metainfo: stuff to be read from or written to 
+// Metainfo: stuff to be read from or written to
 typedef struct gx_pdv_meta {
     int          data_type;   ///< READ/WRITE: For reference only, really
     size_t       size;        ///< READ/WRITE: Size in data_types. i.e., number of values.

@@ -32,7 +32,7 @@
  *                      exploited.
  *
  * ### Some additional definitions ###
- * 
+ *
  * NONCE   (12B| 96b) = Sent in the clear- must never be reused for same key.
  * TAG     (16B|128b) = Part of AES output. Something roughly equiv to an HMAC
  *                      that authenticates the token, when possible embedded
@@ -42,7 +42,7 @@
  *                      the NONCE).
  *
  * ### Composition ###
- * 
+ *
  * PAYLOAD, KEY, VERSION  = [given]
  *
  * NONCE                 := cat(4 byte host-ip4-address,
@@ -73,7 +73,7 @@
  *
  * Guaranteeing nonce uniqueness
  * ------------------------------
- * 
+ *
  * Above we're simply using the host IP address and ticks from the monotonic
  * clock. This leaves many possibilities for accidental nonce reuse, which
  * under most encryption schemes destroys the security. This explains some
@@ -115,7 +115,7 @@
  * In this scheme:
  *     - PART3 protects against accidental repeat by different machines that
  *       are synced together in time and using the same key etc. (it can
- *       be improved, but combined with the other stuff it would be highly 
+ *       be improved, but combined with the other stuff it would be highly
  *     - PART1 protects against accidental repeat due to rolling back the
  *       clock or due to processes on different CPUs getting the same time.
  *     - PART2 protects against accidental repeat due to virtual-machine
@@ -193,7 +193,7 @@ typedef struct gx_nonce_machine {
 } gx_nonce_machine;
 
 
-static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
+static int _gx_misc_primes[] optional = {11, 13, 17, 19, 23, 29, 31, 37, 41,
     43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113,
     127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197,
     199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
@@ -202,11 +202,11 @@ static int _gx_misc_primes[] GX_OPTIONAL = {11, 13, 17, 19, 23, 29, 31, 37, 41,
 //-----------------------------------------------------------------------------
 /// Forward Declarations
 static           int      gx_nonce_init(gx_nonce_machine *nm, int hardened);
-static GX_INLINE int      gx_nonce_next(gx_nonce_machine *nm, char *buf);
+static inline int      gx_nonce_next(gx_nonce_machine *nm, char *buf);
 
 static           int      gx_dev_random(void *dest, size_t len, int is_strict);
-static GX_INLINE ssize_t  gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
-static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
+static inline ssize_t  gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
+static inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
 
 
 //-----------------------------------------------------------------------------
@@ -221,7 +221,7 @@ static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
   #else
     X (nm->ident.tid     = syscall(SYS_thread_selfid)) X_RAISE(-1);
   #endif
-    nm->ident.ts1        = GX_CPU_TS;
+    nm->ident.ts1        = cpu_ts;
     nm->nonce.rand2[0]   = nm->rand_pool[0];
     nm->nonce.rand2[1]   = nm->rand_pool[1];
     nm->nonce.rand2[2]   = nm->rand_pool[2];
@@ -234,7 +234,7 @@ static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
 
 //-----------------------------------------------------------------------------
 /// Defaulting to 12 byte nonces at the moment.
-static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
+static inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
     _gx_nonce res;
 
     // Double checking for tid changes doesn't seem to add much overhead at
@@ -249,12 +249,12 @@ static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
   #else
     X (new_tid = syscall(SYS_thread_selfid)) X_RAISE(-1);
   #endif
-    if(gx_unlikely(new_tid != nm->ident.tid)) {
+    if(rare(new_tid != nm->ident.tid)) {
         nm->ident.tid = new_tid;
         nm->nonce.ident_hash = gx_hash64((void *)&(nm->ident), sizeof(nm->ident), (uint64_t)nm->rand_pool[4]);
     }
 
-    if(gx_unlikely(nm->rand_pool_pos >= _GX_RPSIZE)) {
+    if(rare(nm->rand_pool_pos >= _GX_RPSIZE)) {
         X (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0)) X_RAISE(-1);
         nm->rand_pool_pos = 0;
     }
@@ -280,17 +280,17 @@ static int _gx_devurandom_fd = -1;
 static int gx_dev_random(void *dest, size_t len, int is_strict) {
     int     tries = 0;
     ssize_t rcv_count;
-    if(gx_unlikely(len == 0 || dest == NULL)) {
+    if(rare(len == 0 || dest == NULL)) {
         errno = EINVAL;
         return -1;
     }
 init:
-    if(gx_unlikely(_gx_devrandom_fd == -1))
+    if(rare(_gx_devrandom_fd == -1))
         Xs( _gx_devrandom_fd = open("/dev/random", O_RDONLY | O_NONBLOCK)) {
             case EINTR: goto init;
             default:    X_RAISE(-1);
         }
-    if(gx_unlikely(!is_strict && (_gx_devurandom_fd == -1)))
+    if(rare(!is_strict && (_gx_devurandom_fd == -1)))
         Xs( _gx_devurandom_fd = open("/dev/urandom", O_RDONLY)) {
             case EINTR: goto init;
             default:    X_RAISE(-1);
@@ -335,14 +335,14 @@ exec:
  * GX_BASE64_SIZE(sizeof(input_data));
  *
  */
-//static const GX_OPTIONAL char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-static const GX_OPTIONAL char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
+//static const optional char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const optional char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
 #define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
-//static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
-static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+//static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
     const char *inp  = (const char *)indata;
     char       *outp = outdata;
-    if(gx_unlikely(insize % 3 != 0)) {errno = EINVAL; return -1;}
+    if(rare(insize % 3 != 0)) {errno = EINVAL; return -1;}
     while(inp < (const char *)(indata + insize)) {
         outp[0] = _gx_t64[((inp[0] & 0xFC) >> 2) ];
         outp[1] = _gx_t64[((inp[0] & 0x03) << 4) | ((inp[1] & 0xF0) >> 4)];
@@ -360,7 +360,7 @@ static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insiz
 /// Very fast 64 bit hash of misc data with good properties. Only works on 64-bit machines.
 /// Based on CrapWow64 - http://www.team5150.com/~andrew/noncryptohashzoo/CrapWow64.html
 /// Unknown license. It has close to ideal lack of collisions and speed.
-static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
+static inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
     const uint64_t m = 0x95b47aa3355ba1a1, n = 0x8a970be7488fda55;
     uint64_t hash;
     // 3 = m, 4 = n

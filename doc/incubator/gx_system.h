@@ -111,8 +111,8 @@ typedef struct _gx_proc_stat_sysinfo {
 
 
 
-static GX_OPTIONAL _gx_proc_stat_sysinfo _gx_current_sysinfo;
-static GX_OPTIONAL int         _gx_sys_dirty          =  1;
+static optional _gx_proc_stat_sysinfo _gx_current_sysinfo;
+static optional int         _gx_sys_dirty          =  1;
 
 #ifdef __LINUX__
   #define gp(FLD) _gx_current_sysinfo.FLD
@@ -157,16 +157,16 @@ static GX_OPTIONAL int         _gx_sys_dirty          =  1;
 #endif
 
 /// Mark current information as dirty so that it fetches the latest.
-static GX_INLINE void gx_sys_refresh() {_gx_sys_dirty = 1;}
+static inline void gx_sys_refresh() {_gx_sys_dirty = 1;}
 
-static GX_INLINE long long int gx_sys_ram_pages_in_use() {
+static inline long long int gx_sys_ram_pages_in_use() {
     if(_gx_sys_dirty) _gx_sys_refresh_meminfo();
     return _gx_current_sysinfo.mem_rss_pages;
 }
 
-static GX_INLINE long long int gx_sys_ram_bytes_in_use() {
+static inline long long int gx_sys_ram_bytes_in_use() {
     if(_gx_sys_dirty) _gx_sys_refresh_meminfo();
-    return gx_sys_ram_pages_in_use() * gx_pagesize;
+    return gx_sys_ram_pages_in_use() * pagesize();
 }
 
 
@@ -179,7 +179,7 @@ static GX_INLINE long long int gx_sys_ram_bytes_in_use() {
 #include <linux/if.h>
 #include <linux/ethtool.h>
 
-static GX_INLINE int gx_nic_capacity_BitsPerSec() {
+static inline int gx_nic_capacity_BitsPerSec() {
     int sock;
     struct ifreq ifr;
     struct ethtool_cmd edata;

@@ -16,11 +16,11 @@ static long gx_cpu_count() {
 static long gx_cpu_count() {
     long    cpu_count;
     int     mib[4];
-    size_t  len = sizeof(cpu_count); 
+    size_t  len = sizeof(cpu_count);
 
     if(_gx_cpu_count) return _gx_cpu_count;
 
-    mib[0] = CTL_HW;       // Set the mib for hw.ncpu 
+    mib[0] = CTL_HW;       // Set the mib for hw.ncpu
     mib[1] = HW_AVAILCPU;  // alternatively, try HW_NCPU;
 
     sysctl(mib, 2, &cpu_count, &len, NULL, 0);

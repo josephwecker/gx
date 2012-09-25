@@ -13,7 +13,7 @@
  * <name>_add_misc(peer_fd, *misc)
  * <name>_add_sess(peer_fd, disc_handler, dest1, handler1, expected1, readahead1, *misc)
  * <name>_wait(timeout, misc_handler) // returns -1 on error, 0 on timeout
- * 
+ *
  * GX_EVENT_HANDLER(name) // <name>(sess*, rb*)
  * gx_event_set_handler(sess, handler_function_name);
  * TODO: set_handler that also sets expected & destination etc.
@@ -118,15 +118,15 @@ gx_pool_init(gx_tcp_sess);
     extern int                      NAME ## _acceptor_fd;                        \
     extern int                   (* NAME ## _accept_handler)(gx_tcp_sess *);     \
                                                                                  \
-    GX_INLINE int NAME ## _add_sess(int peer_fd,                                 \
+    inline int NAME ## _add_sess(int peer_fd,                                 \
             void  *misc,                                                         \
             int  (*disc_handler)(gx_tcp_sess *, int),                            \
             int    dest,                                                         \
             int  (*handler)(gx_tcp_sess *, gx_rb *),                             \
             size_t bytes_expected, int do_readahead);                            \
-    GX_INLINE int NAME ## _add_misc(int peer_fd, void *misc);                    \
-    GX_INLINE int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
-    GX_INLINE int NAME ## _wait(int timeout,                                     \
+    inline int NAME ## _add_misc(int peer_fd, void *misc);                    \
+    inline int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
+    inline int NAME ## _wait(int timeout,                                     \
                                 int (*misc_handler)(gx_tcp_sess *, uint32_t));   \
               int NAME ## _abort_sess(gx_tcp_sess *sess);                        \
               int NAME ## _abort_sess2(gx_tcp_sess *sess,int);                   \
@@ -142,7 +142,7 @@ gx_pool_init(gx_tcp_sess);
     int                      NAME ## _acceptor_fd          = 0;                  \
     int                   (* NAME ## _accept_handler)(gx_tcp_sess *) = NULL;     \
                                                                                  \
-    GX_INLINE int NAME ## _add_sess(int peer_fd,                                 \
+    inline int NAME ## _add_sess(int peer_fd,                                 \
             void *misc,                                                          \
             int  (*disc_handler)(gx_tcp_sess *, int),                            \
             int dest,                                                            \
@@ -169,18 +169,18 @@ gx_pool_init(gx_tcp_sess);
         return _gx_close_sess(sess, NAME ## _sess_pool_inst, reason, NAME ## _rb_pool);   \
     }                                                                            \
     /* TODO: <name>_add_misc possibly not needed at all */                       \
-    GX_INLINE int NAME ## _add_misc(int peer_fd, void *misc) {                   \
+    inline int NAME ## _add_misc(int peer_fd, void *misc) {                   \
         return NAME ## _add_sess(peer_fd, misc, NULL, GX_DEST_UNDEF, NULL,0,0);  \
     }                                                                            \
     /* TODO: listener disconnect handler that exits main event "wait" */         \
-    GX_INLINE int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)) {\
+    inline int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)) {\
         NAME ## _acceptor_fd = afd;                                              \
         NAME ## _accept_handler = ahandler;                                      \
         return gx_event_add(NAME ## _events_fd, afd,                             \
                 (void *) & NAME ## _acceptor_fd);                                \
     }                                                                            \
                                                                                  \
-    GX_INLINE int NAME ## _wait(int timeout,                                     \
+    inline int NAME ## _wait(int timeout,                                     \
             int (*misc_handler)(gx_tcp_sess *, uint32_t)) {                      \
         int nfds, i;                                                             \
         uint32_t evstates;                                                       \
@@ -200,7 +200,7 @@ gx_pool_init(gx_tcp_sess);
             }                                                                    \
             if(!nfds && timeout != -1) return 0;                                 \
             for(i=0; i < nfds; ++i) {                                            \
-                if(gx_unlikely(gx_event_data(NAME ## _events[i]) ==              \
+                if(rare(gx_event_data(NAME ## _events[i]) ==              \
                             (void *) &NAME ## _acceptor_fd)) {                   \
                     _gx_event_accept_connections(1, NAME ## _acceptor_fd,        \
                             NAME ## _accept_handler, NAME ## _sess_pool_inst,    \
@@ -210,10 +210,10 @@ gx_pool_init(gx_tcp_sess);
                 }                                                                \
                 sess     = (gx_tcp_sess *)gx_event_data(NAME ## _events[i]);     \
                 evstates = gx_event_states(NAME ## _events[i]);                  \
-                if(gx_likely(sess->fn_handler)) {                                \
+                if(freq(sess->fn_handler)) {                                \
                     _gx_event_incoming(sess, evstates, NAME ## _rb_pool,         \
                             & NAME ## _rcvrb);                                   \
-                    if(gx_unlikely(evstates & GX_EVENT_CLOSED)) {                \
+                    if(rare(evstates & GX_EVENT_CLOSED)) {                \
                         NAME ## _abort_sess2(sess, GX_CLOSED_BY_PEER);           \
                     }                                                            \
                 } else if(misc_handler) {                                        \
@@ -258,7 +258,7 @@ gx_pool_init(gx_tcp_sess);
         (RB) == NULL ? 0 : rb_used(RB),                        \
         SESS->rcv_peek_avail);                                 \
     if(RB != NULL)                                             \
-        gx_hexdump(rb_r(RB),MIN(232,rb_used(RB)),rb_used(RB)>232); \
+        gx_hexdump(rb_r(RB),min(232,rb_used(RB)),rb_used(RB)>232); \
     SESS->fn_handler(SESS, RB); } )
 #else
 #define _gx_call_handler(SESS,RB) SESS->fn_handler(SESS, RB)
@@ -277,7 +277,7 @@ gx_pool_init(gx_tcp_sess);
 
   #define gx_event_newset(max_returned) epoll_create(max_returned)
 
-  static GX_INLINE int gx_event_add(int evfd, int fd, void *data_ptr) {
+  static inline int gx_event_add(int evfd, int fd, void *data_ptr) {
       struct GX_EVENT_STRUCT new_event = {
           .events = EPOLLIN  | EPOLLOUT | EPOLLET  | EPOLLRDHUP |
                     EPOLLPRI | EPOLLERR | EPOLLHUP,
@@ -285,14 +285,14 @@ gx_pool_init(gx_tcp_sess);
       return epoll_ctl(evfd, EPOLL_CTL_ADD, fd, &new_event);
   }
 
-  static GX_INLINE int gx_event_del(int evfd, int fd) {
+  static inline int gx_event_del(int evfd, int fd) {
       //pointer to empty event for linux < 2.6.9 bug
       static struct GX_EVENT_STRUCT non_event;
       return epoll_ctl(evfd, EPOLL_CTL_DEL, fd, &non_event);
   }
 
   // TODO: one day, when I need it, a timer.
-  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
+  static inline int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
       return epoll_wait(evfd, events, max_returned, milli_timeout);
   }
 
@@ -316,7 +316,7 @@ gx_pool_init(gx_tcp_sess);
 
   #define gx_event_newset(max_returned) kqueue()
 
-  static GX_INLINE int gx_event_add(int evfd, int fd, void *data_ptr) {
+  static inline int gx_event_add(int evfd, int fd, void *data_ptr) {
       struct GX_EVENT_STRUCT new_event = {
           .ident  = (uint64_t)fd,
           .filter = EVFILT_READ | EVFILT_WRITE,
@@ -328,7 +328,7 @@ gx_pool_init(gx_tcp_sess);
       return kevent64(evfd, &new_event, 1, NULL, 0, 0, NULL);
   }
 
-  static GX_INLINE int gx_event_del(int evfd, int fd) {
+  static inline int gx_event_del(int evfd, int fd) {
       struct GX_EVENT_STRUCT new_event = {
           .ident  = (uint64_t)fd,
           .filter = EVFILT_READ | EVFILT_WRITE,
@@ -341,7 +341,7 @@ gx_pool_init(gx_tcp_sess);
   }
 
   // TODO: one day, when I need it, a timer.
-  static GX_INLINE int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
+  static inline int gx_event_wait(int evfd, struct GX_EVENT_STRUCT *events, int max_returned, int milli_timeout) {
       if (milli_timeout == -1) return kevent64(evfd, NULL, 0, events, max_returned, 0, NULL);
       else {
           struct timespec timeout;
@@ -349,7 +349,7 @@ gx_pool_init(gx_tcp_sess);
           timeout.tv_nsec = (milli_timeout % 1000) * 1000 * 1000;
           return kevent64(evfd, NULL, 0, events, max_returned, 0, &timeout);
       }
-      
+
   }
 
   #define gx_event_data(EVENT) ((void *)((EVENT).udata))
@@ -381,13 +381,13 @@ gx_pool_init(gx_tcp_sess);
 ///
 
 static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **rcvrbp); // Forward declaration
-static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
-    if(gx_likely(events & GX_EVENT_READABLE)) {
+static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
+    if(freq(events & GX_EVENT_READABLE)) {
         gx_rb   *rcvrb = *rcvrbp;
         ssize_t  rcvd, curr_remaining;
         int      can_rcv_more;
         do {
-            if(gx_unlikely(sess->peer_fd < 2)) {
+            if(rare(sess->peer_fd < 2)) {
                 X_LOG_WARN("Somehow a closed peer got in the inner eventloop.");
                 return;
             }
@@ -406,12 +406,12 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                 // TODO: !!! if curr_remaining > rb_available, going to have to do
                 // the lesser and set can_rcv_more to true.
                 ssize_t avail = rb_available(rcvrb);
-                if(gx_unlikely(curr_remaining > avail)) {
+                if(rare(curr_remaining > avail)) {
                     X_LOG_ERROR("Handler wants tcp data bigger than what can fit in the allocated ringbuffer.");
                     bytes_attempted = avail;
                 } else if(sess->rcv_do_readahead) {
                     if(sess->rcv_max_readahead) {
-                        bytes_attempted = MIN(curr_remaining+(ssize_t)sess->rcv_max_readahead, avail);
+                        bytes_attempted = min(curr_remaining+(ssize_t)sess->rcv_max_readahead, avail);
                     } else {
                         bytes_attempted = avail;
                     }
@@ -419,9 +419,9 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                     bytes_attempted = curr_remaining;
                 }
 
-                if(gx_likely(bytes_attempted > 0)) {
+                if(freq(bytes_attempted > 0)) {
                     X (rcvd = zc_sock_rbuf(sess->peer_fd, bytes_attempted, rcvrb, 1)){X_FATAL;rcvd=0;}
-                    if(gx_likely(rcvd==bytes_attempted)) can_rcv_more = 1; // might still be something on the wire
+                    if(freq(rcvd==bytes_attempted)) can_rcv_more = 1; // might still be something on the wire
                 }
                 _gx_event_drainbuf(sess, rb_pool, rcvrbp);
             } else if(sess->rcv_dest == GX_DEST_DEVNULL) {
@@ -432,7 +432,7 @@ static GX_INLINE void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_
                 } else {
                     sess->rcvd_so_far = 0;
                     sess->rcv_peek_avail  = 0;
-                    if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) goto done_with_reading;
+                    if(rare(_gx_call_handler(sess, NULL) != GX_CONTINUE)) goto done_with_reading;
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
@@ -516,10 +516,10 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
                 handle_res            = _gx_call_handler(sess, rcvrb);
                 rb_clear(rcvrb);
             }
-            if(gx_unlikely(handle_res != GX_CONTINUE)) return;
+            if(rare(handle_res != GX_CONTINUE)) return;
         } else {
             sess->rcv_peek_avail  = 0;
-            if(gx_unlikely(_gx_call_handler(sess, NULL) != GX_CONTINUE)) return;
+            if(rare(_gx_call_handler(sess, NULL) != GX_CONTINUE)) return;
         }
     }
 }
@@ -554,12 +554,12 @@ try_close:
     return res;
 }
 
-static GX_INLINE char *gx_closed_reason_txt(int reason) {
+static inline char *gx_closed_reason_txt(int reason) {
     return _gx_closed_reason[- reason];
 }
 
 
-static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahandler)(gx_tcp_sess *),
+static inline void _gx_event_accept_connections(int lim, int afd, int (*ahandler)(gx_tcp_sess *),
         gx_tcp_sess_pool *cespool, int events_fd, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
     int                 i;
     struct sockaddr     peer_addr;
@@ -592,13 +592,13 @@ static GX_INLINE void _gx_event_accept_connections(int lim, int afd, int (*ahand
         } else {
             X (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {X_ERROR; close(peer_fd); X_RAISE();}
 
-            if(gx_likely(ahandler != NULL)) {
+            if(freq(ahandler != NULL)) {
                 Xn(new_sess = acquire_gx_tcp_sess(cespool)) {X_ERROR; close(peer_fd); X_RAISE();}
                 new_sess->peer_fd     = peer_fd;
                 new_sess->rcv_buf     = NULL;
                 new_sess->snd_buf     = NULL;
                 new_sess->rcvd_so_far = 0;
-                if(gx_likely(ahandler(new_sess) == GX_CONTINUE)) {
+                if(freq(ahandler(new_sess) == GX_CONTINUE)) {
                     X (gx_event_add(events_fd, peer_fd, (void *)new_sess)) {
                         X_ERROR;
                         X(_gx_close_sess(new_sess, cespool, GX_INTERNAL_ERR, rb_pool)) X_ERROR;

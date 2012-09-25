@@ -58,7 +58,7 @@
           - E_UNKNOWN  (...)
 
 
-   @todo 
+   @todo
       - Separate esys lookup module with additional lookups from:
         - h_errno
         - gai_strerror,
@@ -141,7 +141,7 @@
     _gx_mark_err_do((errno ? errno : ( _e ? _e : EINVAL )),      \
            __FILE__, __LINE__, __FUNCTION__, EXPR_STR)
 #define _reset_e() errno=0; int _e=0; _gx_error_depth++
-#define _run_e(E)  ({ int _result = _rare(E); _gx_error_depth--; \
+#define _run_e(E)  ({ int _result = rare(E); _gx_error_depth--; \
         if(!_gx_error_depth && !_result) E_CLEAR(); _result; })
 
 #define _esys(E)   ({ _reset_e(); (_run_e(    (int)(E) == -1         )) ? _gx_mrk(#E) : 0; })
@@ -195,7 +195,7 @@ int          _gx_error_depth;
 // the code path for it not being called should be the optimized code path) and
 // we don't want it to mess with the instruction pipeline / processing cache,
 // even though the body is pretty minimal currently...
-static _noinline int _gx_mark_err_do(int error_number, const char *file, int line,
+static noinline int _gx_mark_err_do(int error_number, const char *file, int line,
         const char *function, const char *expr)
 {
     _gx_error_stack[_gx_error_cidx].error_family = ERRF_SYSERR; /// Hardcoded for now until there are more
@@ -228,16 +228,16 @@ static _noinline int _gx_mark_err_do(int error_number, const char *file, int lin
     K_err_label,       syserr_info[_gx_error_stack[IDX].error_number].error_label,                  \
     K_err_msg,         syserr_info[_gx_error_stack[IDX].error_number].error_msg
 
-static _noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
+static noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
 {
     int     i;
     va_list argv;
     if(argc > 0) va_start(argv, argc);
-    if(_rare(_gx_error_stack[1].error_number)) {
+    if(rare(_gx_error_stack[1].error_number)) {
         // Several errors to report, all "linked" to the last one
-        //char *egrp = $("%u", GX_CPU_TS);
+        //char *egrp = $("%u", cpu_ts);
         static char egroup[64];
-        char *egrp = _gx_cpu_ts_str(egrp, GX_CPU_TS);
+        char *egrp = _gx_cpu_ts_str(egrp, cpu_ts);
         for(i=0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
             if(_gx_error_stack[i].error_number) {
                 char *edpth = $("%u", _gx_error_stack[i].chk_level);
