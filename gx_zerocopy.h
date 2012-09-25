@@ -62,7 +62,7 @@
   #include <fcntl.h>
   #include <unistd.h>
   #include <sys/sendfile.h>
-#elif defined(_OSX)
+#elif defined(__OSX__)
   #include <sys/uio.h>
 #endif
 
@@ -133,7 +133,7 @@ sendagain:
         }
     }
     return sent;
-  #elif defined(_OSX)
+  #elif defined(__OSX__)
     int tries=1;
     off_t total_sent=0;
     off_t sent = len;

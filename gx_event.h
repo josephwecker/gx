@@ -301,7 +301,7 @@ gx_pool_init(gx_tcp_sess);
 
 
 //------- kqueue ---------------------------------------------------------------
-#elif defined(_OSX) || defined(HAVE_KQUEUE)
+#elif defined(__OSX__) || defined(HAVE_KQUEUE)
   #include <sys/types.h>
   #include <sys/event.h>
   #include <sys/time.h>

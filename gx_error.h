@@ -248,7 +248,7 @@ extern int             gx_error_curr_report;
 extern int             gx_error_loglevel;
 
 // Generate these with build-ename.sh
-#if defined(_OSX)
+#if defined(__OSX__)
     static char *_gx_ename[] = {
         /*   0 */ "", 
         /*   1 */ "EPERM  ", "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 
