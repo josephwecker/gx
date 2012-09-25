@@ -66,12 +66,16 @@ int main(int argc, char **argv) {
     //  _(-1) E_ERROR (&_gx_error_cidx, "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
     //  _(-1) E_ERROR (K_err_brief,     "n", K_src_expression, "wowzers!", K_desired_filename); // no val
 
-    _(-1) E_NOTICE(K_err_brief,   $("first crazy stuff %d %d", 23, 0xDEADE));
-    _(-1) E_NOTICE(K_err_brief,   $("some crazy stuff %d %d",  23, 0xDEAD));
-    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(-1) E_ERROR (K_err_another, "another", K_src_line,       "wow!");
-    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
-    _(-1) E_ERROR (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(EAGAIN)) E_EMERGENCY();
+    _(test_esys(ENOTSUP)) E_ALERT (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(EUSERS)) E_CRITICAL(K_err_brief,   $("first crazy stuff %d %d", 23, 0xDEADE));
+    _(test_esys(EDEADLK)) E_ERROR(K_err_brief,   $("some crazy stuff %d %d",  23, 0xDEAD));
+    //_(-1) E_UNKNOWN (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(ENOMEM)) E_WARNING (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(ETIME)) E_NOTICE (K_err_another, "another", K_src_line,       "wow!");
+    _(test_esys(ELOOP)) E_STAT (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
+    _(test_esys(EINVAL)) E_INFO (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
+    _(test_esys(EAFNOSUPPORT)) E_DEBUG (K_err_another, "another", K_src_line,       "wow!");
 
     gx_sleep(2,0);
 

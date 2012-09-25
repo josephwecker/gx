@@ -338,6 +338,7 @@ exec:
 //static const GX_OPTIONAL char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static const GX_OPTIONAL char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
 #define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
+//static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
 static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
     const char *inp  = (const char *)indata;
     char       *outp = outdata;

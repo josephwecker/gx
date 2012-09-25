@@ -102,42 +102,114 @@ static _inline int check_stderr()
 static struct iovec out_iov[100] = {{NULL,0}};
 static int    iov_out_count      = 0;
 
-#define padby(N) scatn(" ",1,N)
-#define sep()    scat(" │ ",5)
-#define scatn(BUF, LEN, N) if(N > 0){size_t _i; for(_i=0; _i<N; _i++) scat(BUF, LEN);}
-#define scat(BUF,LEN) do {                    \
-    out_iov[iov_out_count].iov_len  = (LEN);  \
-    out_iov[iov_out_count].iov_base = (BUF);  \
-    iov_out_count ++;                         \
+#define CN           "\e[0m"
+
+#define C0       "\e[38;5;198m" /* emergency */
+#define C1       "\e[38;5;197m" /* alert */
+#define C2       "\e[38;5;196m" /* critical */
+#define C3       "\e[38;5;160m" /* error */
+#define C4       "\e[38;5;161m" /* unknown */
+#define C5       "\e[38;5;202m" /* warning */
+#define C6       "\e[38;5;214m" /* notice */
+#define C7       "\e[38;5;118m" /* stat */
+#define C8       "\e[38;5;106m" /* info */
+#define C9       "\e[38;5;226m" /* debug */
+#define CW       "\e[38;5;231m" /* white */
+#define C_UNKN        "\e[38;5;27m"
+#define C_D           "\e[38;5;239m"
+#define C_BG          "\e[48;5;234m"
+#define C_REF         "\e[38;5;240m"
+
+
+static char *sev_labels[] = {
+    "emergency", "alert  ", "critical",  "error  ", "unknown", "warning",
+    "notice ",   "stat   ", "info   ",   "debug  "
+};
+static char *sev_highlight[] = {C0, C1, C2, C3, C4, C5, C6, C7, C8, C9};
+
+
+#define padby(N)           scatn(" ", 1, N)
+#define sep()              scatc(C_D " | " C_N)
+#define scatn(BUF, LEN, N) if(N > 0){                                          \
+    size_t _i;                                                                 \
+    for(_i=0; _i<N; _i++) scat(BUF, LEN);                                      \
+}
+#define scatsdp(KEY, PAD) do{ \
+    char *_str = DT(KEY); \
+    ssize_t _len = SZ(KEY) - 1; \
+    if(_len > 0) { \
+        scat(_str, _len); \
+        padby(PAD - _len); \
+        sep(); \
+    } \
+} while(0)
+#define scatsd(KEY) do{ \
+    char *_str = DT(KEY); \
+    ssize_t _len = SZ(KEY) - 1; \
+    if(_len > 0) { \
+        scat(_str, _len); \
+        sep(); \
+    } \
+} while(0)
+#define scats(STR)       {char *_str=(STR); scat(_str, strlen(_str));}
+#define scatc(CONST_STR) scat(CONST_STR, sizeof(CONST_STR) - 1)
+#define scat(BUF,LEN) do {                                                     \
+    if((LEN) > 0) {                                                            \
+        out_iov[iov_out_count].iov_len  = (LEN);                               \
+        out_iov[iov_out_count].iov_base = (typeof(out_iov[0].iov_base))(BUF);  \
+        iov_out_count ++;                                                      \
+    }                                                                          \
 } while(0)
 
-#define kv_vdb(KEY) (msg->msg_tab[KEY].val_data_base)
-#define kv_vds(KEY) ((size_t)(msg->msg_tab[KEY].val_data_size))
-#define kv_isset(KEY) (kv_vds(KEY) > 0)
+#define DT(KEY)    (msg->msg_tab[KEY].val_data_base)
+#define SZ(KEY)    ((size_t)(msg->msg_tab[KEY].val_data_size))
+#define ISSET(KEY) (SZ(KEY) > 0)
 
-static _inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
+static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 {
     ssize_t len, len2, pad, i;
     if(_rare(!log_stderr_verified) && check_stderr()) return;
+    memset(out_iov, 0, sizeof(out_iov));
     iov_out_count = 0;
-    scat (kv_vdb(K_sys_time) + 11,       kv_vds(K_sys_time ) - 13);  scat (":",1);
-    len = 7 - kv_vds(K_sys_ticks);
-    scat (kv_vdb(K_sys_ticks) - len,     len2 = kv_vds(K_sys_ticks) - 1 + len);  padby(7 - len2);
-    sep();
-    scat (kv_vdb(K_severity) + 4,  len = kv_vds(K_severity) - 5); padby(7 - len); padby(1);
-    sep();
-    if(_rare(kv_isset(K_err_group))) {
-        scat ("[",1);
-        scat (kv_vdb(K_err_group),     kv_vds(K_err_group) - 1);
-        scat (":",1);
-        scat (kv_vdb(K_err_depth),     kv_vds(K_err_depth) - 1);
-        scat ("]",1);
+
+    // Time + cpu-ticks
+    scat   (DT(K_sys_time) + 11, SZ(K_sys_time ) - 13);
+    scatc  (C_D ":" C_N);
+    len =  7 - SZ(K_sys_ticks);
+    scat   (DT(K_sys_ticks) - len, len2 = SZ(K_sys_ticks) - 1 + len);
+    padby  (6 - len2);
+    sep    ();
+
+    // Severity
+    scats  (sev_highlight[severity]);
+    scats  (sev_labels[severity]);
+    sep    ();
+
+    // Groupings
+    if(_rare(ISSET(K_err_group))) {
+        scatc(C_D "[" C_N ); scats(DT(K_err_group)); scatc(C_D ":" C_N);
+        scats(DT(K_err_depth)); scatc(C_D "] " C_N);
     }
-    scat ("\n",1);
+
+    // Error info
+    scatsdp(K_err_label,10);
+    scatc(C_D);
+    scat (DT(K_err_severity), SZ(K_err_severity));
+    scatc(": " C_N);
+    scatsd (K_err_msg);
+
+    // User Message
+    scatsd (K_msg);
+    scat   ("\n",1);
+
+    
+    //fprintf(stderr, "OK, got this far. %d\n", iov_out_count);
     writev(STDERR_FILENO, out_iov, iov_out_count);
-    //fprintf(stderr, "%s: some message...\n", &($gx_severity(severity)[4]));
 }
 
+#undef DT
+#undef SZ
+#undef ISSET
 
 
 #endif

@@ -488,7 +488,9 @@ typedef union _ctick {
     } __packed;
 } _ctick;
 
-static _inline char *_gx_cpu_ts_str(char *dest, uint64_t ts) {
+static char ctick_base64[64];
+
+static inline char *_gx_cpu_ts_str(char *dest, uint64_t ts) {
     _ctick ctick_transformer;
     ctick_transformer.empty_head = 0;
     ctick_transformer.ctick_data = bswap64(ts);
@@ -503,7 +505,6 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
 {
     va_list argv;
     int     i;
-    char    ctick_base64[64];
 
     memcpy(&msg_iov.msg_tab, &msg_tab_master, sizeofm(kv_msg_iov,msg_tab)); // yes it's fastest
 
@@ -535,7 +536,7 @@ static _noinline void _gx_log_inner(gx_severity severity, char *severity_str,
             _gx_log_last_tick = curr_tick;
         }
         KV_SET_VAL_L(K_sys_time,  &(_gx_log_time[0]), _gx_log_time_len);
-        KV_SET_VAL  (K_sys_ticks, _gx_cpu_ts_str(ctick_base64,curr_tick));
+        KV_SET_VAL  (K_sys_ticks, _gx_cpu_ts_str(ctick_base64, curr_tick));
     }
 
     kv_main_head = 0;
