@@ -211,7 +211,7 @@ static GX_INLINE uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed
 
 //-----------------------------------------------------------------------------
 static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
-    memset(nm, 0, sizeof(nm));
+    memset(nm, 0, sizeof(*nm));
     X (gx_node_uid  (nm->ident.node_uid)                                    ) X_RAISE(-1);
     X (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) X_RAISE(-1);
     X (gx_dev_random(nm->rand_pool,      sizeof(nm->rand_pool),   0)        ) X_RAISE(-1);
@@ -335,7 +335,8 @@ exec:
  * GX_BASE64_SIZE(sizeof(input_data));
  *
  */
-static const GX_OPTIONAL char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+//static const GX_OPTIONAL char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const GX_OPTIONAL char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
 #define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
 static GX_INLINE ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
     const char *inp  = (const char *)indata;
