@@ -170,7 +170,7 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#ifdef _LINUX
+#ifdef __LINUX__
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE
   #endif
@@ -189,7 +189,7 @@
 
 
 static GX_INLINE int _gx_futex(int *f, int op, int val) {
-    #ifdef _LINUX
+    #ifdef __LINUX__
       return syscall(SYS_futex, f, op, val, (void *)NULL, (int *)NULL, 0);
     #else
       return 0; // NOP
@@ -197,7 +197,7 @@ static GX_INLINE int _gx_futex(int *f, int op, int val) {
 }
 
 static GX_INLINE int gx_futex_wake(uint64_t *f) {
-    #ifdef _LINUX
+    #ifdef __LINUX__
       return _gx_futex((int *)f, FUTEX_WAKE, 0xFFFF);
     #else
       return 0; // NOP
@@ -209,7 +209,7 @@ static GX_INLINE int gx_futex_wait(void *f, int curr_val) {
     for(;;) {
         register int v = *p;
         if(v != curr_val) return v;
-        #ifdef _LINUX
+        #ifdef __LINUX__
             if(gx_unlikely(_gx_futex(f, FUTEX_WAIT, v) < 0)) {
                 int errn = errno;
                 if(gx_unlikely(errn != EAGAIN && errn != EINTR)) return -1;
@@ -286,7 +286,7 @@ static GX_INLINE   int _gx_update_fpos     (gx_mfd *mfd);
  * resources and slightly more churn earlier on).
  */
 static GX_OPTIONAL int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char *path) {
-    #ifdef _LINUX
+    #ifdef __LINUX__
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND | O_NOATIME | O_NOCTTY;
     #else
       int open_flags = O_RDWR | O_NONBLOCK | O_CREAT | O_APPEND;
@@ -339,7 +339,7 @@ static int _gx_mfd_readloop(void *vmfd) {
 
 static GX_OPTIONAL int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char *path) {
     int pipes[2];
-    #ifdef _LINUX
+    #ifdef __LINUX__
       int h_open_flags = O_RDWR   | O_NONBLOCK | O_NOATIME | O_NOCTTY;
       int open_flags   = O_RDONLY | O_NONBLOCK | O_NOATIME | O_NOCTTY;
     #else
@@ -353,7 +353,7 @@ static GX_OPTIONAL int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const c
     X( mfd->fdh = open(path, h_open_flags)  ) {X_FATAL; X_RAISE(-1);}
     X( _gx_initial_mapping(mfd)             ) {X_FATAL; X_RAISE(-1);}
     X( close(mfd->fdh)                      )  X_WARN;
-    #ifdef _LINUX
+    #ifdef __LINUX__
       X( pipe2(pipes, O_NONBLOCK)           ) {X_FATAL; X_RAISE(-1);}
     #else
       X( pipe(pipes)                        ) {X_FATAL; X_RAISE(-1);}

@@ -2,7 +2,7 @@
 
 static long _gx_cpu_count = 0;  // Cache it
 
-#ifdef _LINUX
+#ifdef __LINUX__
 #include <unistd.h>
 static long gx_cpu_count() {
     if(_gx_cpu_count) return _gx_cpu_count;

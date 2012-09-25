@@ -55,7 +55,7 @@
 
 #include "./gx.h"
 
-#if defined(_LINUX)
+#if defined(__LINUX__)
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE 1
   #endif
@@ -117,7 +117,7 @@ static ssize_t zc_mbuf_sock(void *mbuf, size_t src_off, size_t len, int sock) {
 /// TODO: header/footer like bsd implementation- esp. if it makes sense for the
 ///       other zero-copy functions.
 static GX_INLINE ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
-  #if defined(_LINUX)
+  #if defined(__LINUX__)
     int     tries=1;
     ssize_t sent;
     off_t   src_off2 = src_off;
@@ -221,7 +221,7 @@ do_file_write:
     return sent;
 }
 
-#ifdef _LINUX
+#ifdef __LINUX__
 static GX_OPTIONAL int zc_general_pipes[2], zc_pipe_in, zc_pipe_out;
 static GX_OPTIONAL int zc_devnull_fd = -1;
 #endif
@@ -230,7 +230,7 @@ static GX_OPTIONAL int zc_devnull_fd = -1;
 /// code? Haven't done mac version yet even...
 static ssize_t zc_sock_null(int sock, size_t len) {
 // @todo rewrite this so it actually works on linux--SPLICE_F_MOVE seems to have disappeared
-// #ifdef _LINUX
+// #ifdef __LINUX__
 #if 0
     int     tries = 1;
     ssize_t res;

@@ -114,7 +114,7 @@ typedef struct _gx_proc_stat_sysinfo {
 static GX_OPTIONAL _gx_proc_stat_sysinfo _gx_current_sysinfo;
 static GX_OPTIONAL int         _gx_sys_dirty          =  1;
 
-#ifdef _LINUX
+#ifdef __LINUX__
   #define gp(FLD) _gx_current_sysinfo.FLD
   #define g(FLD) &(gp(FLD))
   static void _gx_sys_refresh_meminfo() {
@@ -171,7 +171,7 @@ static GX_INLINE long long int gx_sys_ram_bytes_in_use() {
 
 
 #if 0
-#ifdef _LINUX
+#ifdef __LINUX__
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>

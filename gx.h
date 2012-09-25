@@ -141,7 +141,7 @@
 #define GX_H
 
 /// Normalize some OS names
-#if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
+#if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(__LINUX__)
   #define __LINUX__ 1
   #undef  __OSX__
 #elif defined(__APPLE__) || defined(__MACH__)
@@ -164,7 +164,7 @@
   #include <string.h>
   #include <pthread.h> // For pool mutexes / gx_clone
   #include <sys/wait.h>
-  #ifdef _LINUX
+  #ifdef __LINUX__
     #include <syscall.h>
   #else
     #include <sys/syscall.h>
@@ -673,7 +673,7 @@ static char  _gx_tstr_empty[]   = "";
     /// create a new process with everything shared with the parent except a
     /// new, _small_ stack. The parent is not signaled when the child
     /// finishes [at least on linux... don't know yet for other...]
-    #ifdef _LINUX
+    #ifdef __LINUX__
       #ifndef _GNU_SOURCE
         #define _GNU_SOURCE
       #endif

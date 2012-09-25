@@ -216,7 +216,7 @@ static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
     X (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) X_RAISE(-1);
     X (gx_dev_random(nm->rand_pool,      sizeof(nm->rand_pool),   0)        ) X_RAISE(-1);
     // The following are direct syscalls so that glibc etc. doesn't cache the values.
-  #ifdef _LINUX
+  #ifdef __LINUX__
     X (nm->ident.tid     = syscall(SYS_gettid)) X_RAISE(-1);
   #else
     X (nm->ident.tid     = syscall(SYS_thread_selfid)) X_RAISE(-1);
@@ -244,7 +244,7 @@ static GX_INLINE int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
     // if you're absolutely certain that the nonce-machine is initialized
     // _after_ any forking/cloning/spawning.
     int new_tid;
-  #ifdef _LINUX
+  #ifdef __LINUX__
     X (new_tid = syscall(SYS_gettid)) X_RAISE(-1);
   #else
     X (new_tid = syscall(SYS_thread_selfid)) X_RAISE(-1);

@@ -1,5 +1,5 @@
 #include "../gx.h"
-/*#ifdef _LINUX
+/*#ifdef __LINUX__
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE
   #endif

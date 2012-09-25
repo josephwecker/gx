@@ -278,7 +278,7 @@ extern int             gx_error_loglevel;
     };
 
   #define MAX_ENAME 103
-#elif defined(_LINUX)
+#elif defined(__LINUX__)
     static char *_gx_ename[] = {
         /*   0 */ "", 
         /*   1 */ "EPERM  ",   "ENOENT ", "ESRCH  ", "EINTR  ", "EIO    ", "ENXIO  ", 
