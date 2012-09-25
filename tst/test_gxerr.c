@@ -2,7 +2,7 @@
 #include <errno.h>
 
 
-gx_error_initialize(GX_DEBUG)  // TODO: remove after old gx_error.h migrated out of gx.h
+//gx_error_initialize(GX_DEBUG)  // TODO: remove after old gx_error.h migrated out of gx.h
 
 void *test_chain1();
 int test_chain2();
@@ -14,29 +14,29 @@ int test_esys(int desired_errno) {
 }
 
 void *test_chain1() {
-    if_esys(test_chain2()) E_RAISE(NULL);
+    if_esys(test_chain2()) _raise(NULL);
     return &test_chain1;
 }
 
 int test_chain2() {
-    if_enz(test_chain3()) E_RAISE(-1);
+    if_enz(test_chain3()) _raise(-1);
     return 0;
 }
 
 int test_chain5() {
     errno = EACCES;
-    if_esys(test_esys(EFAULT)) E_RAISE(0);
+    if_esys(test_esys(EFAULT)) _raise(0);
     return 0;
 }
 
 int test_chain4() {
     errno = EACCES;
-    if_ez(test_chain5()) E_RAISE(0);
+    if_ez(test_chain5()) _raise(0);
     return 0;
 }
 
 int test_chain3() {
-    if_ez(test_chain4()) E_RAISE(EBADF);
+    if_ez(test_chain4()) _raise(EBADF);
     return 0;
 }
 
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     if_esys(test_esys(EAGAIN)) E_EMERGENCY();
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
-    E_CLEAR();
+    _clear();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
 
     // The following would all fail to build:
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     _(test_esys(EINVAL)) E_INFO (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
     _(test_esys(EAFNOSUPPORT)) E_DEBUG (K_err_another, "another", K_src_line,       "wow!");
 
-    gx_sleep(2,0);
+    gx_sleep(2);
 
     if_enull(test_chain1()) E_NOTICE();
 

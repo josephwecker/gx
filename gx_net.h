@@ -25,13 +25,13 @@ static inline int gx_net_tcp_open(const char *host, const char *port) {
     memset(&hints, 0, sizeof hints);
     hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    X (ires = getaddrinfo(host, port, &hints, &servinfo)){X_RAISE(-1)}
+    _ (ires = getaddrinfo(host, port, &hints, &servinfo)) _raise(-1);
     for(p = servinfo; p != NULL; p = p->ai_next) {
-        X (sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) continue;
-        X (connect(sockfd, p->ai_addr, p->ai_addrlen)) {close(sockfd); continue;}
+        _ (sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) continue;
+        _ (connect(sockfd, p->ai_addr, p->ai_addrlen)) {close(sockfd); continue;}
         break;
     }
-    if(!p){X_RAISE(-1)}
+    if(!p) _raise(-1);
     freeaddrinfo(servinfo);
     return sockfd;
 }
@@ -52,7 +52,7 @@ static inline int gx_net_tcp_listen(const char *node, const char *port, char *bo
     hints.ai_flags    = AI_PASSIVE | AI_ALL | AI_ADDRCONFIG | AI_CANONNAME;
 #endif
 
-    X (getaddrinfo(node, port, &hints, &ainfo) ) {X_LOG_FATAL("%s", gai_strerror(errno)); X_RAISE(-1);}
+    _ (getaddrinfo(node, port, &hints, &ainfo) ) {log_critical("%s", gai_strerror(errno)); _raise(-1);}
     for(rp = ainfo; rp != NULL; rp = rp->ai_next) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if(fd == -1) continue;
@@ -60,11 +60,11 @@ static inline int gx_net_tcp_listen(const char *node, const char *port, char *bo
         bindres = bind(fd, rp->ai_addr, rp->ai_addrlen);
         if(bindres == 0) break;
     }
-    X (fd                          ) X_GOTO(gx_tcp_listen_err);
-    X (bindres                     ) X_GOTO(gx_tcp_listen_err);
-    Xn(rp                          ) X_GOTO(gx_tcp_listen_err);
-    X (fcntl(fd,F_SETFL,O_NONBLOCK)) X_GOTO(gx_tcp_listen_err);/// @todo close/delete socket before raising error
-    X (listen(fd, 65535)           ) X_GOTO(gx_tcp_listen_err); // Backlog invisibly gets truncated to max-allowed
+    _ (fd                          ) _goto(gx_tcp_listen_err);
+    _ (bindres                     ) _goto(gx_tcp_listen_err);
+    _N(rp                          ) _goto(gx_tcp_listen_err);
+    _ (fcntl(fd,F_SETFL,O_NONBLOCK)) _goto(gx_tcp_listen_err);/// @todo close/delete socket before raising error
+    _ (listen(fd, 65535)           ) _goto(gx_tcp_listen_err); // Backlog invisibly gets truncated to max-allowed
 
     size_t len = 0;
     if(rp->ai_canonname) {
@@ -83,30 +83,30 @@ static inline int gx_net_tcp_listen(const char *node, const char *port, char *bo
     return fd;
 
 gx_tcp_listen_err:
-    X_ERROR;
+    _error();
     freeaddrinfo(ainfo);
     close(fd);
-    X_RAISE(-1);
+    _raise(-1);
 }
 
 static inline int gx_net_daemonize(void) {
     /* TODO: chroot option? */
     /* TODO: it should be possible to make this much lighter with clone. */
     pid_t pid, sid;
-    X (pid = fork()) { X_ERROR; X_RAISE(-1); }
+    _ (pid = fork()) _raise_error(-1);
     if(pid != 0) exit(EXIT_SUCCESS);
     /* Child */
     umask(0);
-    X (sid = setsid()) X_WARN;
-    X (chdir("/")    ) X_WARN;  /* Don't bind up the working dir */
+    _ (sid = setsid()) _warning();
+    _ (chdir("/")    ) _warning();  /* Don't bind up the working dir */
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 5)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
 
-    Xn(freopen("/dev/null", "r", stdin))  X_WARN;
-    Xn(freopen("/dev/null", "w", stdout)) X_WARN;
+    _N(freopen("/dev/null", "r", stdin))  _warning();
+    _N(freopen("/dev/null", "w", stdout)) _warning();
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 5)
 #pragma GCC diagnostic pop
@@ -133,15 +133,15 @@ static inline int gx_node_uid(char *buf) {
         size_t           len = 0;
         struct ifaddrs  *ifaddr, *ifa;
 
-        X_LOG_DEBUG("Constructing node uid for the first time.");
-        X (getifaddrs(&ifaddr)) X_RAISE(-1);
+        log_debug("Constructing node uid for the first time.");
+        _ (getifaddrs(&ifaddr)) _raise(-1);
         for(ifa=ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
           #ifdef __LINUX__
             struct ifreq ifinfo;
             int sd, res;
             strcpy(ifinfo.ifr_name, ifa->ifa_name);
-            X (sd = socket(AF_INET, SOCK_DGRAM, 0)   ) X_WARN;
-            X (res= ioctl(sd, SIOCGIFHWADDR, &ifinfo)) X_WARN;
+            _ (sd = socket(AF_INET, SOCK_DGRAM, 0)   ) _warning();
+            _ (res= ioctl(sd, SIOCGIFHWADDR, &ifinfo)) _warning();
             close(sd);
 
             if ((res == 0) && (ifinfo.ifr_hwaddr.sa_family == 1)) {

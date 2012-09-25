@@ -249,8 +249,8 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
 
 
 #if __GNUC__ > 3
-  #define    freq(X)       __builtin_expect(!!(X), 1)
-  #define    rare(X)       __builtin_expect(!!(X), 0)
+  #define    freq(E)       __builtin_expect(!!(E), 1)
+  #define    rare(E)       __builtin_expect(!!(E), 0)
   #define    optional      __attribute__ ((__unused__))
   #define    noinline      __attribute__ ((__noinline__))
   #define    packed        __attribute__ ((__packed__))
@@ -267,8 +267,8 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
     #define  always_inline
   #endif
 #else
-  #define    freq(X)       (X)
-  #define    rare(X)       (X)
+  #define    freq(E)       (E)
+  #define    rare(E)       (E)
   #define    cold
   #define    hot
   #define    pure
@@ -436,6 +436,8 @@ static char  _gx_tstr_empty[]   = "";
 } while(0);
 
 
+#include "./gx_error.h"
+
 /// @todo Move to gx_log
   static inline void gx_hexdump(void *buf, size_t len, int more) {
       size_t i=0, tch; int val, grp, outsz=0, begin_col;
@@ -509,10 +511,10 @@ static char  _gx_tstr_empty[]   = "";
     static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
     static inline TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {       \
         TYPE ## _pool *res;                                                              \
-        Xn(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) X_RAISE(NULL);            \
+        _N(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) _raise(NULL);            \
         memset(res, 0, sizeof(TYPE ## _pool));                                           \
         TYPE ## _pool_extend(res, initial_number);                                       \
-        X (pthread_mutex_init(&(res->mutex), NULL)) X_RAISE(NULL);                       \
+        _ (pthread_mutex_init(&(res->mutex), NULL)) _raise(NULL);                       \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
@@ -520,11 +522,11 @@ static char  _gx_tstr_empty[]   = "";
         TYPE *new_seg;                                                                   \
         size_t curr;                                                                     \
         pool_memory_segment ## TYPE *memseg_entry;                                       \
-        Xn(new_seg = (TYPE *)malloc(sizeof(TYPE) * by_number)) X_RAISE(-1);              \
+        _N(new_seg = (TYPE *)malloc(sizeof(TYPE) * by_number)) _raise(-1);              \
                                                                                          \
         /* Link to memory-segments for freeing later */                                  \
-        Xn(memseg_entry = (pool_memory_segment ## TYPE *)malloc(                         \
-                    sizeof(pool_memory_segment ## TYPE))) X_RAISE(-1);                   \
+        _N(memseg_entry = (pool_memory_segment ## TYPE *)malloc(                         \
+                    sizeof(pool_memory_segment ## TYPE))) _raise(-1);                   \
         memseg_entry->segment = new_seg;                                                 \
         memseg_entry->next    = pool->memseg_head;                                       \
         pool->memseg_head     = memseg_entry;                                            \
@@ -575,7 +577,7 @@ static char  _gx_tstr_empty[]   = "";
         cpid = syscall(SYS_getpid);                                                      \
         unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
         if(rare(pool->prereleased[idx]))                                                 \
-            X_LOG_ERROR("Snap, prerelease snafu: %d", idx);                              \
+            log_error("Snap, prerelease snafu: %d", idx);                              \
         pool->prereleased[idx] = entry;                                                  \
         pthread_mutex_unlock(&(pool->mutex));                                            \
     }                                                                                    \
@@ -584,7 +586,7 @@ static char  _gx_tstr_empty[]   = "";
         pthread_mutex_lock(&(pool->mutex));                                              \
         unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
         TYPE *entry = pool->prereleased[idx];                                            \
-        if(rare(!entry)) X_LOG_ERROR("Snap, prerelease snafu: %d", idx);                 \
+        if(rare(!entry)) log_error("Snap, prerelease snafu: %d", idx);                 \
         _remove_ ## TYPE(pool, entry);                                                   \
         entry->_next = pool->available_head;                                             \
         pool->available_head = entry;                                                    \
@@ -653,8 +655,6 @@ static char  _gx_tstr_empty[]   = "";
   #endif
 
 
-  #include "./gx_error.h"
-
     /// @todo This all needs to be somewhere else.
     /// Very "lightweight" fork, calls given function in child. Falls back to
     /// fork on systems that don't have anything lighter. Otherwise tries to
@@ -705,19 +705,19 @@ static char  _gx_tstr_empty[]   = "";
 
           if(rare(!_gx_csp)) {
               // "Global" setup
-              Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
+              _N(_gx_csp = new__gx_clone_stack_pool(5)) _raise_alert(-1);
               struct sigaction sa;
               sigemptyset(&sa.sa_mask);
               sa.sa_flags = 0;
               sa.sa_handler = sigchld_clone_handler;
-              X (sigaction(SIGCHLD, &sa, NULL)) {X_FATAL; X_RAISE(-1);}
+              _ (sigaction(SIGCHLD, &sa, NULL)) _raise_alert(-1);
           }
-          Xn(cstack = acquire__gx_clone_stack(_gx_csp)) {X_FATAL; X_RAISE(-1);}
+          _N(cstack = acquire__gx_clone_stack(_gx_csp)) _raise_alert(-1);
           cstack->child_fn = fn;
           cstack->child_fn_arg = arg;
           int cres;
-          X(cres = clone(&_gx_clone_launch, (void *)&(cstack->stack[_GX_STKSZ - 1]), flags, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
-          //X(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
+          _(cres = clone(&_gx_clone_launch, (void *)&(cstack->stack[_GX_STKSZ - 1]), flags, (void *)cstack)) _raise_alert(-1);
+          //_(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) _raise_alert(-1);
           return cres;
       }
     #else
@@ -749,12 +749,12 @@ static char  _gx_tstr_empty[]   = "";
           pthread_t tid;
           _gx_clone_stack *cstack; // Not really needed for the stack in this context, but for the callbacks
           if(rare(!_gx_csp))
-              Xn(_gx_csp = new__gx_clone_stack_pool(5)) {X_FATAL; X_RAISE(-1);}
+              _N(_gx_csp = new__gx_clone_stack_pool(5)) _raise_alert(-1);
 
-          Xn(cstack = acquire__gx_clone_stack(_gx_csp)) {X_FATAL; X_RAISE(-1);}
+          _N(cstack = acquire__gx_clone_stack(_gx_csp)) _raise_alert(-1);
           cstack->child_fn = fn;
           cstack->child_fn_arg = arg;
-          Xz(pthread_create(&tid, NULL, _gx_clone_launch, (void *)cstack)) {X_FATAL; X_RAISE(-1);}
+          _E(pthread_create(&tid, NULL, _gx_clone_launch, (void *)cstack)) _raise_alert(-1);
           return 0;
       }
         // exit(fn(arg)); // (in child)  wait- also release the stack here.
@@ -775,9 +775,9 @@ static inline int _gx_sleep(time_t seconds, long nanoseconds) {
     ts.tv_sec  = seconds;
     ts.tv_nsec = nanoseconds;
     for(;;) {
-        Xs(s = nanosleep(&ts, &ts)) {
+        switch_esys(s = nanosleep(&ts, &ts)) {
             case EINTR: break;
-            default:    X_RAISE(-1);
+            default:    _raise(-1);
         }
         if(!s) break;
     }

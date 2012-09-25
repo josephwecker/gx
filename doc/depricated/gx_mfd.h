@@ -181,7 +181,7 @@
   #include <sys/time.h>
 #endif
 
-#define _GX_MFD_ERR_IF  {X_LOG_ERROR("Not a properly formatted mfd file (misc data inside)."); X_RAISE(-1);}
+#define _GX_MFD_ERR_IF  {log_error("Not a properly formatted mfd file (misc data inside)."); _raise(-1);}
 #define _GX_MFD_FILESIG UINT64_C(0x1c1c1c1c1c1c1c1c)
 
 #define GXMFDR 0
@@ -295,16 +295,16 @@ static optional int gx_mfd_create_w(gx_mfd *mfd, int pages_at_a_time, const char
 
     mfd->type   = GXMFDW;
     mfd->premap = pages_at_a_time;
-    X( mfd->fd=open(path, open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {X_FATAL; X_RAISE(-1);}
-    X( flock(mfd->fd, LOCK_EX | LOCK_NB)                              ) {X_FATAL; X_RAISE(-1);}
-    X( initial_size = _gx_initial_mapping(mfd)                        ) {X_FATAL; X_RAISE(-1);}
+    _( mfd->fd=open(path, open_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) _raise_alert(-1);
+    _( flock(mfd->fd, LOCK_EX | LOCK_NB)                              ) _raise_alert(-1);
+    _( initial_size = _gx_initial_mapping(mfd)                        ) _raise_alert(-1);
 
     if(initial_size > 0) {
         // There should be a valid header in place then.
         if(mfd->head->sig != _GX_MFD_FILESIG)  _GX_MFD_ERR_IF;
         if(initial_size < sizeof(gx_mfd_head)) _GX_MFD_ERR_IF;
         if((uint64_t)(initial_size) != mfd->head->size)
-            X_LOG_WARN("%s in a possibly inconsistent state.", path);
+            log_warning("%s in a possibly inconsistent state.", path);
         mfd->head->size = initial_size - sizeof(gx_mfd_head);
         mfd->off_w      = initial_size - sizeof(gx_mfd_head);
     } else {
@@ -323,16 +323,16 @@ static int _gx_mfd_readloop(void *vmfd) {
     uint64_t size = mfd->head->size;
     int res;
     for(;;) {
-        // TODO: remove X_WARN when appropriate...- got to keep this as
+        // TODO: remove _warning() when appropriate...- got to keep this as
         // lightweight as possible to reduce stack size once it's been tested well.
-        Xs(res = gx_futex_wait((void *)&(mfd->head->size), (int)size)) {
-            case EFAULT: X_FATAL; return -1;
-            default:     X_WARN;  return 0;
+        switch_esys(res = gx_futex_wait((void *)&(mfd->head->size), (int)size)) {
+            case EFAULT: _alert(); return -1;
+            default:     _warning();  return 0;
         }
         size = mfd->off_w = mfd->head->size;
 
         // TODO: completely inline this syscall so we can have an even smaller stack.
-        X(write(mfd->n_in_fd, &size, sizeof(size))) X_RAISE(-1);
+        _(write(mfd->n_in_fd, &size, sizeof(size))) _raise(-1);
     }
     return 0;
 }
@@ -349,14 +349,14 @@ static optional int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char
 
     mfd->type   = GXMFDR;
     mfd->premap = pages_at_a_time;
-    X( mfd->fd  = open(path, open_flags)    ) {X_FATAL; X_RAISE(-1);}
-    X( mfd->fdh = open(path, h_open_flags)  ) {X_FATAL; X_RAISE(-1);}
-    X( _gx_initial_mapping(mfd)             ) {X_FATAL; X_RAISE(-1);}
-    X( close(mfd->fdh)                      )  X_WARN;
+    _( mfd->fd  = open(path, open_flags)    ) _raise_alert(-1);
+    _( mfd->fdh = open(path, h_open_flags)  ) _raise_alert(-1);
+    _( _gx_initial_mapping(mfd)             ) _raise_alert(-1);
+    _( close(mfd->fdh)                      )  _warning();
     #ifdef __LINUX__
-      X( pipe2(pipes, O_NONBLOCK)           ) {X_FATAL; X_RAISE(-1);}
+      _( pipe2(pipes, O_NONBLOCK)           ) _raise_alert(-1);
     #else
-      X( pipe(pipes)                        ) {X_FATAL; X_RAISE(-1);}
+      _( pipe(pipes)                        ) _raise_alert(-1);
       // TODO: probably fcntl to make it nonblocking
     #endif
     mfd->notify_fd = pipes[0];
@@ -367,7 +367,7 @@ static optional int gx_mfd_create_r(gx_mfd *mfd, int pages_at_a_time, const char
     // it is currently, it may miss a change event as it's getting initialized-
     // but as a practical matter I don't think it'll mean much for the current
     // application...
-    X(gx_clone(_gx_mfd_readloop,(void *)mfd)) {X_FATAL; X_RAISE(-1);}
+    _(gx_clone(_gx_mfd_readloop,(void *)mfd)) _raise_alert(-1);
 
     return 0;
 }
@@ -379,22 +379,22 @@ static int _gx_initial_mapping(gx_mfd *mfd) {
     int    protection = PROT_READ;
     int    head_flags = MADV_RANDOM | MADV_WILLNEED;
 
-    X (fstat(mfd->fd, &filestat) ) X_RAISE(-1);
+    _ (fstat(mfd->fd, &filestat) ) _raise(-1);
     mfd->off_eof = fsz = filestat.st_size;
     mfd->off_eom = gx_in_pages(fsz) + (pagesize() * mfd->premap);
     if(mfd->type == GXMFDW) {
         protection |= PROT_WRITE; // Otherwise will stay read-only for performance
-        Xm(mfd->head_map=mmap(NULL,pagesize(),
-                    protection,MAP_SHARED,mfd->fd,0)                       ) {X_FATAL; X_RAISE(-1);}
-        X(_gx_update_eof(mfd)                                              ) {X_FATAL; X_RAISE(-1);}
+        _M(mfd->head_map=mmap(NULL,pagesize(),
+                    protection,MAP_SHARED,mfd->fd,0)                       ) _raise_alert(-1);
+        _(_gx_update_eof(mfd)                                              ) _raise_alert(-1);
     } else {
-        Xm(mfd->head_map=mmap(NULL,pagesize(),
-                    protection|PROT_WRITE,MAP_SHARED,mfd->fdh,0)           ) {X_FATAL; X_RAISE(-1);}
+        _M(mfd->head_map=mmap(NULL,pagesize(),
+                    protection|PROT_WRITE,MAP_SHARED,mfd->fdh,0)           ) _raise_alert(-1);
     }
-    X (madvise(mfd->head_map, pagesize(), head_flags)                     ) {X_FATAL; X_RAISE(-1);}
-    X (mlock(mfd->head_map, pagesize())                                   ) {X_FATAL; X_RAISE(-1);}
-    Xm(mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) {X_FATAL; X_RAISE(-1);}
-    X (_gx_advise_map(mfd)                                                 ) {X_FATAL; X_RAISE(-1);}
+    _ (madvise(mfd->head_map, pagesize(), head_flags)                     ) _raise_alert(-1);
+    _ (mlock(mfd->head_map, pagesize())                                   ) _raise_alert(-1);
+    _M(mfd->map=mmap(NULL,gx_in_pages(fsz),protection,MAP_SHARED,mfd->fd,0)) _raise_alert(-1);
+    _ (_gx_advise_map(mfd)                                                 ) _raise_alert(-1);
     return fsz;
 }
 
@@ -410,7 +410,7 @@ static inline int _gx_update_eof(gx_mfd *mfd) {
     // size if this seems to be causing strangeness.
     size_t new_pos = mfd->off_eom - pagesize() + 2;
     if(mfd->off_eof < new_pos) {
-        X(ftruncate(mfd->fd, new_pos)) X_RAISE(-1);
+        _(ftruncate(mfd->fd, new_pos)) _raise(-1);
         mfd->off_eof = new_pos;
     }
     return 0;
@@ -421,14 +421,14 @@ static inline int _gx_update_eof(gx_mfd *mfd) {
 /// etc.
 static inline int _gx_update_fpos(gx_mfd *mfd) {
     size_t used_offset = mfd->type == GXMFDW ? mfd->off_w : mfd->off_r;
-    X(lseek(mfd->fd,used_offset+sizeof(gx_mfd_head),SEEK_SET)) X_RAISE(-1);
+    _(lseek(mfd->fd,used_offset+sizeof(gx_mfd_head),SEEK_SET)) _raise(-1);
     return 0;
 }
 
 static inline void *mfd_w(gx_mfd *mfd) { return mfd->data + mfd->off_w; }
 
 static inline int mfd_write(gx_mfd *mfd, const void *buf, size_t len) {
-    Xn(memcpy(mfd_w(mfd), buf, len)) X_RAISE(-1);
+    _N(memcpy(mfd_w(mfd), buf, len)) _raise(-1);
     mfd->off_w += len;
     mfd->head->size = mfd->off_w;
     return gx_futex_wake(&(mfd->head->size));

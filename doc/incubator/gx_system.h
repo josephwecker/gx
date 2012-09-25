@@ -119,10 +119,10 @@ static optional int         _gx_sys_dirty          =  1;
   #define g(FLD) &(gp(FLD))
   static void _gx_sys_refresh_meminfo() {
       FILE *fproc_stat, *fproc_statm;
-      Xn(fproc_stat  = fopen("/proc/self/stat",  "r")) X_WARN;
-      Xn(fproc_statm = fopen("/proc/self/statm", "r")) X_WARN;
+      _N(fproc_stat  = fopen("/proc/self/stat",  "r")) _warning();
+      _N(fproc_statm = fopen("/proc/self/statm", "r")) _warning();
 
-      Xnz(fscanf(fproc_stat,"%d %s %c %d %d %d %d %d %u %lu "
+      _Z(fscanf(fproc_stat,"%d %s %c %d %d %d %d %d %u %lu "
                             "%lu %lu %lu %lu %lu %ld %ld %ld %ld %ld "
                             "%ld %llu %lu %ld %lu %lu %lu %lu %lu %lu "
                             "%lu %lu %lu %lu %lu %lu %lu %d %u %u "
@@ -146,10 +146,10 @@ static optional int         _gx_sys_dirty          =  1;
                   g(old_total_children_pages_swapped), g(exit_signal),
                   g(rt_scheduling_priority), g(scheduling_policy),
                   g(total_io_delays_ticks), g(total_guest_ticks),
-                  g(total_children_guest_ticks))) X_WARN;
-      Xnz(fscanf(fproc_statm, "%lld %lld %lld %lld 0 %lld 0",
+                  g(total_children_guest_ticks))) _warning();
+      _Z(fscanf(fproc_statm, "%lld %lld %lld %lld 0 %lld 0",
                   g(mem_total_pages), g(mem_rss_pages), g(mem_shared_pages),
-                  g(mem_text_pages), g(mem_data_and_stack_pages))) X_WARN;
+                  g(mem_text_pages), g(mem_data_and_stack_pages))) _warning();
       _gx_sys_dirty = 0;
   }
 #else

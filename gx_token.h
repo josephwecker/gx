@@ -212,14 +212,14 @@ static inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
 //-----------------------------------------------------------------------------
 static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
     memset(nm, 0, sizeof(*nm));
-    X (gx_node_uid  (nm->ident.node_uid)                                    ) X_RAISE(-1);
-    X (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) X_RAISE(-1);
-    X (gx_dev_random(nm->rand_pool,      sizeof(nm->rand_pool),   0)        ) X_RAISE(-1);
+    _ (gx_node_uid  (nm->ident.node_uid)                                    ) _raise(-1);
+    _ (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) _raise(-1);
+    _ (gx_dev_random(nm->rand_pool,      sizeof(nm->rand_pool),   0)        ) _raise(-1);
     // The following are direct syscalls so that glibc etc. doesn't cache the values.
   #ifdef __LINUX__
-    X (nm->ident.tid     = syscall(SYS_gettid)) X_RAISE(-1);
+    _ (nm->ident.tid     = syscall(SYS_gettid)) _raise(-1);
   #else
-    X (nm->ident.tid     = syscall(SYS_thread_selfid)) X_RAISE(-1);
+    _ (nm->ident.tid     = syscall(SYS_thread_selfid)) _raise(-1);
   #endif
     nm->ident.ts1        = cpu_ts;
     nm->nonce.rand2[0]   = nm->rand_pool[0];
@@ -245,9 +245,9 @@ static inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
     // _after_ any forking/cloning/spawning.
     int new_tid;
   #ifdef __LINUX__
-    X (new_tid = syscall(SYS_gettid)) X_RAISE(-1);
+    _ (new_tid = syscall(SYS_gettid)) _raise(-1);
   #else
-    X (new_tid = syscall(SYS_thread_selfid)) X_RAISE(-1);
+    _ (new_tid = syscall(SYS_thread_selfid)) _raise(-1);
   #endif
     if(rare(new_tid != nm->ident.tid)) {
         nm->ident.tid = new_tid;
@@ -255,7 +255,7 @@ static inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
     }
 
     if(rare(nm->rand_pool_pos >= _GX_RPSIZE)) {
-        X (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0)) X_RAISE(-1);
+        _ (gx_dev_random(nm->rand_pool, sizeof(nm->rand_pool), 0)) _raise(-1);
         nm->rand_pool_pos = 0;
     }
 
@@ -286,38 +286,38 @@ static int gx_dev_random(void *dest, size_t len, int is_strict) {
     }
 init:
     if(rare(_gx_devrandom_fd == -1))
-        Xs( _gx_devrandom_fd = open("/dev/random", O_RDONLY | O_NONBLOCK)) {
+        switch_esys( _gx_devrandom_fd = open("/dev/random", O_RDONLY | O_NONBLOCK)) {
             case EINTR: goto init;
-            default:    X_RAISE(-1);
+            default:    _raise(-1);
         }
     if(rare(!is_strict && (_gx_devurandom_fd == -1)))
-        Xs( _gx_devurandom_fd = open("/dev/urandom", O_RDONLY)) {
+        switch_esys( _gx_devurandom_fd = open("/dev/urandom", O_RDONLY)) {
             case EINTR: goto init;
-            default:    X_RAISE(-1);
+            default:    _raise(-1);
         }
 exec:
-    Xs(rcv_count = read(_gx_devrandom_fd, dest, len)) {
+    switch_esys(rcv_count = read(_gx_devrandom_fd, dest, len)) {
         case EINTR:   goto exec;
         case EAGAIN:  if(is_strict) {
                           if(tries++ < 10) {
-                              gx_sleep(2,100);
+                              gx_sleep(0,100);
                               goto exec;
                           } else {errno = EAGAIN; return -1;}
                       } else {
-                          X_LOG_WARN("Getting subpar random numbers.");
-                          Xs(rcv_count = read(_gx_devurandom_fd, dest, len)) {
+                          log_warning("Getting subpar random numbers.");
+                          switch_esys(rcv_count = read(_gx_devurandom_fd, dest, len)) {
                               case EINTR: goto exec;
                               default:    close(_gx_devurandom_fd);
                                           _gx_devurandom_fd = -1;
                                           if(tries++ < 2) goto init;
-                                          else X_RAISE(-1);
+                                          else _raise(-1);
                           }
                       }
                       break;
         default:      close(_gx_devrandom_fd);
                       _gx_devrandom_fd = -1;
                       if(tries++ < 2) goto init;
-                      else X_RAISE(-1);
+                      else _raise(-1);
     }
     if((size_t)rcv_count < len) {
         if(tries++ < 2) goto exec;

@@ -19,13 +19,13 @@ int main(int argc, char **argv) {
     for(i = 0; i < 100; i++) {
         unsigned int r1;
         p = outstr;
-        X (gx_dev_random(&r1, sizeof(r1), 0)) X_ERROR;
+        _ (gx_dev_random(&r1, sizeof(r1), 0)) _error();
         int num = (r1 % 8) + 1;
         for(j=0; j < num; j++) p += sprintf(p, " -=%u=- ", pid);
         p += sprintf(p, "\n");
         for(j=0; j < num; j++) p += sprintf(p, " -=%u=- ", pid);
         fprintf(stderr, "%s\n\n", outstr);
-        gx_sleep(0,r1 & 0xffff);
+        //gx_sleep(0,000,r1 & 0xffff);
         //p[0] = '\n';
         //p[1] = '\0';
         //write(STDERR_FILENO, outstr, strlen(outstr));

@@ -9,6 +9,6 @@ int main(int argc, char **argv) {
     SHA256_Data((sha2_byte *)"The quick brown fox jumps over the lazy dog", (size_t)43, hashed);
     hashed[127] = '\0';
 
-    X_LOG_INFO("The hash seems to be: %s", hashed);
+    log_info("The hash seems to be: %s", hashed);
     return 0;
 }

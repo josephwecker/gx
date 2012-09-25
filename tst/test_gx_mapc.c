@@ -2,7 +2,7 @@
 gx_error_initialize(GX_DEBUG);  // Should be able to remove later
 
 #include <unistd.h>
-#include "../gx_error2.h"
+#include "../gx_error.h"
 #include "../gx_mapc.h"
 #include "../gx_event.h"
 
@@ -15,19 +15,19 @@ void writer() {
     char msg[] = "something blah blah";
 
     _N( testm = mapc_open("tmp/writer-file.dat", MAPC_WRITE | MAPC_VOLATILE) ) _eexit();
-    gx_sleep(1,0);
+    gx_sleep(1);
     for(i=0; i < 5; i++) {
-        gx_sleep(0,500000000);
-        X_LOG_INFO("/CHILD/ writing some stuff");
+        gx_sleep(0,500);
+        log_info("/CHILD/ writing some stuff");
         mapc_write(testm, msg, sizeof(msg));
     }
-    gx_sleep(1,0);
+    gx_sleep(1);
 }
 
 void reader() {
     mapc *testm;
     gx_eventloop_init(mapc_events);
-    gx_sleep(0,500000000);
+    gx_sleep(0,500);
     _N( testm = mapc_open("tmp/writer-file.dat", MAPC_READ) ) _eexit();
 }
 

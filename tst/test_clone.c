@@ -18,12 +18,12 @@ int child(void *n) {
 int main(int argc, char **argv) {
     int i;
 
-    X_LOG_INFO("Spawning 20,000 shortlived light threads");
+    log_info("Spawning 20,000 shortlived light threads");
     for(i=0; i < 20000; i++) {
-        X(gx_clone(&child, NULL)) {X_FATAL; X_EXIT;}
+        _(gx_clone(&child, NULL)) _abort();
     }
-    X_LOG_INFO("(all-spawned - waiting a couple of seconds as they continue to die)");
+    log_info("(all-spawned - waiting a couple of seconds as they continue to die)");
 
-    gx_sleep(2,0);
+    gx_sleep(2);
     return 0;
 }

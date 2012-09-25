@@ -149,7 +149,7 @@ gx_pool_init(gx_tcp_sess);
             int (*handler)(gx_tcp_sess *, gx_rb *),                              \
             size_t bytes_expected, int do_readahead) {                           \
         gx_tcp_sess *sess;                                                       \
-        Xn(sess = acquire_gx_tcp_sess(NAME ## _sess_pool_inst)) X_RAISE(-1);     \
+        _N(sess = acquire_gx_tcp_sess(NAME ## _sess_pool_inst)) _raise(-1);     \
         sess->peer_fd          = peer_fd;                                        \
         sess->rcv_buf          = NULL;                                           \
         sess->udata            = misc;                                           \
@@ -192,11 +192,11 @@ gx_pool_init(gx_tcp_sess);
                         NAME ## _events_fd, NAME ## _rb_pool,                    \
                         &NAME ## _rcvrb);                                        \
             /* TODO: a bunch of accepts here first if applicable */              \
-            Xs(nfds = gx_event_wait(NAME ## _events_fd,                          \
+            switch_esys(nfds = gx_event_wait(NAME ## _events_fd,                          \
                         NAME ## _events,                                         \
                         EVENTS_AT_A_TIME, timeout)) {                            \
                 case EINTR: continue;                                            \
-                default: X_FATAL; X_RAISE(-1);                                   \
+                default: _raise_alert(-1);                                       \
             }                                                                    \
             if(!nfds && timeout != -1) return 0;                                 \
             for(i=0; i < nfds; ++i) {                                            \
@@ -217,7 +217,7 @@ gx_pool_init(gx_tcp_sess);
                         NAME ## _abort_sess2(sess, GX_CLOSED_BY_PEER);           \
                     }                                                            \
                 } else if(misc_handler) {                                        \
-                    X(misc_handler(sess, evstates)) X_RAISE(-1);                 \
+                    _(misc_handler(sess, evstates)) _raise(-1);                 \
                 } else return -1;                                                \
             }                                                                    \
         }                                                                        \
@@ -226,10 +226,10 @@ gx_pool_init(gx_tcp_sess);
 
 
 #define gx_eventloop_init(NAME) { \
-    Xn(NAME ## _rb_pool        = gx_rb_pool_new(NAME ## _expected_sessions/4+2,0x1000,0)) {X_ERROR; X_EXIT;}\
-    Xn(NAME ## _rcvrb          = gx_rb_acquire(NAME ## _rb_pool))                         {X_ERROR; X_EXIT;}\
-    Xn(NAME ## _sess_pool_inst = new_gx_tcp_sess_pool(NAME ## _expected_sessions))        {X_ERROR; X_EXIT;}\
-    X (NAME ## _events_fd      = gx_event_newset(NAME ## _events_at_a_time))              {X_ERROR; X_EXIT;}\
+    _N(NAME ## _rb_pool        = gx_rb_pool_new(NAME ## _expected_sessions/4+2,0x1000,0)) _abort();\
+    _N(NAME ## _rcvrb          = gx_rb_acquire(NAME ## _rb_pool))                         _abort();\
+    _N(NAME ## _sess_pool_inst = new_gx_tcp_sess_pool(NAME ## _expected_sessions))        _abort();\
+    _ (NAME ## _events_fd      = gx_event_newset(NAME ## _events_at_a_time))              _abort();\
 }
 
 #define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
@@ -251,7 +251,7 @@ gx_pool_init(gx_tcp_sess);
 
 #ifdef DEBUG_EVENTS
 #define _gx_call_handler(SESS,RB) ( {                          \
-    X_LOG_DEBUG("HANDLER: %s | exp: %lu (%lu in rb)"           \
+    log_debug("HANDLER: %s | exp: %lu (%lu in rb)"           \
         " | peek-avail: %lu",                                  \
         SESS->fn_handler_name,                                 \
         SESS->rcv_expected,                                    \
@@ -388,7 +388,7 @@ static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_
         int      can_rcv_more;
         do {
             if(rare(sess->peer_fd < 2)) {
-                X_LOG_WARN("Somehow a closed peer got in the inner eventloop.");
+                log_warning("Somehow a closed peer got in the inner eventloop.");
                 return;
             }
             can_rcv_more = 0;
@@ -407,7 +407,7 @@ static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_
                 // the lesser and set can_rcv_more to true.
                 ssize_t avail = rb_available(rcvrb);
                 if(rare(curr_remaining > avail)) {
-                    X_LOG_ERROR("Handler wants tcp data bigger than what can fit in the allocated ringbuffer.");
+                    log_error("Handler wants tcp data bigger than what can fit in the allocated ringbuffer.");
                     bytes_attempted = avail;
                 } else if(sess->rcv_do_readahead) {
                     if(sess->rcv_max_readahead) {
@@ -420,12 +420,12 @@ static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_
                 }
 
                 if(freq(bytes_attempted > 0)) {
-                    X (rcvd = zc_sock_rbuf(sess->peer_fd, bytes_attempted, rcvrb, 1)){X_FATAL;rcvd=0;}
+                    _ (rcvd = zc_sock_rbuf(sess->peer_fd, bytes_attempted, rcvrb, 1)){_alert();rcvd=0;}
                     if(freq(rcvd==bytes_attempted)) can_rcv_more = 1; // might still be something on the wire
                 }
                 _gx_event_drainbuf(sess, rb_pool, rcvrbp);
             } else if(sess->rcv_dest == GX_DEST_DEVNULL) {
-                X (rcvd = zc_sock_null(sess->peer_fd, curr_remaining)){X_FATAL;rcvd=curr_remaining;}
+                _ (rcvd = zc_sock_null(sess->peer_fd, curr_remaining)){_alert();rcvd=curr_remaining;}
                 if(rcvd < curr_remaining) {
                     sess->rcvd_so_far += rcvd;
                     goto done_with_reading; // Not enough thrown away yet.
@@ -436,7 +436,7 @@ static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_
                     can_rcv_more = 1;
                 }
             } else { // TODO: Check for GX_DEST_UNDEF
-                X_LOG_ERROR("Not yet implemented");
+                log_error("Not yet implemented");
                 /* TODO: the below is from imbibe- needs to be better and also
                  * detect and handle multiple destinations when appropriate.
                  */
@@ -458,7 +458,7 @@ static inline void _gx_event_incoming(gx_tcp_sess *sess, uint32_t events, gx_rb_
 done_with_reading:
     if(events & GX_EVENT_WRITABLE) {
         if(sess->snd_buf) {
-            X_LOG_WARN("Not yet implemented");
+            log_warning("Not yet implemented");
             goto done_with_writing;
         }
     }
@@ -477,7 +477,7 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
             if(rb_used(rcvrb) < curr_remaining) { // Done draining- partial buffered chunk
                 sess->rcvd_so_far += rb_used(rcvrb);
                 sess->rcv_buf      = rcvrb;
-                Xn(rcvrb           = gx_rb_acquire(rb_pool)) X_FATAL;
+                _N(rcvrb           = gx_rb_acquire(rb_pool)) _alert();
                 return;
             }
         } else if(sess->rcv_dest == GX_DEST_DEVNULL) {
@@ -488,7 +488,7 @@ static void _gx_event_drainbuf(gx_tcp_sess *sess, gx_rb_pool *rb_pool, gx_rb **r
             }
             rb_advr(rcvrb, curr_remaining); // curr_remaining because we've rb_clear'ed earlier ones
         } else { // File descriptor TODO: check for GX_DEST_UNDEF
-            X_LOG_ERROR("Not yet implemented");
+            log_error("Not yet implemented");
         }
         // Looks like we have a full chunk / full expected length available.
         sess->rcvd_so_far = 0; // Clear it out so the next part is processed correctly
@@ -532,7 +532,7 @@ static int _gx_close_sess(gx_tcp_sess *sess, gx_tcp_sess_pool *cespool, int reas
 try_close:
         // Explicitly close down both parts of the socket, working directly on
         // the _open file description_ instead of the file descriptor.
-        Xs(shutdown(sess->peer_fd, SHUT_RDWR)) {
+        switch_esys(shutdown(sess->peer_fd, SHUT_RDWR)) {
             case EINTR:    goto try_close;
             case ENOTCONN:
             case EBADF:    break;
@@ -569,7 +569,7 @@ static inline void _gx_event_accept_connections(int lim, int afd, int (*ahandler
     gx_tcp_sess        *new_sess = NULL;
 
     for(i=0; i<lim; i++) {
-        Xs(peer_fd = accept(afd, &peer_addr, &slen)) {
+        switch_esys(peer_fd = accept(afd, &peer_addr, &slen)) {
             case EWOULDBLOCK:
             case EINTR:
                 return;
@@ -587,21 +587,21 @@ static inline void _gx_event_accept_connections(int lim, int afd, int (*ahandler
                 if(warn_count < 5) continue; // Transitory as per manpages. Try again
                 else return;
             default:
-                X_ERROR;
-                X_RAISE();
+                _error();
+                _raise();
         } else {
-            X (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {X_ERROR; close(peer_fd); X_RAISE();}
+            _ (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {_error(); close(peer_fd); _raise();}
 
             if(freq(ahandler != NULL)) {
-                Xn(new_sess = acquire_gx_tcp_sess(cespool)) {X_ERROR; close(peer_fd); X_RAISE();}
+                _N(new_sess = acquire_gx_tcp_sess(cespool)) {_error(); close(peer_fd); _raise();}
                 new_sess->peer_fd     = peer_fd;
                 new_sess->rcv_buf     = NULL;
                 new_sess->snd_buf     = NULL;
                 new_sess->rcvd_so_far = 0;
                 if(freq(ahandler(new_sess) == GX_CONTINUE)) {
-                    X (gx_event_add(events_fd, peer_fd, (void *)new_sess)) {
-                        X_ERROR;
-                        X(_gx_close_sess(new_sess, cespool, GX_INTERNAL_ERR, rb_pool)) X_ERROR;
+                    _ (gx_event_add(events_fd, peer_fd, (void *)new_sess)) {
+                        _error();
+                        _(_gx_close_sess(new_sess, cespool, GX_INTERNAL_ERR, rb_pool)) _error();
                         continue;
                     }
                     // Trigger here because it's very likely to be available

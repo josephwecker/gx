@@ -15,34 +15,34 @@
 
 
 gx_error_initialize(GX_DEBUG);
-#define ERR {X_FATAL; X_EXIT;}
+#define ERR _abort();
 int main(int argc, char **argv) {
     char    path[] = "tmp/rb-XXXXXX";
     int     fd;
     void   *fut_write, *fut_read;
     pid_t   parent;
 
-    X (fd = mkstemp(path)) ERR;
-    X (unlink(path)      ) ERR;
-    X (ftruncate(fd, 32) ) ERR;
+    _ (fd = mkstemp(path)) ERR;
+    _ (unlink(path)      ) ERR;
+    _ (ftruncate(fd, 32) ) ERR;
 
-    X (parent = fork()) ERR;
+    _ (parent = fork()) ERR;
     if(parent) {
         int wake_res;
-        Xm(fut_write = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
-        X (mlock(fut_write, pagesize())) ERR;
+        _M(fut_write = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
+        _ (mlock(fut_write, pagesize())) ERR;
         sleep(1);
         printf("Parent: Changing data from 0 to 2\n");
         ((int *)fut_write)[0] = 2;
         sleep(1);
         printf("Parent: Calling gx_futex_wake\n");
-        X (wake_res = gx_futex_wake(fut_write)) ERR;
+        _ (wake_res = gx_futex_wake(fut_write)) ERR;
         printf("Parent: Done, got %d from wake\n", wake_res);
     } else { // Child
         int res;
-        Xm(fut_read  = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
-        X (mlock(fut_read,  pagesize())) ERR;
-        X (res = gx_futex_wait(fut_read, 0)) ERR;
+        _M(fut_read  = mmap(NULL, pagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) ERR;
+        _ (mlock(fut_read,  pagesize())) ERR;
+        _ (res = gx_futex_wait(fut_read, 0)) ERR;
         printf("Child: Done waiting- got %d\n", res);
     }
 

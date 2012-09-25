@@ -467,6 +467,17 @@ static inline void _gx_log_update_host() {
 #define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...)                              \
     _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
+#define log_emergency(...)
+#define log_alert(...)
+#define log_critical(...)
+#define log_error(...)
+#define log_warning(...)
+#define log_notice(...)
+#define log_info(...)
+#define log_stat(...)
+#define log_debug(...)
+#define log_unknown(...)
+
 #define _VA_ARG_TO_TBL(VALIST) {                                               \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                    \
     char         *_kv_val = va_arg((VALIST), char *);                          \

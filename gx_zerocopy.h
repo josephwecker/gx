@@ -171,10 +171,10 @@ static inline ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
 static inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
     ssize_t sent;
 do_write:
-    Xs(sent = write(mmfd, rb_r(rbuf), len)) {
+    switch_esys(sent = write(mmfd, rb_r(rbuf), len)) {
         case EINTR: goto do_write;
         case EAGAIN: errno = 0; return 0;
-        default: X_RAISE(-1);
+        default: _raise(-1);
     }
     if (consume) {
         rb_advr(rbuf, sent);
@@ -203,17 +203,17 @@ static inline ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume)
 
     do {
         remaining = len - sent;
-        Xs(just_sent = recv(sock, tmp_buf, min(remaining, 4096), rflags)) {
+        switch_esys(just_sent = recv(sock, tmp_buf, min(remaining, 4096), rflags)) {
             case EAGAIN: return sent;
             case EINTR:  if(tries++ < 2) continue;
-            default:     X_RAISE(-1);
+            default:     _raise(-1);
         }
         if(just_sent > 0) {
 do_file_write:
-            Xs(write(mmfd, tmp_buf, just_sent)) {
+            switch_esys(write(mmfd, tmp_buf, just_sent)) {
                 case EINTR:  goto do_file_write;
                 case EAGAIN: if(tries++ < 2) goto do_file_write; // Should never happen, at least on linux
-                default: X_RAISE(-1);
+                default: _raise(-1);
             }
             sent += just_sent;
         }
@@ -241,8 +241,8 @@ static ssize_t zc_sock_null(int sock, size_t len) {
 
     // Initialize devnull sinkpoint
     if(zc_devnull_fd == -1) {
-        X (zc_devnull_fd = open("/dev/null",O_WRONLY)) {X_ERROR; X_RAISE(-1);}
-        X (pipe2(zc_general_pipes, O_NONBLOCK)       ) {X_ERROR; X_RAISE(-1);}
+        _ (zc_devnull_fd = open("/dev/null",O_WRONLY)) _raise_error(-1);
+        _ (pipe2(zc_general_pipes, O_NONBLOCK)       ) _raise_error(-1);
         zc_pipe_in  = zc_general_pipes[1];
         zc_pipe_out = zc_general_pipes[0];
     }
@@ -264,7 +264,7 @@ sendagain:
     }
     if(freq(just_sent > 0)) {
         // TODO: make this a _separate_ zc call so it can handle EINTR etc. appropriately.
-        X (splice(zc_pipe_out, NULL, zc_devnull_fd, NULL, just_sent, SPLICE_F_MOVE)) {X_ERROR;X_RAISE(-1);}
+        _ (splice(zc_pipe_out, NULL, zc_devnull_fd, NULL, just_sent, SPLICE_F_MOVE)) _raise_error(-1);
     }
     if(tries++ < 3 && total_sent < len) {
         len_to_send = len - total_sent;
@@ -299,17 +299,17 @@ static inline ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
 
     do {
         remaining = len - sent;
-        Xs(just_sent = recv(in, tmp_buf, min(remaining, 4096), rflags)) {
+        switch_esys(just_sent = recv(in, tmp_buf, min(remaining, 4096), rflags)) {
             case EAGAIN: continue;
             case EINTR:  if(tries++ < 2) continue;
-            default:     X_RAISE(-1);
+            default:     _raise(-1);
         }
         if(just_sent > 0) {
 do_file_write:
-            Xs(write(out, tmp_buf, just_sent)) {
+            switch_esys(write(out, tmp_buf, just_sent)) {
                 case EINTR:  goto do_file_write;
                 case EAGAIN: goto do_file_write;
-                default: X_RAISE(-1);
+                default: _raise(-1);
             }
             sent += just_sent;
         }
@@ -319,10 +319,10 @@ do_file_write:
 static inline ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int consume) {
     ssize_t rcvd;
     do {
-        Xs(rcvd = recv(sock, rb_w(rbuf), len, 0)) {
+        switch_esys(rcvd = recv(sock, rb_w(rbuf), len, 0)) {
             case EAGAIN: rcvd=0; errno=0; break;
             case EINTR:  rcvd=0; errno=0; continue;
-            default: X_ERROR; X_RAISE(-1);
+            default: _raise_error(-1);
         }
     } while(0);
     rb_advw(rbuf, rcvd);

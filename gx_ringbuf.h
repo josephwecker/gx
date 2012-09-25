@@ -51,17 +51,17 @@ static int gx_rb_create(gx_rb *rb, ssize_t min_size, int stay_in_ram) {
     int     fd;
     void   *addr;
     int     page_size = pagesize(); // Configurable, so discover @ runtime
-    X (fd=mkstemp(path) )      {X_ERROR; X_RAISE(-1)};
-    X (unlink(path)     )      {X_ERROR; X_RAISE(-1)};
+    _ (fd=mkstemp(path) )      _raise_error(-1);
+    _ (unlink(path)     )      _raise_error(-1);
     rb->len = gx_fits_in(page_size, min_size) * page_size;
     rb->w   = rb->r = 0;
-    X (ftruncate(fd, rb->len)) {X_ERROR; X_RAISE(-1)};
+    _ (ftruncate(fd, rb->len)) _raise_error(-1);
     // First call finds a good chunk- second and third one map the same
     // memory twice so it loops back on itself.
     int flags = MAP_FIXED | MAP_SHARED;
-    Xm(rb->addr=mmap(NULL, rb->len<<1, PROT_NONE,MAP_ANON|MAP_PRIVATE, -1, 0)    ){X_ERROR;X_RAISE(-1);}
-    Xm(addr =   mmap(rb->addr,        rb->len, PROT_READ|PROT_WRITE, flags, fd,0)){X_ERROR;X_RAISE(-1);}
-    Xm(addr =   mmap(rb->addr+rb->len,rb->len, PROT_READ|PROT_WRITE, flags, fd,0)){X_ERROR;X_RAISE(-1);}
+    _M(rb->addr=mmap(NULL, rb->len<<1, PROT_NONE,MAP_ANON|MAP_PRIVATE, -1, 0)    ) _raise_error(-1);
+    _M(addr =   mmap(rb->addr,        rb->len, PROT_READ|PROT_WRITE, flags, fd,0)) _raise_error(-1);
+    _M(addr =   mmap(rb->addr+rb->len,rb->len, PROT_READ|PROT_WRITE, flags, fd,0)) _raise_error(-1);
     if(stay_in_ram) {
         mlock(rb->addr, rb->len); // Any errors here are non-fatal, so ignoring
         mlock(rb->addr+rb->len, rb->len);
@@ -122,7 +122,7 @@ static inline void rb_wbe32(gx_rb *rb, uint32_t data) {
 
 static inline void rb_wse32(gx_rb *rb, uint32_t data) {
     if(rare(gx_is_big_endian())) {
-        X_LOG_FATAL("Small endian conversion not implemented.");
+        log_critical("Small endian conversion not implemented.");
         return;
     }
     rb_write(rb, &data, 4);
@@ -162,7 +162,7 @@ static inline ssize_t rb_used(gx_rb *rb) {return rb->w - rb->r;}
 static inline ssize_t rb_available (gx_rb *rb) {return rb->len - rb_used(rb);}
 /// Free allocated memory for internal structures (and close filehandle).
 static inline int rb_free (gx_rb *rb) {
-    X (munmap(rb->addr, rb->len << 1)) X_RAISE(-1);
+    _ (munmap(rb->addr, rb->len << 1)) _raise(-1);
     close(rb->fd);
     return 0;
 }
@@ -213,11 +213,11 @@ static inline int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t
 static inline gx_rb_pool *gx_rb_pool_new (ssize_t initial_number, ssize_t min_rbsize,
                                          ssize_t num_in_ram) {
     gx_rb_pool *res;
-    Xn(res=(gx_rb_pool *)malloc(sizeof(gx_rb_pool))      ) X_RAISE(NULL);
+    _N(res=(gx_rb_pool *)malloc(sizeof(gx_rb_pool))      ) _raise(NULL);
     memset(res, 0, sizeof(gx_rb_pool));
     if(min_rbsize <= 0) min_rbsize = pagesize();
     res->min_rbsize = min_rbsize;
-    X (gx_rb_pool_extend(res, initial_number, num_in_ram)) X_RAISE(NULL);
+    _ (gx_rb_pool_extend(res, initial_number, num_in_ram)) _raise(NULL);
     return res;
 }
 
@@ -226,10 +226,10 @@ static int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in
     gx_rb *new_seg;
     ssize_t curr;
     gx_rb_poolseg *memseg_entry;
-    Xn(new_seg = (gx_rb *)malloc(sizeof(gx_rb) * by_number)) X_RAISE(-1);
+    _N(new_seg = (gx_rb *)malloc(sizeof(gx_rb) * by_number)) _raise(-1);
 
     /* Link to memory-segments for freeing later */
-    Xn(memseg_entry=(gx_rb_poolseg *)malloc(sizeof(gx_rb_poolseg))) X_RAISE(-1);
+    _N(memseg_entry=(gx_rb_poolseg *)malloc(sizeof(gx_rb_poolseg))) _raise(-1);
     memseg_entry->segment = new_seg;
     memseg_entry->next    = pool->memseg_head;
     pool->memseg_head     = memseg_entry;
@@ -237,7 +237,7 @@ static int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in
     /* Link them up */
 
     // Create ringbuffer for the last one in the new pool
-    X (gx_rb_create(&new_seg[by_number - 1], pool->min_rbsize, num_in_ram > 0)) X_RAISE(-1);
+    _ (gx_rb_create(&new_seg[by_number - 1], pool->min_rbsize, num_in_ram > 0)) _raise(-1);
     if(num_in_ram > 0) num_in_ram --;
 
     // Last in new pool links to the current available-head
@@ -247,7 +247,7 @@ static int gx_rb_pool_extend(gx_rb_pool *pool, ssize_t by_number, ssize_t num_in
 
     // First through second-to-last
     for(curr=0; curr < by_number-1; curr++) {
-        X (gx_rb_create(&new_seg[curr], pool->min_rbsize, num_in_ram > 0)) X_RAISE(-1);
+        _ (gx_rb_create(&new_seg[curr], pool->min_rbsize, num_in_ram > 0)) _raise(-1);
         if(num_in_ram > 0) num_in_ram --;
         new_seg[curr].next = (struct gx_rb *) &(new_seg[curr+1]);
     }

@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
         unsigned int r1;
         pid_t pid = getpid();
         p = outstr;
-        X (gx_dev_random(&r1, sizeof(r1), 0)) X_ERROR;
+        _ (gx_dev_random(&r1, sizeof(r1), 0)) _error();
         int num = (r1 % 8) + 1;
         for(j=0; j < num; j++) p += sprintf(p, " -=%u=- ", pid);
         p += sprintf(p, "\n");

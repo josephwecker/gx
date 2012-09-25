@@ -17,16 +17,16 @@ int main(int argc, char **argv) {
     int      fd;
     uint8_t *full_map;
     char     path[] = "tmp/testrand.txt";
-    X(  fd=open(path,O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) {X_FATAL; X_EXIT;}
-    //X(  fstat(fd, &filestat)                                                             ) X_RAISE(-1);
+    _(  fd=open(path,O_RDWR|O_NONBLOCK|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) _abort();
+    //_(  fstat(fd, &filestat)                                                             ) _raise(-1);
     //curr_size = filestat.st_size;
     //mfd->map_size = max(curr_size, pagesize());
-    Xm( full_map = mmap(NULL, pagesize() << 1, PROT_READ|PROT_WRITE, MAP_SHARED, fd,0)) {X_FATAL; X_EXIT;}
+    _M( full_map = mmap(NULL, pagesize() << 1, PROT_READ|PROT_WRITE, MAP_SHARED, fd,0)) _abort();
 
     printf("%x | %x\n", full_map[0], full_map[pagesize()]);
 
 #ifdef __LINUX__
-    Xm( full_map = mremap(full_map, pagesize() << 1, pagesize() * 3, MREMAP_MAYMOVE)) {X_FATAL; X_EXIT;}
+    _M( full_map = mremap(full_map, pagesize() << 1, pagesize() * 3, MREMAP_MAYMOVE)) _abort();
 #else
     #error mremap not yet implemented on mac (TODO)
 #endif
