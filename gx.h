@@ -142,14 +142,15 @@
 
 /// Normalize some OS names
 #if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
-  #define _LINUX 1
-  #undef  _OSX
+  #define __LINUX__ 1
+  #undef  __OSX__
 #elif defined(__APPLE__) || defined(__MACH__)
-  #define _OSX 1
-  #undef  _LINUX
+  #define __OSX__ 1
+  #undef  __LINUX__
 #endif
 
-#if defined(_LINUX)
+///
+#if defined(__LINUX__)
   #ifndef _GNU_SOURCE
     #define _GNU_SOURCE
   #endif
