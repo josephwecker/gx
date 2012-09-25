@@ -25,6 +25,112 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  *   DEALINGS IN THE SOFTWARE.
  *
+ * @details
+ *   # Conventions / Guidelines
+ *   - As with all the gx* header files, optimized for linux, most optimized
+ *     for x86_64, but should all work on osx. Should all work with gcc,
+ *     llvm-backed-gcc, and clang.
+ *   - While C/C++ programmers are used to not being allowed to start an
+ *     identifier with an underscore, it is actually allowed for file-scope
+ *     identifiers, which the ones below are.
+ *   - Even more often developers don't like to use $ (or @) in C identifiers.
+ *     For good reason- it's not very C-like. They aren't allowed or disallowed
+ *     by standards, but some assemblers reject them in identifier names so
+ *     they are almost globally frowned upon. GX uses them in some very
+ *     strictly controled pieces (that you can change if you want) and only by
+ *     the preprocessor - so that they don't exist by the time any code gets to
+ *     the assember.
+ *
+ *
+ *   Includes
+ *   -----------------
+ *   - The usual- stdio, stdlib, unistd, string, fcntl.
+ *   - The only other gx header it automatically loads is gx_error- which in
+ *     turn relies on gx_log and gx_token.
+ *
+ *   Typedefs
+ *   ------------------
+ *   For clarity, to indicate purpose or internal format, and for brevity.
+ *
+ *   - uint8_t  / U8  / byte   / uint8 / uint8_bitmask
+ *   - uint16_t / U16 / uint16[_(be|le)]
+ *   - int16_t  / S16 / sint16[_(be|le)]
+ *   - (and also for 32 & 64 bit sizes. Can easily add 128-bit sizes [supported by gcc] if necessary)
+ *   - uint24 (U24 etc.) (struct with three bytes- e.g., U24.b[2])
+ *
+ *   Constants
+ *   -------------------
+ *   (Ensures that the following are defined- sometimes missing from older preprocessors)
+ *   
+ *   | __LINUX__          | set if host OS is linux |
+ *   | __OSX__            | set if host OS is mach/apple/osx |
+ *   | __SIZEOF_INT__     | in bytes |
+ *   | __SIZEOF_POINTER__ | in bytes |
+ *     
+ *     
+ *   Macros
+ *   -------------------
+ *   (may sometimes be implemented as macros, inline-functions, functions, or
+ *   even expression attributes)
+ *
+ *   Naming convention is thus:
+ *     - normal identifier for a few pre-compile operations like sizeofm etc.
+ *       so they look like basic extensions to normal directives.
+ *     - function-like macros have normal naming for now. I've alternated
+ *       between namespace prefixes, underscore prefixes, and nothing. Going
+ *       with nothing for now because for me at least these are the things that
+ *       I don't want _other_ packages colliding with. These are the general
+ *       purpose.
+ *     - EXCEPT when they already would collide- like sleep(). in which case
+ *       they get the gx_ prefix.
+ *     - macros that are obviously preprocessor utilities are all upper-case
+ *
+ *   | sizeofm(TP,MEM)    | ctval| extension of sizeof for member field                    |
+ *   | typeofm(TP,MEM)    | type | extension to typeof for member field                    |
+ *   | build_bug_on(COND) | expr | in function scope, causes build failure if COND is true |
+ *
+ *   | min(a,b)           | expr | typesafe & multiple-side-effect-safe  |
+ *   | min3(a,b,c)        | expr | typesafe & multiple-side-effect-safe  |
+ *   | max(a,b)           | expr | typesafe & multiple-side-effect-safe  |
+ *   | max3(a,b,c)        | expr | typesafe & multiple-side-effect-safe  |
+ *   | cpu_ts()           | val  | very, very fast but somewhat innacurate cpu timestamp (nanosecond res.) |
+ *   | bswap64(n)         | val  | very fast little <-> big-endian                  |
+ *   | ntz(n)             | val  | very fast index of the bit set to 1              |
+ *   | uint_to_vlq        | val  | variable-length-encode (or BER, etc.) an integer |
+ *   | vlq_to_uint        | val  | decode a variable-length-encoded integer         |
+ *
+ *   | unlikely(expr)     | expr | compiler optimizes for expr to rarely succeed    |
+ *   | rare(expr)         | expr | alias for _unlikely                              |
+ *   | likely(expr)       | expr | compiler optimizes for expr to succeed often     |
+ *   | freq(expr)         | expr | alias for _likely                                |
+ *   | gx_pagesize()      | expr | memoized current pagesize                                   |
+ *   | gx_sleep(...)      | sfx  | gx_sleep(8,004,720,010) would sleep for 8.004720010 seconds |
+ *
+ *   | $(FMT,...)         | val  | quick sprintf, useful for function args, uses static buff |
+ *   | $reset()           | sfx  | resets static buffer when existing $(...) strings aren't needed |
+ *   | $s(BUF,FMT,...)    | val  | like $(), but specify your own static char buffer |
+ *   | $sreset(BUF)       | sfx  | like $reset(), but specify a buffer               |
+ *   | 
+ *
+ *   | NARG(...)          | pp   | number of arguments given                       |
+ *
+ *
+ *
+ *   Attributes
+ *   -------------------
+ *
+ *   | cold            | function               |
+ *   | hot             | function               |
+ *   | pure            | function               |
+ *   | inline          | function               |
+ *   | always_inline   | function               |
+ *   | noinline        | function               |
+ *   | optional        | function/global/static | (supresses "not-used" warnings) |
+ *   | packed          | struct                 |
+ *
+ *
+ *
+ *
  * @todo  Normalize all the naming conventions
  * @todo  Update documentation / fix all for doxygen
  * @todo  Move resource pool to its own module
@@ -81,7 +187,8 @@
   typedef double      F64,   float64,  float64_be,  float64_le;
   typedef long double F96,   float96,  float96_be,  float96_le;
 
-  /* Misc */
+
+  /// @todo Generalize min/max to use variadic input
   #ifndef MIN
   #define MIN(A,B) ({ typeof(A) _a = (A); typeof(B) _b = (B); _b < _a ? _b : _a; })
   #endif
@@ -106,6 +213,8 @@
 #else
   #warning "Don't know how to implement RDTSC intrinsic on your system."
 #endif
+
+/// bswap64 - most useful for big to little-endian
 #if __GNUC__
 	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
 	#define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
@@ -140,8 +249,9 @@
 	}
 	#endif
 #endif
-  /// Compiler Optimization Cues
-  /// Borrowed ideas from haproxy and the Linux kernel
+
+
+
   #if          __GNUC__ > 3
     #ifndef    gx_likely
       #define  gx_likely(x)   __builtin_expect(!!(x), 1)
@@ -214,7 +324,6 @@
 /// A trick to get the number of args passed to a variadic macro
 /// @author Laurent Deniau <laurent.deniau@cern.ch> (I think)
 /// @author Joseph Wecker (fixed zero-va_args bug)
-/// @todo   Abstract this back into gx.h and rename so it's generally usable
 #define PP_NARG(...)  PP_NARG_(DUMMY, ##__VA_ARGS__,PP_RSEQ_N())
 #define PP_NARG_(...) PP_ARG_N(__VA_ARGS__)
 #define PP_ARG_N( \
@@ -339,6 +448,8 @@ static char  _gx_tstr_empty[]   = "";
     (STRBUF).p = (STRBUF).buf;                                            \
 } while(0);
 
+
+/// @todo Move to gx_log
   static GX_INLINE void gx_hexdump(void *buf, size_t len, int more) {
       size_t i=0, tch; int val, grp, outsz=0, begin_col;
       size_t begin_line;
@@ -386,6 +497,8 @@ static char  _gx_tstr_empty[]   = "";
       funlockfile(stderr);
   }
 
+
+  /// @todo Move to gx_pool (or something)
 
   // TYPE must be a type that has a "_next" and "_prev" member that is a pointer to the same
   // type. Also, the struct should be aligned (?).
@@ -541,6 +654,7 @@ static char  _gx_tstr_empty[]   = "";
    *---------------------------------------------------------------------------*/
   static int _GXPS GX_OPTIONAL = 0;
 
+  /// @todo don't use HAS_SYSCONF - use __LINUX__ etc. instead
   #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
     #define gx_pagesize ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
   #elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
@@ -552,6 +666,7 @@ static char  _gx_tstr_empty[]   = "";
 
   #include "./gx_error.h"
 
+    /// @todo This all needs to be somewhere else.
     /// Very "lightweight" fork, calls given function in child. Falls back to
     /// fork on systems that don't have anything lighter. Otherwise tries to
     /// create a new process with everything shared with the parent except a
