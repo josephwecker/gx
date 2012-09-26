@@ -241,10 +241,10 @@ module PerfectMap
 
     def f_sig
       # TODO: add hot attribute when using versio of gcc that supports it..?
-      f_attributes = ['always_inline', 'nonnull', 'pure']
+      f_attributes = ['always_inline', 'nonnull', 'pure', 'unused']
       f_attr = "__attribute__ (( #{f_attributes.map{|a|"__#{a}__"}.join(', ')} ))"
       f_attr += ' const ' if out_is_pointer? && output_ctype !~ /const/
-      "static #{f_attr} #{output_ctype}#{@name.to_s.strip}(register const char *buf)"
+      "static #{f_attr} #{output_ctype}#{@name.to_s.strip}(register const char * __attribute__(( __unused__ )) buf)"
     end
 
     def out_is_struct? () @inputs[0].size > 2              end

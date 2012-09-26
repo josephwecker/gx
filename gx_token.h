@@ -201,15 +201,15 @@ static int _gx_misc_primes[] optional = {11, 13, 17, 19, 23, 29, 31, 37, 41,
 
 //-----------------------------------------------------------------------------
 /// Forward Declarations
-static           int     gx_nonce_init(gx_nonce_machine *nm, int hardened);
-static inline int        gx_nonce_next(gx_nonce_machine *nm, char *buf);
+static optional           int     gx_nonce_init(gx_nonce_machine *nm, int hardened);
+static optional inline int        gx_nonce_next(gx_nonce_machine *nm, char *buf);
 
-static           int     gx_dev_random(void *dest, size_t len, int is_strict);
-static inline uint64_t   gx_hash64(const char *key, uint64_t len, uint64_t seed);
+static optional           int     gx_dev_random(void *dest, size_t len, int is_strict);
+static optional inline uint64_t   gx_hash64(const char *key, uint64_t len, uint64_t seed);
 
 
 //-----------------------------------------------------------------------------
-static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
+static optional int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
     memset(nm, 0, sizeof(*nm));
     _ (gx_node_uid  (nm->ident.node_uid)                                    ) _raise(-1);
     _ (gx_dev_random(&(nm->ident.rand1), sizeof(nm->ident.rand1), hardened) ) _raise(-1);
@@ -233,7 +233,7 @@ static int gx_nonce_init(gx_nonce_machine *nm, int hardened) {
 
 //-----------------------------------------------------------------------------
 /// Defaulting to 12 byte nonces at the moment.
-static inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
+static optional inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
     _gx_nonce res;
 
     // Double checking for tid changes doesn't seem to add much overhead at
@@ -276,7 +276,7 @@ static inline int gx_nonce_next(gx_nonce_machine *nm, char *buf) {
 /// is_strict to false.
 static int _gx_devrandom_fd  = -1;
 static int _gx_devurandom_fd = -1;
-static int gx_dev_random(void *dest, size_t len, int is_strict) {
+static optional int gx_dev_random(void *dest, size_t len, int is_strict) {
     int     tries = 0;
     ssize_t rcv_count;
     if(rare(len == 0 || dest == NULL)) {
@@ -330,7 +330,7 @@ exec:
 /// Very fast 64 bit hash of misc data with good properties. Only works on 64-bit machines.
 /// Based on CrapWow64 - http://www.team5150.com/~andrew/noncryptohashzoo/CrapWow64.html
 /// Unknown license. It has close to ideal lack of collisions and speed.
-static inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
+static optional inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed) {
     const uint64_t m = 0x95b47aa3355ba1a1, n = 0x8a970be7488fda55;
     uint64_t hash;
     // 3 = m, 4 = n

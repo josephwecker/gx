@@ -232,7 +232,7 @@ gx_pool_init(gx_tcp_sess);
     _ (NAME ## _events_fd      = gx_event_newset(NAME ## _events_at_a_time))              _abort();\
 }
 
-#define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess *sess, gx_rb *rb)
+#define GX_EVENT_HANDLER(NAME) int NAME(gx_tcp_sess * optional sess, gx_rb * optional rb)
 #define gx_next_rbhandle(HANDLER, EXPECTED) gx_next_handle(HANDLER, GX_DEST_BUF, EXPECTED)
 #ifdef DEBUG_EVENTS
     #define gx_next_handle(HANDLER, DESTINATION, EXPECTED) do {\

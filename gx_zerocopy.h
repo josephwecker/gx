@@ -78,45 +78,45 @@
 
 //                                    | Source    | Source offset | Xfr amt   |Destination | Dest. offset  | Consume?   |
 //------------------------------------|-----------|---------------|-----------|------------|---------------|------------|
-static inline ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
-static inline ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
-static inline ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
-static inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf,                 size_t len, int    mmfd,                 int consume);
+static optional inline ssize_t zc_rbuf_sock (gx_rb *rbuf,                             int    sock,                 int consume);
+static optional inline ssize_t zc_rbuf_null (gx_rb *rbuf,                 size_t len                                          );
+static optional inline ssize_t zc_rbuf_mmfd (gx_rb *rbuf,                 size_t len, int    mmfd                             );
+static optional inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf,                 size_t len, int    mmfd,                 int consume);
 
-static inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
+static optional inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int    sock,                 int consume);
 
-static inline ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
+static optional inline ssize_t zc_mbuf_sock (void  *mbuf, size_t src_off, size_t len, int    sock                             );
 
-static inline ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
+static optional inline ssize_t zc_mmfd_sock (int    mmfd, size_t src_off, size_t len, int    sock                             );
 
-static inline ssize_t zc_sock_null (int    sock,                 size_t len                                          );
-static inline ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
-static inline ssize_t zc_sock_sock (int    in  ,                 size_t len, int    out ,                 int consume);
-static inline ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf,                 int consume);
-//static ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
+static optional inline ssize_t zc_sock_null (int    sock,                 size_t len                                          );
+static optional inline ssize_t zc_sock_mmfd (int    sock,                 size_t len, int    mmfd,                 int consume);
+static optional inline ssize_t zc_sock_sock (int    in  ,                 size_t len, int    out ,                 int consume);
+static optional inline ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf,                 int consume);
+//static optional ssize_t zc_sock_rbuf (int    sock,                 size_t len, gx_rb *rbuf, size_t dst_off, int consume);
 
 /// Just like sendfile, but with a ringbuffer instead of file
-static inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int sock, int consume) {
+static optional inline ssize_t zc_rbuf_sock2(gx_rb *rbuf, size_t src_off, size_t len, int sock, int consume) {
     ssize_t res = zc_mmfd_sock(rbuf->fd, rbuf->r + src_off, len, sock);
     if(consume) rb_advr(rbuf, len);
     return res;
 }
 
 /// Assume portion of ringbuffer that hasn't been read yet.
-static inline ssize_t zc_rbuf_sock(gx_rb *rbuf, int sock, int consume) {
+static optional inline ssize_t zc_rbuf_sock(gx_rb *rbuf, int sock, int consume) {
     return zc_rbuf_sock2(rbuf, 0, rb_used(rbuf), sock, consume);
 }
 
 /// Send from a buffer straight to the socket. Not much to optimize at the
 /// moment.
-static ssize_t zc_mbuf_sock(void *mbuf, size_t src_off, size_t len, int sock) {
+static optional ssize_t zc_mbuf_sock(void *mbuf, size_t src_off, size_t len, int sock) {
     return send(sock, mbuf + src_off, len, 0);
 }
 
 /// AKA sendfile
 /// TODO: header/footer like bsd implementation- esp. if it makes sense for the
 ///       other zero-copy functions.
-static inline ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
+static optional inline ssize_t zc_mmfd_sock(int mmfd, size_t src_off, size_t len, int sock) {
   #if defined(__LINUX__)
     int     tries=1;
     ssize_t sent;
@@ -162,13 +162,13 @@ sendagain:
 }
 
 /// Discard len bytes of a ringbuffer
-static inline ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
+static optional inline ssize_t zc_rbuf_null(gx_rb *rbuf, size_t len) {
     rb_advr(rbuf, len);
     if(rbuf->r > rbuf->w) rb_clear(rbuf);
     return len;
 }
 
-static inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
+static optional inline ssize_t zc_rbuf_mmfd2(gx_rb *rbuf, size_t len, int mmfd, int consume) {
     ssize_t sent;
 do_write:
     switch_esys(sent = write(mmfd, rb_r(rbuf), len)) {
@@ -183,7 +183,7 @@ do_write:
     return sent;
 }
 
-static inline ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
+static optional inline ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
     return zc_rbuf_mmfd2(rbuf, len, mmfd, 1);
 }
 
@@ -194,7 +194,7 @@ static inline ssize_t zc_rbuf_mmfd(gx_rb *rbuf, size_t len, int mmfd) {
 /// is very straightforward- similar to:
 /// http://blog.superpat.com/2010/06/01/zero-copy-in-linux-with-sendfile-and-splice/
 ///
-static inline ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
+static optional inline ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int consume) {
     int     tries = 0;
     uint8_t tmp_buf[4096];
     size_t  sent = 0, remaining;
@@ -228,7 +228,7 @@ static optional int zc_devnull_fd = -1;
 
 /// Discard len bytes from a socket. Who would have thought it would be so much
 /// code? Haven't done mac version yet even...
-static ssize_t zc_sock_null(int sock, size_t len) {
+static optional ssize_t zc_sock_null(int sock, size_t len) {
 // @todo rewrite this so it actually works on linux--SPLICE_F_MOVE seems to have disappeared
 // #ifdef __LINUX__
 #if 0
@@ -290,7 +290,7 @@ sendagain:
     return sent;
 #endif
 }
-static inline ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
+static optional inline ssize_t zc_sock_sock (int in, size_t len, int out, int consume) {
     int     tries = 0;
     uint8_t tmp_buf[4096];
     size_t  sent = 0, remaining;
@@ -316,7 +316,7 @@ do_file_write:
     } while(sent < len && (just_sent > 0 || tries));
     return sent;
 }
-static inline ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int consume) {
+static optional inline ssize_t zc_sock_rbuf (int sock, size_t len, gx_rb *rbuf, int optional consume) {
     ssize_t rcvd;
     do {
         switch_esys(rcvd = recv(sock, rb_w(rbuf), len, 0)) {
