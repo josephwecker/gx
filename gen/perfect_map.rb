@@ -379,6 +379,7 @@ module PerfectMap
 }
         final_function
 
+      @function = @function.gsub(/^\s*hval\s*=\s*hval\s*;\s*/,'')
       @function = @function.gsub(/\n+/,"\n") if @function.split("\n").size < 40
       @function = "\n" + f_header_comment + "\n" + @function
     end
