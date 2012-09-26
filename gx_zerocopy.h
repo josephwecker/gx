@@ -203,7 +203,7 @@ static optional inline ssize_t zc_sock_mmfd (int sock, size_t len, int mmfd, int
 
     do {
         remaining = len - sent;
-        switch_esys(just_sent = recv(sock, tmp_buf, min(remaining, 4096), rflags)) {
+        switch_esys(just_sent = recv(sock, tmp_buf, min(remaining, 4096U), rflags)) {
             case EAGAIN: return sent;
             case EINTR:  if(tries++ < 2) continue;
             default:     _raise(-1);
@@ -279,7 +279,7 @@ sendagain:
 
     do {
         remaining = len - sent;
-        just_sent = recv(sock, devnull_buf, min(remaining, 4096), 0);
+        just_sent = recv(sock, devnull_buf, min(remaining, 4096U), 0);
         if(just_sent == -1) {
             if(errno == EINTR && tries++ < 3) continue;
             if(errno == EAGAIN) return sent;
@@ -299,7 +299,7 @@ static optional inline ssize_t zc_sock_sock (int in, size_t len, int out, int co
 
     do {
         remaining = len - sent;
-        switch_esys(just_sent = recv(in, tmp_buf, min(remaining, 4096), rflags)) {
+        switch_esys(just_sent = recv(in, tmp_buf, min(remaining, 4096U), rflags)) {
             case EAGAIN: continue;
             case EINTR:  if(tries++ < 2) continue;
             default:     _raise(-1);
