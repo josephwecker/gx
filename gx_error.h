@@ -108,7 +108,7 @@ static optional void gx_error_dump_all();
 }
 
 #define _ignore() {                                              \
-    _debug(K_msg, "Ignored");                                   \
+    log_debug(K_msg, "Ignored");                                 \
     _clear();                                                    \
 }
 
@@ -246,9 +246,11 @@ static noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
                 else         _gx_log(sev, ssev, 0,    NULL,  _EXPAND(i), K_err_depth, edpth, K_err_group, egrp);
             } else break;
         }
-    } else {
+    } else if(freq(_gx_error_stack[0].error_number)) {
         if(argc > 0) _gx_log(sev, ssev, argc, &argv, _EXPAND(0));
         else         _gx_log(sev, ssev, 0,    NULL,  _EXPAND(0));
+    } else {
+        /// @todo do something clever here- there are no errors to report
     }
     if(argc > 0) {
         va_end(argv);
