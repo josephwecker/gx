@@ -199,7 +199,7 @@
 #define GX_LOG_H
 
 #include "./gx.h"
-#include "./gx_token.h"
+#include "./gx_string.h"
 #include "./gxe/gx_enum_lookups.h"
 #include <time.h>
 #include <sys/uio.h>
