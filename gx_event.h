@@ -64,6 +64,7 @@
 
 #include "./gx.h"
 #include "./gx_error.h"
+#include "./gx_pool.h"
 #include "./gx_ringbuf.h"
 #include "./gx_zerocopy.h"
 
@@ -118,7 +119,7 @@ gx_pool_init(gx_tcp_sess);
     extern int                      NAME ## _acceptor_fd;                        \
     extern int                   (* NAME ## _accept_handler)(gx_tcp_sess *);     \
                                                                                  \
-    inline int NAME ## _add_sess(int peer_fd,                                 \
+    static inline int NAME ## _add_sess(int peer_fd,                                 \
             void  *misc,                                                         \
             int  (*disc_handler)(gx_tcp_sess *, int),                            \
             int    dest,                                                         \
@@ -126,7 +127,7 @@ gx_pool_init(gx_tcp_sess);
             size_t bytes_expected, int do_readahead);                            \
     inline int NAME ## _add_misc(int peer_fd, void *misc);                    \
     inline int NAME ## _add_acceptor(int afd, int(*ahandler)(gx_tcp_sess *)); \
-    inline int NAME ## _wait(int timeout,                                     \
+    static inline int NAME ## _wait(int timeout,                                     \
                                 int (*misc_handler)(gx_tcp_sess *, uint32_t));   \
               int NAME ## _abort_sess(gx_tcp_sess *sess);                        \
               int NAME ## _abort_sess2(gx_tcp_sess *sess,int);                   \
@@ -142,7 +143,7 @@ gx_pool_init(gx_tcp_sess);
     int                      NAME ## _acceptor_fd          = 0;                  \
     int                   (* NAME ## _accept_handler)(gx_tcp_sess *) = NULL;     \
                                                                                  \
-    inline int NAME ## _add_sess(int peer_fd,                                 \
+    static inline int NAME ## _add_sess(int peer_fd,                                 \
             void *misc,                                                          \
             int  (*disc_handler)(gx_tcp_sess *, int),                            \
             int dest,                                                            \
@@ -180,7 +181,7 @@ gx_pool_init(gx_tcp_sess);
                 (void *) & NAME ## _acceptor_fd);                                \
     }                                                                            \
                                                                                  \
-    inline int NAME ## _wait(int timeout,                                     \
+    static inline int NAME ## _wait(int timeout,                                     \
             int (*misc_handler)(gx_tcp_sess *, uint32_t)) {                      \
         int nfds, i;                                                             \
         uint32_t evstates;                                                       \
