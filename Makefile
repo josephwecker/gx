@@ -24,6 +24,8 @@ test : gx_all $(KVKEYS) $(ENUM_MAPS) $B/test_gxerr ./*.h ./gx*.h ./gxe/*.h
 clean :
 	@rm -f $B/*.o
 	@rm -f $B/test_gxerr
+	@rm -f $T/.kv_keys.h
+	@rm -f $T/.test_enums.h
 
 $(ENUM_MAPS) : gen/build-enum-maps.rb gen/perfect_map.rb $(KVKEYS)
 	$< $T/*.h $T/.*.h > $@
