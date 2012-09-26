@@ -138,6 +138,9 @@ static optional void gx_error_dump_all();
 #define _debug(...)     E_LOG(SEV_DEBUG,     ##__VA_ARGS__)
 #define _uknown(...)    E_LOG(SEV_UNKNOWN,   ##__VA_ARGS__)
 
+#define _raise_error(RV) { _error(); _raise(RV); }
+#define _raise_alert(RV) { _alert(); _raise(RV); }
+
 
 #define _gx_mrk(EXPR_STR)                                        \
     _gx_mark_err_do((errno ? errno : ( _e ? _e : EINVAL )),      \
