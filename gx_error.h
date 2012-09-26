@@ -108,7 +108,7 @@ static optional void gx_error_dump_all();
 }
 
 #define _ignore() {                                              \
-    log_debug(K_msg, "Ignored");                                 \
+    log_debug("Ignored");                                        \
     _clear();                                                    \
 }
 

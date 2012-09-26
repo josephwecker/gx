@@ -468,16 +468,18 @@ static inline void _gx_log_update_host() {
 #define _gx_log(SEV, SSEV, VPCOUNT, VPARAMS, ...)                              \
     _gx_log_inner(SEV, SSEV, VPCOUNT, VPARAMS, KV(__VA_ARGS__))
 
-#define log_emergency(...)
-#define log_alert(...)
-#define log_critical(...)
-#define log_error(...)
-#define log_warning(...)
-#define log_notice(...)
-#define log_info(...)
-#define log_stat(...)
-#define log_debug(...)
-#define log_unknown(...)
+/// For now these are mostly for backwards compatibility with the old X_LOG_* macros
+#define _gx_log_msg(SEV,...) _gx_log(SEV, #SEV, 0, NULL, K_msg, $(__VA_ARGS__))
+#define log_emergency(...)   _gx_log_msg(SEV_EMERGENCY, __VA_ARGS__)
+#define log_alert(...)       _gx_log_msg(SEV_ALERT,     __VA_ARGS__)
+#define log_critical(...)    _gx_log_msg(SEV_CRITICAL,  __VA_ARGS__)
+#define log_error(...)       _gx_log_msg(SEV_ERROR,     __VA_ARGS__)
+#define log_warning(...)     _gx_log_msg(SEV_WARNING,   __VA_ARGS__)
+#define log_notice(...)      _gx_log_msg(SEV_NOTICE,    __VA_ARGS__)
+#define log_info(...)        _gx_log_msg(SEV_INFO,      __VA_ARGS__)
+#define log_stat(...)        _gx_log_msg(SEV_STAT,      __VA_ARGS__)
+#define log_debug(...)       _gx_log_msg(SEV_DEBUG,     __VA_ARGS__)
+#define log_unknown(...)     _gx_log_msg(SEV_UNKNOWN,   __VA_ARGS__)
 
 #define _VA_ARG_TO_TBL(VALIST) {                                               \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                    \
@@ -555,7 +557,7 @@ static noinline void _gx_log_inner(gx_severity severity, char *severity_str,
     for(i = 0; i < KV_IOV_COUNT; i++) kv_main_head += (kv_main_head_t)(MSG_AS_IOV(msg_iov)[i].iov_len);
 
     _gx_log_dispatch(severity, &msg_iov);
-
+    $reset();
 #ifdef DEBUG_LOGGING
     fprintf(stderr, "\n-----------------------------------------------------------------------------\n");
     int row_num = 0;
