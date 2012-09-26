@@ -150,7 +150,7 @@ static optional void gx_error_dump_all();
         if(!_gx_error_depth && !_result) _clear(); _result; })
 
 #define _esys(E)   ({ _reset_e(); (_run_e(    (int)(E) == -1         )) ? _gx_mrk(#E) : 0; })
-#define _emap(E)   ({ _reset_e(); (_run_e(    (int)(E) == MAP_FAILED )) ? _gx_mrk(#E) : 0; })
+#define _emap(E)   ({ _reset_e(); (_run_e(         (E) == MAP_FAILED )) ? _gx_mrk(#E) : 0; })
 #define _enz(E)    ({ _reset_e(); (_run_e((_e=(int)(E))!= 0          )) ? _gx_mrk(#E) : 0; })
 #define _ez(E)     ({ _reset_e(); (_run_e(         (E) == 0          )) ? _gx_mrk(#E) : 0; })
 #define _enull(E)  ({ _reset_e(); (_run_e( (void *)(E) ==(void *)NULL)) ? _gx_mrk(#E) : 0; })
