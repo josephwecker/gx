@@ -129,7 +129,7 @@ static char *sev_highlight[] = {C0, C1, C2, C3, C4, C5, C6, C7, C8, C9};
 
 
 #define padby(N)           scatn(" ", 1, N)
-#define sep()              scatc(C_D " | " C_N)
+#define sep()              scatc(C_D " | " CN)
 #define scatn(BUF, LEN, N) if(N > 0){                                          \
     size_t _i;                                                                 \
     for(_i=0; _i<N; _i++) scat(BUF, LEN);                                      \
@@ -174,7 +174,7 @@ static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 
     // Time + cpu-ticks
     scat   (DT(K_sys_time) + 11, SZ(K_sys_time ) - 13);
-    scatc  (C_D ":" C_N);
+    scatc  (C_D ":" CN);
     len =  7 - SZ(K_sys_ticks);
     scat   (DT(K_sys_ticks) - len, len2 = SZ(K_sys_ticks) - 1 + len);
     padby  (6 - len2);
@@ -187,15 +187,15 @@ static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 
     // Groupings
     if(rare(ISSET(K_err_group))) {
-        scatc(C_D "[" C_N ); scats(DT(K_err_group)); scatc(C_D ":" C_N);
-        scats(DT(K_err_depth)); scatc(C_D "] " C_N);
+        scatc(C_D "[" CN ); scats(DT(K_err_group)); scatc(C_D ":" CN);
+        scats(DT(K_err_depth)); scatc(C_D "] " CN);
     }
 
     // Error info
     scatsdp(K_err_label,10);
     scatc(C_D);
     scat (DT(K_err_severity), SZ(K_err_severity));
-    scatc(": " C_N);
+    scatc(": " CN);
     scatsd (K_err_msg);
 
     // User Message
