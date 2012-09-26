@@ -75,6 +75,9 @@
 
 #include "./gx_log.h"
 #include "./gxe/gx_enum_lookups.h"
+#include <sys/mman.h>
+
+static optional void gx_error_dump_all();
 
 #define if_esys(E)      if( _esys(E)  )
 #define if_emap(E)      if( _emap(E)  )
@@ -256,7 +259,7 @@ static noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
 
 
 /// Primarily a debugging tool, orthogonal to the normal errors/logging. You can probably ignore it.
-static void gx_error_dump_all()
+static optional void gx_error_dump_all()
 {
     int i;
     fprintf(stderr,"\n\n---------------- ERROR-DUMP --------------------\n");
