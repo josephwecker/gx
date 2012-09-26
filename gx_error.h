@@ -241,7 +241,7 @@ static noinline void _gx_elog(gx_severity sev, char *ssev, int argc, ...)
         // Several errors to report, all "linked" to the last one
         //char *egrp = $("%u", cpu_ts);
         static char egroup[64];
-        char *egrp = _gx_cpu_ts_str(egrp, cpu_ts);
+        char *egrp = _gx_cpu_ts_str(egroup, cpu_ts);
         for(i=0; i < GX_ERROR_BACKTRACE_SIZE; i++) {
             if(_gx_error_stack[i].error_number) {
                 char *edpth = $("%u", _gx_error_stack[i].chk_level);
