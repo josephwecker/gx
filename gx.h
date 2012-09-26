@@ -45,8 +45,6 @@
  *   Includes
  *   -----------------
  *   - The usual- stdio, stdlib, unistd, string, fcntl.
- *   - The only other gx header it automatically loads is gx_error- which in
- *     turn relies on gx_log and gx_token.
  *
  *   Typedefs
  *   ------------------
@@ -159,6 +157,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
@@ -209,45 +209,6 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
   #warning "Don't know how to implement RDTSC intrinsic on your system."
 #endif
 
-/// bswap64 - most useful for big to little-endian
-/// @todo (builtin bswap32?)
-#if __GNUC__
-	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
-	#define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
-#else              /* Assume some C99 features: stdint.h, inline, restrict */
-	#define bswap32(x)                                              \
-	   ((((x) & 0xff000000u) >> 24) | (((x) & 0x00ff0000u) >>  8) | \
-		(((x) & 0x0000ff00u) <<  8) | (((x) & 0x000000ffu) << 24))
-
-	 static inline uint64_t bswap64(uint64_t x) {
-		union { uint64_t u64; uint32_t u32[2]; } in, out;
-		in.u64 = x;
-		out.u32[0] = bswap32(in.u32[1]);
-		out.u32[1] = bswap32(in.u32[0]);
-		return out.u64;
-	}
-
-	#if (L_TABLE_SZ <= 9) && (L_TABLE_SZ_IS_ENOUGH)   /* < 2^13 byte texts */
-	static inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[] = {0,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,8,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2};
-		return tz_table[x/4];
-	}
-	#else       /* From http://supertech.csail.mit.edu/papers/debruijn.pdf */
-	static inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[32] =
-		{ 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8,
-		 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18,  6, 11,  5, 10, 9};
-		return tz_table[((uint32_t)((x & -x) * 0x077CB531u)) >> 27];
-	}
-	#endif
-#endif
-
-
-
 #if __GNUC__ > 3
   #define    freq(E)       __builtin_expect(!!(E), 1)
   #define    rare(E)       __builtin_expect(!!(E), 0)
@@ -273,6 +234,7 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
   #define    hot
   #define    pure
   #define    inline        __inline__
+  #define    always_inline __inline__
 #endif
 
 
@@ -401,364 +363,120 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
 #define  KV_58(K1,V1,...)  KV_2(K1,V1)KV_56(__VA_ARGS__)
 
 
-/// For doing very fast inline sprintfs. tstr = tmpstring
-#define $BUFSIZE 4096
-typedef struct gx_strbuf {
-    char  buf[$BUFSIZE];
-    char *p;
-} gx_strbuf;
-static gx_strbuf _gx_tstr_buf = {.buf={0},.p=NULL};
-static char  _gx_tstr_empty[]   = "";
-#define $(FMT,...) $S(_gx_tstr_buf, FMT, ##__VA_ARGS__)
-#define $reset() $Sreset(_gx_tstr_buf)
-
-#define $S(STRBUF, FMT, ...) (char *)({                                   \
-        if(rare(!(STRBUF).p)) (STRBUF).p = (STRBUF).buf;                  \
-        char *_res = (STRBUF).p;                                          \
-        int   _rem = sizeof((STRBUF).buf) - ((STRBUF).p - (STRBUF).buf);  \
-        if(rare(_rem < 25)) _res = _gx_tstr_empty;                        \
-        else {                                                            \
-            int _len = snprintf((STRBUF).p,                               \
-                sizeof((STRBUF).buf) - ((STRBUF).p - (STRBUF).buf),       \
-                FMT, ##__VA_ARGS__);                                      \
-            if(freq(_len > 0)) (STRBUF).p += _len;                        \
-            if(rare((STRBUF).p > (STRBUF).buf + sizeof((STRBUF).buf)))    \
-                (STRBUF).p = &((STRBUF).buf[sizeof((STRBUF).buf) - 2]);   \
-            (STRBUF).p[0] = (STRBUF).p[1] = '\0';                         \
-            (STRBUF).p += 1;                                              \
-        }                                                                 \
-        _res;                                                             \
-    })
-
-#define $Sreset(STRBUF) do {                                              \
-    (STRBUF).buf[0] = '\0';                                               \
-    (STRBUF).p = (STRBUF).buf;                                            \
-} while(0);
-
-
-#include "./gx_error.h"
-
-/// @todo Move to gx_log
-  static inline void gx_hexdump(void *buf, size_t len, int more) {
-      size_t i=0, tch; int val, grp, outsz=0, begin_col;
-      size_t begin_line;
-      uint8_t *bf = (uint8_t *)buf;
-      static const char *utf8_ascii[] = {
-          "␀", "␁", "␂", "␃", "␄", "␅", "␆", "␇", "␈", "␉", "␊", "␋", "␌", "␍",
-          "␎", "␏", "␐", "␑", "␒", "␓", "␔", "␕", "␖", "␗", "␘", "␙", "␚", "␛",
-          "␜", "␝", "␞", "␟", "␡"};
-      flockfile(stderr);
-      fprintf(stderr, "     ");
-      if(len == 0) {fprintf(stderr, "\\__/\n"); return;}
-      while(1) {
-          begin_line = i;
-          begin_col  = outsz;
-          for(grp=0; grp<3; grp++) {
-              fprintf(stderr, "| "); outsz += 2;
-              for(val=0; val<4; val++) {
-                  fprintf(stderr, "%02X ", bf[i]); outsz += 3;
-                  i++;
-                  if(i>=len) break;
-              }
-              if(i>=len) break;
-          }
-          fprintf(stderr, "| "); outsz += 1;
-          if(i>=len) break;
-          for(tch = outsz - begin_col; tch < 43; tch++) fprintf(stderr, " ");
-          for(tch = begin_line; tch < i; tch++) {
-              if(bf[tch] < 0x20)       fprintf(stderr, "%s", utf8_ascii[bf[tch]]);
-              else if(bf[tch] <= 0x7E) fprintf(stderr, "%c", bf[tch]);
-              else                     fprintf(stderr, "·");
-          }
-          fprintf(stderr, "\n     ");
-      }
-      if(more) { fprintf(stderr,"... ... ..."); outsz += 11; }
-      for(tch = outsz - begin_col; tch < 41; tch++) fprintf(stderr, " ");
-      fprintf(stderr, "| ");
-      for(tch = begin_line; tch < i; tch++) {
-          if(bf[tch] < 0x20)       fprintf(stderr, "%s", utf8_ascii[bf[tch]]);
-          else if(bf[tch] <= 0x7E) fprintf(stderr, "%c", bf[tch]);
-          else                     fprintf(stderr, "·");
-      }
-      fprintf(stderr,"\n     \\");
-      for(val=0; val<min(outsz, ((3 * 4 /* 1group */) + 2 /* front-bar+spc */) * 3 + 1) - 2; val++) fprintf(stderr,"_");
-      fprintf(stderr,"/\n");
-      funlockfile(stderr);
-  }
-
-
-  /// @todo Move to gx_pool (or something)
-
-  // TYPE must be a type that has a "_next" and "_prev" member that is a pointer to the same
-  // type. Also, the struct should be aligned (?).
-
-  #define gx_pool_init(TYPE)                                                             \
-                                                                                         \
-    typedef struct pool_memory_segment ## TYPE {                                         \
-        struct pool_memory_segment ## TYPE  *next;                                       \
-        TYPE                                *segment;                                    \
-    } pool_memory_segment ## TYPE;                                                       \
-                                                                                         \
-    typedef struct TYPE ## _pool {                                                       \
-        pthread_mutex_t                      mutex;                                      \
-        size_t                               total_items;                                \
-        TYPE                                *available_head;                             \
-        TYPE                                *active_head, *active_tail;                  \
-        TYPE                                *prereleased[0x10000];                       \
-        pool_memory_segment ## TYPE         *memseg_head;                                \
-    } TYPE ## _pool;                                                                     \
-                                                                                         \
-    static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
-    static inline TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {       \
-        TYPE ## _pool *res;                                                              \
-        _N(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) _raise(NULL);            \
-        memset(res, 0, sizeof(TYPE ## _pool));                                           \
-        TYPE ## _pool_extend(res, initial_number);                                       \
-        _ (pthread_mutex_init(&(res->mutex), NULL)) _raise(NULL);                       \
-        return res;                                                                      \
-    }                                                                                    \
-                                                                                         \
-    static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number) {             \
-        TYPE *new_seg;                                                                   \
-        size_t curr;                                                                     \
-        pool_memory_segment ## TYPE *memseg_entry;                                       \
-        _N(new_seg = (TYPE *)malloc(sizeof(TYPE) * by_number)) _raise(-1);              \
-                                                                                         \
-        /* Link to memory-segments for freeing later */                                  \
-        _N(memseg_entry = (pool_memory_segment ## TYPE *)malloc(                         \
-                    sizeof(pool_memory_segment ## TYPE))) _raise(-1);                   \
-        memseg_entry->segment = new_seg;                                                 \
-        memseg_entry->next    = pool->memseg_head;                                       \
-        pool->memseg_head     = memseg_entry;                                            \
-                                                                                         \
-        /* Link them up */                                                               \
-        new_seg[by_number - 1]._next = (struct TYPE *)pool->available_head;              \
-        pool->available_head = new_seg;                                                  \
-        for(curr=0; curr < by_number-1; curr++) {                                        \
-            new_seg[curr]._next = (struct TYPE *) &(new_seg[curr+1]);                    \
-        }                                                                                \
-        pool->total_items += by_number;                                                  \
-        return 0;                                                                        \
-    }                                                                                    \
-                                                                                         \
-    static inline void _prepend_ ## TYPE (TYPE ## _pool *pool, TYPE *entry) {            \
-        /* put an object at the front of the active list */                              \
-        entry->_next = pool->active_head;                                                \
-        if (freq(pool->active_head != NULL)) { pool->active_head->_prev = entry; }       \
-        pool->active_head = entry;                                                       \
-        if (rare(pool->active_tail == NULL)) { pool->active_tail = entry; }              \
-    }                                                                                    \
-                                                                                         \
-    static inline void _remove_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {              \
-        /* remove an object from the active list */                                      \
-        if (freq(entry->_prev != NULL)) { entry->_prev->_next = entry->_next; }          \
-        else { pool->active_head = entry->_next; }                                       \
-        if (freq(entry->_next != NULL)) { entry->_next->_prev = entry->_prev; }          \
-        else { pool->active_tail = entry->_prev; }                                       \
-    }                                                                                    \
-                                                                                         \
-    static inline TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                          \
-        TYPE *res = NULL;                                                                \
-        pthread_mutex_lock(&(pool->mutex));                                              \
-        if(rare(!pool->available_head))                                                  \
-            if(TYPE ## _pool_extend(pool, pool->total_items) == -1) goto fin;            \
-        res = pool->available_head;                                                      \
-        pool->available_head = res->_next;                                               \
-        memset(res, 0, sizeof(TYPE));                                                    \
-        _prepend_ ## TYPE(pool, res);                                                    \
-      fin:                                                                               \
-        pthread_mutex_unlock(&(pool->mutex));                                            \
-        return res;                                                                      \
-    }                                                                                    \
-                                                                                         \
-    static inline void prerelease_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {           \
-        pthread_mutex_lock(&(pool->mutex));                                              \
-        pid_t cpid;                                                                      \
-        cpid = syscall(SYS_getpid);                                                      \
-        unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
-        if(rare(pool->prereleased[idx]))                                                 \
-            log_error("Snap, prerelease snafu: %d", idx);                              \
-        pool->prereleased[idx] = entry;                                                  \
-        pthread_mutex_unlock(&(pool->mutex));                                            \
-    }                                                                                    \
-                                                                                         \
-    static inline void finrelease_ ## TYPE(TYPE ## _pool *pool, pid_t cpid) {            \
-        pthread_mutex_lock(&(pool->mutex));                                              \
-        unsigned int idx = (unsigned int)cpid & 0xffff;                                  \
-        TYPE *entry = pool->prereleased[idx];                                            \
-        if(rare(!entry)) log_error("Snap, prerelease snafu: %d", idx);                 \
-        _remove_ ## TYPE(pool, entry);                                                   \
-        entry->_next = pool->available_head;                                             \
-        pool->available_head = entry;                                                    \
-        pool->prereleased[idx] = NULL;                                                   \
-        pthread_mutex_unlock(&(pool->mutex));                                            \
-    }                                                                                    \
-                                                                                         \
-    static inline void release_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {              \
-        pthread_mutex_lock(&(pool->mutex));                                              \
-        _remove_ ## TYPE(pool, entry);                                                   \
-        entry->_next = pool->available_head;                                             \
-        pool->available_head = entry;                                                    \
-        pthread_mutex_unlock(&(pool->mutex));                                            \
-    }                                                                                    \
-                                                                                         \
-    static inline void move_to_front_ ## TYPE(TYPE ## _pool *pool, TYPE *entry) {        \
-        /* move an object to the front of the active list */                             \
-        _remove_ ## TYPE(pool, entry);                                                   \
-        _prepend_ ## TYPE(pool, entry);                                                  \
+static optional inline int uint_to_vlq(uint64_t x, uint8_t *out) {
+    int i, j, count=0;
+    for (i = 9; i > 0; i--) { if (x & 127ULL << i * 7) break; }
+    for (j = 0; j <= i; j++) {
+        out[j] = ((x >> ((i - j) * 7)) & 127) | 128;
+        ++count;
     }
+    out[i] ^= 128;
+    return ++count;
+}
 
-
-    static inline int uint_to_vlq(uint64_t x, uint8_t *out) {
-        int i, j, count=0;
-        for (i = 9; i > 0; i--) { if (x & 127ULL << i * 7) break; }
-        for (j = 0; j <= i; j++) {
-            out[j] = ((x >> ((i - j) * 7)) & 127) | 128;
-            ++count;
-        }
-        out[i] ^= 128;
-        return ++count;
-    }
-
-    static inline uint64_t vlq_to_uint(uint8_t *in) {
-        uint64_t r = 0;
-        do r = (r << 7) | (uint64_t)(*in & 127);
-        while (*in++ & 128);
-        return r;
-    }
+static optional inline uint64_t vlq_to_uint(uint8_t *in) {
+    uint64_t r = 0;
+    do r = (r << 7) | (uint64_t)(*in & 127);
+    while (*in++ & 128);
+    return r;
+}
 
 
 /// @todo refactor, check, rename, and restyle (ugh)
-  /*=============================================================================
-   * MISC MATH
-   * gx_pos_ceil(x)                - Integer ceiling (for positive values)
-   * gx_fits_in(container_size, x) - How many containers needed?
-   *---------------------------------------------------------------------------*/
-  #define gx_pos_ceil(x) (((x)-(int)(x)) > 0 ? (int)((x)+1) : (int)(x))
-  #define gx_fits_in(container_size, x) gx_pos_ceil((float)(x) / (float)(container_size))
-  #define gx_in_pages(SIZE) (((SIZE) & ~(pagesize() - 1)) + pagesize())
+/*=============================================================================
+* MISC MATH
+* gx_pos_ceil(x)                - Integer ceiling (for positive values)
+* gx_fits_in(container_size, x) - How many containers needed?
+*---------------------------------------------------------------------------*/
+#define gx_pos_ceil(x) (((x)-(int)(x)) > 0 ? (int)((x)+1) : (int)(x))
+#define gx_fits_in(container_size, x) gx_pos_ceil((float)(x) / (float)(container_size))
+#define gx_in_pages(SIZE) (((SIZE) & ~(pagesize() - 1)) + pagesize())
 
-  /*=============================================================================
-   * OS PARAMETERS
-   * pagesize()                   - Gets OS kernel page size
-   * Yeah, needs to coordinate somewhat w/ a config file or something...
-   *---------------------------------------------------------------------------*/
-  static int _GXPS optional = 0;
+/*=============================================================================
+* OS PARAMETERS
+* pagesize()                   - Gets OS kernel page size
+* Yeah, needs to coordinate somewhat w/ a config file or something...
+*---------------------------------------------------------------------------*/
+static int _GXPS optional = 0;
 
-  /// @todo don't use HAS_SYSCONF - use __LINUX__ etc. instead
-  #if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
-    #define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
-  #elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
-    #define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
-  #else
-    #define pagesize() ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
-  #endif
+/// @todo don't use HAS_SYSCONF - use __LINUX__ etc. instead
+#if defined(HAS_SYSCONF) && defined(_SC_PAGE_SIZE)
+#define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGE_SIZE); _GXPS; })
+#elif defined (HAS_SYSCONF) && defined(_SC_PAGESIZE)
+#define pagesize() ({ if(!_GXPS) _GXPS=sysconf(_SC_PAGESIZE);  _GXPS; })
+#else
+#define pagesize() ({ if(!_GXPS) _GXPS=getpagesize();          _GXPS; })
+#endif
 
 
-    /// @todo This all needs to be somewhere else.
-    /// Very "lightweight" fork, calls given function in child. Falls back to
-    /// fork on systems that don't have anything lighter. Otherwise tries to
-    /// create a new process with everything shared with the parent except a
-    /// new, _small_ stack. The parent is not signaled when the child
-    /// finishes [at least on linux... don't know yet for other...]
-    #ifdef __LINUX__
-      #include <sched.h>
-      #include <sys/prctl.h>
-      #include <signal.h>
 
-      #define _GX_STKSZ 0xffff  // For anything much more than what gx_mfd is doing, use ~ 0x1ffff
+/**
+ * gx_base64_urlencode_m3()
+ *
+ * Encodes inp into outp, optimized for inputs that are multiples of 3 in
+ * length. Be sure that outp is allocated to be at least
+ * GX_BASE64_SIZE(sizeof(input_data));
+ *
+ */
+//static const optional char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const optional char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
+#define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
+//static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+    const char *inp  = (const char *)indata;
+    char       *outp = outdata;
+    if(rare(insize % 3 != 0)) {errno = EINVAL; return -1;}
+    while(inp < (const char *)(indata + insize)) {
+        outp[0] = _gx_t64[((inp[0] & 0xFC) >> 2) ];
+        outp[1] = _gx_t64[((inp[0] & 0x03) << 4) | ((inp[1] & 0xF0) >> 4)];
+        outp[2] = _gx_t64[((inp[1] & 0x0F) << 2) | ((inp[2] & 0xC0) >> 6)];
+        outp[3] = _gx_t64[ (inp[2] & 0x3F)       ];
+        inp    += 3;
+        outp   += 4;
+    }
+    outp[0] = '\0';
+    return outp + 1 - outdata;
+}
 
-      typedef struct _gx_clone_stack {
-          struct _gx_clone_stack *_next, *_prev;
-          int (*child_fn)(void *);
-          void *child_fn_arg;
-          // Will be able to reduce the stack when we've solidified the clone's actions...
-          char stack[_GX_STKSZ];
-      } __attribute__((aligned)) _gx_clone_stack;
 
-      gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp optional = NULL;
+/// bswap64 - most useful for big to little-endian
+/// @todo (builtin bswap32?)
+#if __GNUC__
+	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
+	#define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
+#else              /* Assume some C99 features: stdint.h, inline, restrict */
+	#define bswap32(x)                                              \
+	   ((((x) & 0xff000000u) >> 24) | (((x) & 0x00ff0000u) >>  8) | \
+		(((x) & 0x0000ff00u) <<  8) | (((x) & 0x000000ffu) << 24))
 
-      static void sigchld_clone_handler(int sig) {
-          int status, saved_errno;
-          pid_t child_pid;
-          saved_errno = errno;
-          while((child_pid = waitpid(-1, &status, __WCLONE | WNOHANG)) > 0) {
-              finrelease__gx_clone_stack(_gx_csp, child_pid);
-          }
-          errno = saved_errno;  // For reentrancy
-      }
+	 static always_inline uint64_t bswap64(uint64_t x) {
+		union { uint64_t u64; uint32_t u32[2]; } in, out;
+		in.u64 = x;
+		out.u32[0] = bswap32(in.u32[1]);
+		out.u32[1] = bswap32(in.u32[0]);
+		return out.u64;
+	}
 
-      /// Wraps the clone target function so we can release the stack
-      static int _gx_clone_launch(void *arg) {
-          _gx_clone_stack *csp = (_gx_clone_stack *)arg;
-          prctl(PR_SET_PDEATHSIG, SIGTERM);
-          int res = csp->child_fn(csp->child_fn_arg);
-          prerelease__gx_clone_stack(_gx_csp, csp);
-          return res;
-      }
+	#if (L_TABLE_SZ <= 9) && (L_TABLE_SZ_IS_ENOUGH)   /* < 2^13 byte texts */
+	static always_inline unsigned ntz(unsigned x) {
+		static const unsigned char tz_table[] = {0,
+		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
+		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,8,
+		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
+		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2};
+		return tz_table[x/4];
+	}
+	#else       /* From http://supertech.csail.mit.edu/papers/debruijn.pdf */
+	static always_inline unsigned ntz(unsigned x) {
+		static const unsigned char tz_table[32] =
+		{ 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8,
+		 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18,  6, 11,  5, 10, 9};
+		return tz_table[((uint32_t)((x & -x) * 0x077CB531u)) >> 27];
+	}
+	#endif
+#endif
 
-      static inline int gx_clone(int (*fn)(void *), void *arg) {
-          int flags = SIGCHLD | CLONE_FILES   | CLONE_FS      | CLONE_IO      | CLONE_PTRACE |
-                                CLONE_SYSVSEM | CLONE_VM;
-          _gx_clone_stack *cstack;
-
-          if(rare(!_gx_csp)) {
-              // "Global" setup
-              _N(_gx_csp = new__gx_clone_stack_pool(5)) _raise_alert(-1);
-              struct sigaction sa;
-              sigemptyset(&sa.sa_mask);
-              sa.sa_flags = 0;
-              sa.sa_handler = sigchld_clone_handler;
-              _ (sigaction(SIGCHLD, &sa, NULL)) _raise_alert(-1);
-          }
-          _N(cstack = acquire__gx_clone_stack(_gx_csp)) _raise_alert(-1);
-          cstack->child_fn = fn;
-          cstack->child_fn_arg = arg;
-          int cres;
-          _(cres = clone(&_gx_clone_launch, (void *)&(cstack->stack[_GX_STKSZ - 1]), flags, (void *)cstack)) _raise_alert(-1);
-          //_(cres = clone(&_gx_clone_launch, (void *)(cstack->stack) + sizeof(cstack->stack) - 1, flags, (void *)cstack)) _raise_alert(-1);
-          return cres;
-      }
-    #else
-      typedef struct _gx_clone_stack {
-          struct _gx_clone_stack  *_next, *_prev;
-          pthread_t                tid;
-          int                    (*child_fn)(void *);
-          void                    *child_fn_arg;
-          // NO EXPLICIT STACK FOR NOW IN GENERAL CASE
-      } __attribute__((aligned)) _gx_clone_stack;
-      gx_pool_init(_gx_clone_stack);
-      static _gx_clone_stack_pool *_gx_csp optional = NULL;
-
-      static void *_gx_clone_launch(void *arg) {
-          // Yes, a rather complex way to essentially change a void * callback
-          // into an int callback.
-          _gx_clone_stack *cs                      = (_gx_clone_stack *)arg;
-          int            (*local_child_fn)(void *) = cs->child_fn;
-          void            *local_child_fn_arg      = cs->child_fn_arg;
-          release__gx_clone_stack(_gx_csp, cs);
-
-          //-------- Actual callback
-          local_child_fn(local_child_fn_arg); // TODO: can't do much of anything with the return value...
-
-          return NULL;
-      }
-
-      static inline int gx_clone(int (*fn)(void *), void *arg) {
-          pthread_t tid;
-          _gx_clone_stack *cstack; // Not really needed for the stack in this context, but for the callbacks
-          if(rare(!_gx_csp))
-              _N(_gx_csp = new__gx_clone_stack_pool(5)) _raise_alert(-1);
-
-          _N(cstack = acquire__gx_clone_stack(_gx_csp)) _raise_alert(-1);
-          cstack->child_fn = fn;
-          cstack->child_fn_arg = arg;
-          _E(pthread_create(&tid, NULL, _gx_clone_launch, (void *)cstack)) _raise_alert(-1);
-          return 0;
-      }
-        // exit(fn(arg)); // (in child)  wait- also release the stack here.
-    #endif
+#include "./gx_error.h"
 
 #define gx_sleep(...)           _GX_SLEEP(NARG(__VA_ARGS__), ##__VA_ARGS__)
 #define _GX_SLEEP(N,...)        _GX_SLEEP_(N, ##__VA_ARGS__)
@@ -768,20 +486,20 @@ static char  _gx_tstr_empty[]   = "";
 #define _GX_SLEEP_2(S,MS)       _gx_sleep(S, 1 ## MS ## 000000    - 1000000000)
 #define _GX_SLEEP_3(S,MS,US)    _gx_sleep(S, 1 ## MS ## US ## 000 - 1000000000)
 #define _GX_SLEEP_4(S,MS,US,NS) _gx_sleep(S, 1 ## MS ## US ## NS  - 1000000000)
-
-static inline int _gx_sleep(time_t seconds, long nanoseconds) {
+static optional inline int _gx_sleep(time_t seconds, long nanoseconds) {
     int s;
     struct timespec ts;
     ts.tv_sec  = seconds;
     ts.tv_nsec = nanoseconds;
     for(;;) {
-        switch_esys(s = nanosleep(&ts, &ts)) {
+        if((s = nanosleep(&ts, &ts)) == -1) switch(errno) {
             case EINTR: break;
-            default:    _raise(-1);
+            default:    return(-1);
         }
         if(!s) break;
     }
     return 0;
 }
+
 
 #endif

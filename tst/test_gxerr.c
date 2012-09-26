@@ -54,32 +54,32 @@ int main(int argc, char **argv) {
     if_esys(0)  return __LINE__;
     if_esys(5)  return __LINE__;
     if_esys(-5) return __LINE__;
-    if_esys(test_esys(EAGAIN)) E_EMERGENCY();
+    if_esys(test_esys(EAGAIN)) _emergency();
     if_enull(test_chain1()) gx_error_dump_all();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
     _clear();
     if_esys(test_esys(ENOMEM)) gx_error_dump_all();
 
     // The following would all fail to build:
-    //  _(-1) E_ERROR ("something",     "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    //  _(-1) E_ERROR (0,               "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    //  _(-1) E_ERROR (&_gx_error_cidx, "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    //  _(-1) E_ERROR (K_err_brief,     "n", K_src_expression, "wowzers!", K_desired_filename); // no val
+    //  _(-1) _error ("something",     "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) _error (0,               "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) _error (&_gx_error_cidx, "n", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    //  _(-1) _error (K_err_brief,     "n", K_src_expression, "wowzers!", K_desired_filename); // no val
 
-    _(test_esys(EAGAIN)) E_EMERGENCY();
-    _(test_esys(ENOTSUP)) E_ALERT (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(test_esys(EUSERS)) E_CRITICAL(K_err_brief,   $("first crazy stuff %d %d", 23, 0xDEADE));
-    _(test_esys(EDEADLK)) E_ERROR(K_err_brief,   $("some crazy stuff %d %d",  23, 0xDEAD));
+    _(test_esys(EAGAIN)) _emergency();
+    _(test_esys(ENOTSUP)) _alert (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(EUSERS)) _critical(K_err_brief,   $("first crazy stuff %d %d", 23, 0xDEADE));
+    _(test_esys(EDEADLK)) _error(K_err_brief,   $("some crazy stuff %d %d",  23, 0xDEAD));
     //_(-1) E_UNKNOWN (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(test_esys(ENOMEM)) E_WARNING (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
-    _(test_esys(ETIME)) E_NOTICE (K_err_another, "another", K_src_line,       "wow!");
-    _(test_esys(ELOOP)) E_STAT (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
-    _(test_esys(EINVAL)) E_INFO (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
-    _(test_esys(EAFNOSUPPORT)) E_DEBUG (K_err_another, "another", K_src_line,       "wow!");
+    _(test_esys(ENOMEM)) _warning (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_filename, "george/man");
+    _(test_esys(ETIME)) _notice (K_err_another, "another", K_src_line,       "wow!");
+    _(test_esys(ELOOP)) _stat (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
+    _(test_esys(EINVAL)) _info (K_err_brief,   "nothing", K_src_expression, "wowzers!", K_desired_file,     "georgie");
+    _(test_esys(EAFNOSUPPORT)) _debug (K_err_another, "another", K_src_line,       "wow!");
 
     gx_sleep(2);
 
-    if_enull(test_chain1()) E_NOTICE();
+    if_enull(test_chain1()) _notice();
 
     return 0;
 }

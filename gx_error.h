@@ -46,15 +46,15 @@
       - _abort  ()        : exits with error-number's value- automatically logs reason / severity
       - E_LOG   (SEV,...) : explicitly logs the error with a given severity & additional information
         The following are shorthand for logging the error with specific severities.
-          - E_EMERGENCY(...)
-          - E_ALERT    (...)
-          - E_CRITICAL (...)
-          - E_ERROR    (...)
-          - E_WARNING  (...)
-          - E_NOTICE   (...)
-          - E_INFO     (...)
-          - E_STAT     (...)
-          - E_DEBUG    (...)
+          - _emergency(...)
+          - _alert    (...)
+          - _critical (...)
+          - _error    (...)
+          - _warning  (...)
+          - _notice   (...)
+          - _info     (...)
+          - _stat     (...)
+          - _debug    (...)
           - E_UNKNOWN  (...)
 
 
@@ -72,6 +72,9 @@
 
 #ifndef GX_ERROR_H
 #define GX_ERROR_H
+
+#include "./gx_log.h"
+#include "./gxe/gx_enum_lookups.h"
 
 #define if_esys(E)      if( _esys(E)  )
 #define if_emap(E)      if( _emap(E)  )
@@ -102,7 +105,7 @@
 }
 
 #define _ignore() {                                              \
-    E_DEBUG(K_msg, "Ignored");                                   \
+    _debug(K_msg, "Ignored");                                   \
     _clear();                                                    \
 }
 
@@ -114,7 +117,7 @@
 }
 
 #define _abort() {                                               \
-    E_CRITICAL();                                                \
+    _critical();                                                \
     exit(errno);                                                 \
 }
 
@@ -145,14 +148,6 @@
 #define _enz(E)    ({ _reset_e(); (_run_e((_e=(int)(E))!= 0          )) ? _gx_mrk(#E) : 0; })
 #define _ez(E)     ({ _reset_e(); (_run_e(         (E) == 0          )) ? _gx_mrk(#E) : 0; })
 #define _enull(E)  ({ _reset_e(); (_run_e( (void *)(E) ==(void *)NULL)) ? _gx_mrk(#E) : 0; })
-
-#include "./gx.h"
-#include "./gx_log.h"
-#include "./gxe/gx_enum_lookups.h"
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
 
 typedef struct gx_error_lookup_info {
     char               error_label     [25];
