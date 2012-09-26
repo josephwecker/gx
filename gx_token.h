@@ -201,12 +201,11 @@ static int _gx_misc_primes[] optional = {11, 13, 17, 19, 23, 29, 31, 37, 41,
 
 //-----------------------------------------------------------------------------
 /// Forward Declarations
-static           int      gx_nonce_init(gx_nonce_machine *nm, int hardened);
-static inline int      gx_nonce_next(gx_nonce_machine *nm, char *buf);
+static           int     gx_nonce_init(gx_nonce_machine *nm, int hardened);
+static inline int        gx_nonce_next(gx_nonce_machine *nm, char *buf);
 
-static           int      gx_dev_random(void *dest, size_t len, int is_strict);
-static inline ssize_t  gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata);
-static inline uint64_t gx_hash64(const char *key, uint64_t len, uint64_t seed);
+static           int     gx_dev_random(void *dest, size_t len, int is_strict);
+static inline uint64_t   gx_hash64(const char *key, uint64_t len, uint64_t seed);
 
 
 //-----------------------------------------------------------------------------
@@ -324,35 +323,6 @@ exec:
         else {errno = EIO; return -1;}
     }
     return 0;
-}
-
-//-----------------------------------------------------------------------------
-/**
- * gx_base64_urlencode_m3()
- *
- * Encodes inp into outp, optimized for inputs that are multiples of 3 in
- * length. Be sure that outp is allocated to be at least
- * GX_BASE64_SIZE(sizeof(input_data));
- *
- */
-//static const optional char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-static const optional char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
-#define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
-//static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
-static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
-    const char *inp  = (const char *)indata;
-    char       *outp = outdata;
-    if(rare(insize % 3 != 0)) {errno = EINVAL; return -1;}
-    while(inp < (const char *)(indata + insize)) {
-        outp[0] = _gx_t64[((inp[0] & 0xFC) >> 2) ];
-        outp[1] = _gx_t64[((inp[0] & 0x03) << 4) | ((inp[1] & 0xF0) >> 4)];
-        outp[2] = _gx_t64[((inp[1] & 0x0F) << 2) | ((inp[2] & 0xC0) >> 6)];
-        outp[3] = _gx_t64[ (inp[2] & 0x3F)       ];
-        inp    += 3;
-        outp   += 4;
-    }
-    outp[0] = '\0';
-    return outp + 1 - outdata;
 }
 
 
