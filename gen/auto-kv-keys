@@ -20,10 +20,11 @@ STD_KV_KEYCMP=$( printf "%s\\|" ${STD_KV_KEYS[@]} )
 # (we preprocess it first, ignoring warnings/include errors, so that it
 # normalizes newlines, expands known macros, and removes comments.)
 KV_KEYS=( $( gcc -I. -I"${BS}" -I.. -Iinc -Isrc/inc -P -E $@ 2>/dev/null  \
-  | grep  -E '_gx_e?log\s*\('                                             \
-  | grep  -E -o 'K[a-z_][a-z0-9_]*'                                       \
+  | grep  -E -o '\<K[a-z_][a-z0-9_]*'                                       \
   | grep  -v "\(${STD_KV_KEYCMP}NOOP\)"                                   \
   | sort  -u ) )
+
+#| grep  -E '_gx_e?log\s*\('                                             \
 
 if [ ${#KV_KEYS[@]} -lt 1 ]; then
   echo    "Warning: no keys found. Enum not emitted." >&2
