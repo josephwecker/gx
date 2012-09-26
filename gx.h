@@ -414,15 +414,20 @@ static int _GXPS optional = 0;
  * gx_base64_urlencode_m3()
  *
  * Encodes inp into outp, optimized for inputs that are multiples of 3 in
- * length. Be sure that outp is allocated to be at least
- * GX_BASE64_SIZE(sizeof(input_data));
+ * length. Be sure that outp is allocated to be at least GX_BASE64_SIZE(sizeof(input_data));
  *
+ * The "normal" base-64 encoding lookup is done on this string:
+ *
+ *      static const optional char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+ *
+ * Currently I'm using a modified version that is in incrementing ascii value
+ * for easier sorting when it represents some numeric value. So it's good for
+ * all my current purposes, but it would fail to be decoded currently by
+ * something expecting true base64-url-encoding.
  */
-//static const optional char _gx_t64[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static const optional char _gx_t64[]= "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz-";
 #define GX_BASE64_SIZE(DATSIZE) (4 * (DATSIZE) / 3 + 1)
-//static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
-static inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
+static optional inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t insize, char *outdata) {
     const char *inp  = (const char *)indata;
     char       *outp = outdata;
     if(rare(insize % 3 != 0)) {errno = EINVAL; return -1;}
