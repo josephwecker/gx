@@ -4,6 +4,8 @@
 #ifndef GX_NET_H
 #define GX_NET_H
 
+#include "./gx.h"
+#include "./gx_error.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,10 +13,7 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include "./gx.h"
 #include "./ext/sha2.h"
 
 
