@@ -322,7 +322,7 @@ typedef struct _gx_kv {
 
 static kv_head_t _key_sizes[KV_ENTRIES];     ///< Key header + payload sizes
 static kv_head_t _val_sizes[KV_ENTRIES];     ///< Val header + payload sizes
-static int curr_adhoc_offset = ADHOC_OFFSET; ///< Changes as "semi-permanent" k/v pairs are added/removed
+static unsigned int curr_adhoc_offset = ADHOC_OFFSET; ///< Changes as "semi-permanent" k/v pairs are added/removed
 
 typedef struct kv_msg_iov {
     _iov_base  main_head_base;
@@ -416,10 +416,10 @@ static kv_msg_iov msg_iov = {
 }while(0)
 
 #define _gx_log_set_inner(KEY, VALUE)     do {                                 \
-    int     _idx   = (KEY);                                                    \
-    char   *_val   = (VALUE);                                                  \
-    size_t  _vsize = strlen(_val) + 1;                                         \
-    if(rare(_idx > curr_adhoc_offset)) {                                      \
+    unsigned int  _idx   = (KEY);                                              \
+    char         *_val   = (VALUE);                                            \
+    size_t        _vsize = strlen(_val) + 1;                                   \
+    if(rare(_idx > curr_adhoc_offset)) {                                       \
         /* SORRY NOT YET IMPLEMENTED                                    */     \
         /* curr_adhoc_offset ++;                                        */     \
         /* put key-head-base, key-data-base,                            */     \
@@ -482,9 +482,9 @@ static inline void _gx_log_update_host() {
 #define _VA_ARG_TO_TBL(VALIST) {                                               \
     unsigned int  _kv_key = va_arg((VALIST), unsigned int);                    \
     char         *_kv_val = va_arg((VALIST), char *);                          \
-    if(freq(_kv_key < curr_adhoc_offset)) {                                   \
+    if(freq(_kv_key < curr_adhoc_offset)) {                                    \
         KV_SET_VAL (_kv_key, _kv_val);                                         \
-    } else if(freq(adhoc_idx < KV_ENTRIES)) {                                 \
+    } else if(freq(adhoc_idx < KV_ENTRIES)) {                                  \
         KV_SET_VAL_O(adhoc_idx, _kv_val);                                      \
         if(_gx_log_keystr) KV_SET_KEY(adhoc_idx, _gx_log_keystr(_kv_key));     \
         else               KV_SET_KEY(adhoc_idx, $("custom_%u", _kv_key));     \
