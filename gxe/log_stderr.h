@@ -70,7 +70,7 @@ static int log_stderr_tty      = 0;
 static int log_stderr_8c       = 0;
 static int log_stderr_256c     = 0;
 
-static int _gx_log_maxwidths[K_END_STANDARD] = {0};
+//static int _gx_log_maxwidths[K_END_STANDARD] = {0};
 
 static inline int is_fd_open(int fd)
 {
@@ -131,7 +131,7 @@ static char *sev_highlight[] = {C0, C1, C2, C3, C4, C5, C6, C7, C8, C9};
 #define padby(N)           scatn(" ", 1, N)
 #define sep()              scatc(C_D " | " CN)
 #define scatn(BUF, LEN, N) if(N > 0){                                          \
-    size_t _i;                                                                 \
+    ssize_t _i;                                                                \
     for(_i=0; _i<N; _i++) scat(BUF, LEN);                                      \
 }
 #define scatsdp(KEY, PAD) do{ \
@@ -167,7 +167,7 @@ static char *sev_highlight[] = {C0, C1, C2, C3, C4, C5, C6, C7, C8, C9};
 
 static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
 {
-    ssize_t len, len2, pad, i;
+    ssize_t len, len2;
     if(rare(!log_stderr_verified) && check_stderr()) return;
     memset(out_iov, 0, sizeof(out_iov));
     iov_out_count = 0;
