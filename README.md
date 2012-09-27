@@ -33,8 +33,6 @@ Some of the header files are probably only interesting to me.
 | gx\_error     | Awesome error handling/logging idioms & macros to make code look good.           |
 | gx\_event     | Very highly tuned event-loop. Like a faster and feature-reduced libev w/ special tcp tuning |
 | gx\_ringbuf   | Super-optimized memory-mapped ringbuffers (circular buffers) & ringbuffer-pools. |
-| gx\_zerocopy  | IO directives for highly optimized data transfer between fds of various types.   |
-| gx\_mfd       | Memory-fd. Mmap fun & selectable/pollable fd's that trigger events when a variable changes. |
 
 
 **NOTES:**
@@ -50,13 +48,31 @@ Some of the header files are probably only interesting to me.
 
 | Header        | Summary                                                                          |
 | ------------- | -------------------------------------------------------------------------------- |
+| gx\_zerocopy  | IO directives for highly optimized data transfer between fds of various types.   |
+| gx\_pool      | High level macro for creating an intrusive resource pool of a given struct       |
+| gx\_log       | The logging part for error handling, along with misc. logging.                   |
+| gx\_string    | Macros for quickly doing inline sprintf-like operations without allocating memory |
 | gx\_net       | Wrappers for common network/socket needs.                                        |
-| gx\_cpus      | (Semi)-portable wrapper for determining # of cpus, cpu-affiliation, timing, etc. |
 | gx\_system    | (Semi)-portable wrapper for getting local & system-wide usage & performance etc. |
-| gx\_endian    | Runtime-endianness detection and eventually a bunch of utilities...              |
-| gx\_pdv       | (Persistent Data Vector) Will be an extension of gx\_mfd for dataflow/pipe programming |
+| gx\_endian    | Runtime-endianness detection and eventually a bunch of utilities... NEEDS WORK   |
 | gx\_token     | Plans on building secure crypto self-referencing auth tokens in a somewhat generic way. |
+
+### Incubator:
+
+| Header        | Summary                                                                          |
+| ------------- | -------------------------------------------------------------------------------- |
+| gx\_cpus      | (Semi)-portable wrapper for determining # of cpus, cpu-affiliation, timing, etc. |
+| gx\_pdv       | (Persistent Data Vector) Will be an extension of gx\_mfd for dataflow/pipe programming |
 | gx\_shuttle   | Eventually a generalization of some C hot-code-swapping stuff I'm doing          |
+| gx\_time      | Eventually an awesome time module                                                |
+| gx\_thread    | At the moment, just a "very" lightweight thread on linux using clone             |
+| gx\_mqueue    | Soon to be a posix message-queue wrapper with fallback to SysV message queues    |
+
+### Depricated:
+
+| Header        | Summary                                                                          |
+| ------------- | -------------------------------------------------------------------------------- |
+| gx\_mfd       | Memory-fd. Mmap fun & selectable/pollable fd's that trigger events when a variable changes. |
 
 
 TMP TODO
