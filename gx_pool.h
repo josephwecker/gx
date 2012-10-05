@@ -1,6 +1,7 @@
 #ifndef _GX_POOL_H
 #define _GX_POOL_H
 
+#include "./gx.h"
 #include "./gx_error.h"
 
 // This macros is intended to be used as EXTRA parameter to gx_pool_init_full when the
