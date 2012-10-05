@@ -20,13 +20,13 @@
         _prepend_ ## TYPE(pool, res);                                                    \
       fin:                                                                               \
         pthread_mutex_unlock(&(pool->mutex));                                            \
-        if(likely(res != NULL)) {                                                        \
-            if(unlikely(CONSTRUCT(res) != 0)) {                                          \
+        if(freq(res != NULL)) {                                                          \
+            if(rare(CONSTRUCT(res) != 0)) {                                              \
                 release_ ## TYPE(res);                                                   \
                 res = NULL;                                                              \
             }                                                                            \
         }                                                                                \
-        if(likely((res = (acquire_ ## TYPE(pool))) != NULL)) {                           \
+        if(freq((res = (acquire_ ## TYPE(pool))) != NULL)) {                             \
             res->_refc = 1;                                                              \
             res->_pool = pool;                                                           \
         }                                                                                \
@@ -58,8 +58,8 @@
         _prepend_ ## TYPE(pool, res);                                                    \
       fin:                                                                               \
         pthread_mutex_unlock(&(pool->mutex));                                            \
-        if(likely(res != NULL)) {                                                        \
-            if(unlikely(CONSTRUCT(res) != 0)) {                                          \
+        if(freq(res != NULL)) {                                                          \
+            if(rare(CONSTRUCT(res) != 0)) {                                              \
                 release_ ## TYPE(res);                                                   \
                 res = NULL;                                                              \
             }                                                                            \
@@ -131,7 +131,7 @@
         new_seg[by_number - 1]._next = (TYPE *)pool->available_head;                     \
         pool->available_head = new_seg;                                                  \
         for(curr=0; curr < by_number-1; curr++) {                                        \
-            if(unlikely(ALLOCATE(new_seg + curr) != 0)) {                                \
+            if(rare(ALLOCATE(new_seg + curr) != 0)) {                                    \
                 while(curr-- != 0) {                                                     \
                     DEALLOCATE(new_seg + curr);                                          \
                 }                                                                        \
