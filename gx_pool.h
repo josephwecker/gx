@@ -7,7 +7,7 @@
 // This macros is intended to be used as EXTRA parameter to gx_pool_init_full when the
 // memory pool allocates reference counted objects.
 // Reference counted objects have to provide a "void *_pool" and "size_t _refc" fields
-  #define GX_POOL_REFC(TYPE)                                                             \
+  #define GX_POOL_REFC(TYPE, CONSTRUCT)                                                  \
                                                                                          \
     static inline TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                          \
         TYPE *res = NULL;                                                                \
@@ -216,6 +216,11 @@
                       GX_POOL_SIMPLE)
 
   #define gx_pool_init_refc(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY)              \
-    gx_pool_init_full(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY, GX_POOL_REFC(TYPE))
+    gx_pool_init_full(TYPE,                                                              \
+                      ALLOCATE,                                                          \
+                      DEALLOCATE,                                                        \
+                      CONSTRUCT,                                                         \
+                      DESTROY,                                                           \
+                      GX_POOL_REFC(TYPE, CONSTRUCT))
 
 #endif
