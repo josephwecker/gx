@@ -63,7 +63,7 @@
 
 // This is macro is intended to be used as EXTRA parameter to gx_pool_init_full when the
 // memory pool allocates simple objects.
-  #define GX_POOL_SIMPLE                                                                 \
+  #define GX_POOL_SIMPLE(TYPE, CONSTRUCT)                                                \
                                                                                          \
     static inline TYPE *acquire_ ## TYPE(TYPE ## _pool *pool) {                          \
         TYPE *res = NULL;                                                                \
@@ -234,7 +234,7 @@
                       DEALLOCATE,                                                        \
                       CONSTRUCT,                                                         \
                       DESTROY,                                                           \
-                      GX_POOL_SIMPLE)
+                      GX_POOL_SIMPLE(TYPE, CONSTRUCT))
 
   #define gx_pool_init(TYPE)                                                             \
     static inline int _allocate_   ## TYPE(TYPE *object) { (void)object; return 0; }     \
