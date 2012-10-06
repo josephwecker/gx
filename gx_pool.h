@@ -202,19 +202,6 @@
                                                                                          \
     EXTRA
 
-  #define gx_pool_init(TYPE)                                                             \
-    static inline int _allocate_   ## TYPE(TYPE *object) { (void)object; return 0; }     \
-    static inline int _deallocate_ ## TYPE(TYPE *object) { (void)object; return 0; }     \
-    static inline int _construct_  ## TYPE(TYPE *object) { (void)object; return 0; }     \
-    static inline int _destroy_    ## TYPE(TYPE *object) { (void)object; return 0; }     \
-                                                                                         \
-    gx_pool_init_full(TYPE,                                                              \
-                      _allocate_   ## TYPE,                                              \
-                      _deallocate_ ## TYPE,                                              \
-                      _construct_  ## TYPE,                                              \
-                      _destroy_    ## TYPE,                                              \
-                      GX_POOL_SIMPLE)
-
   #define gx_pool_init_refc(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY)              \
     gx_pool_init_full(TYPE,                                                              \
                       ALLOCATE,                                                          \
@@ -222,5 +209,24 @@
                       CONSTRUCT,                                                         \
                       DESTROY,                                                           \
                       GX_POOL_REFC(TYPE, CONSTRUCT))
+
+  #define gx_pool_init_simple(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY)            \
+    gx_pool_init_full(TYPE,                                                              \
+                      ALLOCATE,                                                          \
+                      DEALLOCATE,                                                        \
+                      CONSTRUCT,                                                         \
+                      DESTROY,                                                           \
+                      GX_SIMPLE)
+
+  #define gx_pool_init(TYPE)                                                             \
+    static inline int _allocate_   ## TYPE(TYPE *object) { (void)object; return 0; }     \
+    static inline int _deallocate_ ## TYPE(TYPE *object) { (void)object; return 0; }     \
+    static inline int _construct_  ## TYPE(TYPE *object) { (void)object; return 0; }     \
+    static inline int _destroy_    ## TYPE(TYPE *object) { (void)object; return 0; }     \
+    gx_pool_init_simple(TYPE,                                                            \
+                        _allocate_   ## TYPE,                                            \
+                        _deallocate_ ## TYPE,                                            \
+                        _construct_  ## TYPE,                                            \
+                        _destroy_    ## TYPE)
 
 #endif
