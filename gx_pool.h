@@ -216,6 +216,6 @@
                       GX_POOL_SIMPLE)
 
   #define gx_pool_init_refc(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY)              \
-    gx_pool_init(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY, GX_POOL_REFC(TYPE))
+    gx_pool_init_full(TYPE, ALLOCATE, DEALLOCATE, CONSTRUCT, DESTROY, GX_POOL_REFC(TYPE))
 
 #endif
