@@ -234,7 +234,7 @@
                       DEALLOCATE,                                                        \
                       CONSTRUCT,                                                         \
                       DESTROY,                                                           \
-                      GX_SIMPLE)
+                      GX_POOL_SIMPLE)
 
   #define gx_pool_init(TYPE)                                                             \
     static inline int _allocate_   ## TYPE(TYPE *object) { (void)object; return 0; }     \
