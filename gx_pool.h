@@ -4,6 +4,24 @@
 #include "./gx.h"
 #include "./gx_error.h"
 
+// This macros is provided to help defining the intrusive fields required for objects
+// allocated by a memory pool.
+#define GX_POOL_OBJECT(TYPE)                    \
+  struct {                                      \
+    TYPE * _prev;                               \
+    TYPE * _next;                               \
+  }
+
+// This macros is provided to help defining the intrusive fields required for objects
+// allocated by a reference counted memory pool.
+#define GX_POOL_REFC_OBJECT(TYPE)               \
+  struct {                                      \
+    TYPE * _prev;                               \
+    TYPE * _next;                               \
+    void * _pool;                               \
+    size_t _refc;                               \
+  }
+
 // This macros is intended to be used as EXTRA parameter to gx_pool_init_full when the
 // memory pool allocates reference counted objects.
 // Reference counted objects have to provide a "void *_pool" and "size_t _refc" fields
