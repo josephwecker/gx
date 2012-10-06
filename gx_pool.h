@@ -1,7 +1,6 @@
 #ifndef _GX_POOL_H
 #define _GX_POOL_H
 
-#include "./gx.h"
 #include "./gx_error.h"
 
 // This macros is provided to help defining the intrusive fields required for objects
