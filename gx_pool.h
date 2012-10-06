@@ -78,7 +78,7 @@
         pthread_mutex_unlock(&(pool->mutex));                                            \
         if(freq(res != NULL)) {                                                          \
             if(rare(CONSTRUCT(res) != 0)) {                                              \
-                release_ ## TYPE(res);                                                   \
+                release_ ## TYPE(pool, res);                                             \
                 res = NULL;                                                              \
             }                                                                            \
         }                                                                                \
