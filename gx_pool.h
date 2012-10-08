@@ -105,10 +105,13 @@
     static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number);              \
     static inline TYPE ## _pool *new_  ##  TYPE ## _pool (size_t initial_number) {       \
         TYPE ## _pool *res;                                                              \
-        _N(res=(TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) _raise(NULL);             \
+        _N(res = (TYPE ## _pool *)malloc(sizeof(TYPE ## _pool))) _raise(NULL);           \
         memset(res, 0, sizeof(TYPE ## _pool));                                           \
+        _ (pthread_mutex_init(&(res->mutex), NULL)) {                                    \
+            free(res);                                                                   \
+            _raise(NULL);                                                                \
+        }                                                                                \
         TYPE ## _pool_extend(res, initial_number);                                       \
-        _ (pthread_mutex_init(&(res->mutex), NULL)) _raise(NULL);                        \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
@@ -145,9 +148,7 @@
         memseg_entry->next    = pool->memseg_head;                                       \
                                                                                          \
         /* Link them up */                                                               \
-        new_seg[by_number - 1]._next = (TYPE *)pool->available_head;                     \
-        pool->available_head = new_seg;                                                  \
-        for(curr=0; curr < by_number-1; curr++) {                                        \
+        for(curr = 0; curr < by_number; ++curr) {                                        \
             if(rare(ALLOCATE(new_seg + curr) != 0)) {                                    \
                 while(curr-- != 0) {                                                     \
                     DEALLOCATE(new_seg + curr);                                          \
@@ -158,8 +159,10 @@
             }                                                                            \
             new_seg[curr]._next = (TYPE *)(new_seg + curr + 1);                          \
         }                                                                                \
+        new_seg[by_number - 1]._next = (TYPE *)pool->available_head;                     \
+        pool->available_head = new_seg;                                                  \
         pool->total_items += by_number;                                                  \
-        pool->memseg_head  = memseg_entry;                                               \
+        pool->memseg_head = memseg_entry;                                                \
         return 0;                                                                        \
     }                                                                                    \
                                                                                          \
