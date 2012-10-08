@@ -203,8 +203,7 @@ static inline void log_stderr(gx_severity severity, kv_msg_iov *msg)
     scat   ("\n",1);
 
 
-    //fprintf(stderr, "OK, got this far. %d\n", iov_out_count);
-    writev(STDERR_FILENO, out_iov, iov_out_count);
+    len2 = writev(STDERR_FILENO, out_iov, iov_out_count);
 }
 
 #undef DT
