@@ -447,38 +447,39 @@ static optional inline ssize_t gx_base64_urlencode_m3(const void *indata, size_t
 /// bswap64 - most useful for big to little-endian
 /// @todo (builtin bswap32?)
 #if __GNUC__
-	#define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
-	#define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
+    #define bswap64(x) __builtin_bswap64(x)           /* Assuming GCC 4.3+ */
+    #define bswap32(x) __builtin_bswap32(x)
+    #define ntz(x)     __builtin_ctz((unsigned)(x))   /* Assuming GCC 3.4+ */
 #else              /* Assume some C99 features: stdint.h, inline, restrict */
-	#define bswap32(x)                                              \
-	   ((((x) & 0xff000000u) >> 24) | (((x) & 0x00ff0000u) >>  8) | \
-		(((x) & 0x0000ff00u) <<  8) | (((x) & 0x000000ffu) << 24))
+    #define bswap32(x)                                              \
+       ((((x) & 0xff000000u) >> 24) | (((x) & 0x00ff0000u) >>  8) | \
+        (((x) & 0x0000ff00u) <<  8) | (((x) & 0x000000ffu) << 24))
 
-	 static always_inline uint64_t bswap64(uint64_t x) {
-		union { uint64_t u64; uint32_t u32[2]; } in, out;
-		in.u64 = x;
-		out.u32[0] = bswap32(in.u32[1]);
-		out.u32[1] = bswap32(in.u32[0]);
-		return out.u64;
-	}
+     static always_inline uint64_t bswap64(uint64_t x) {
+        union { uint64_t u64; uint32_t u32[2]; } in, out;
+        in.u64 = x;
+        out.u32[0] = bswap32(in.u32[1]);
+        out.u32[1] = bswap32(in.u32[0]);
+        return out.u64;
+    }
 
-	#if (L_TABLE_SZ <= 9) && (L_TABLE_SZ_IS_ENOUGH)   /* < 2^13 byte texts */
-	static always_inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[] = {0,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,8,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
-		2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2};
-		return tz_table[x/4];
-	}
-	#else       /* From http://supertech.csail.mit.edu/papers/debruijn.pdf */
-	static always_inline unsigned ntz(unsigned x) {
-		static const unsigned char tz_table[32] =
-		{ 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8,
-		 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18,  6, 11,  5, 10, 9};
-		return tz_table[((uint32_t)((x & -x) * 0x077CB531u)) >> 27];
-	}
-	#endif
+    #if (L_TABLE_SZ <= 9) && (L_TABLE_SZ_IS_ENOUGH)   /* < 2^13 byte texts */
+    static always_inline unsigned ntz(unsigned x) {
+        static const unsigned char tz_table[] = {0,
+        2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
+        2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,8,
+        2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,7,
+        2,3,2,4,2,3,2,5,2,3,2,4,2,3,2,6,2,3,2,4,2,3,2,5,2,3,2,4,2,3,2};
+        return tz_table[x/4];
+    }
+    #else       /* From http://supertech.csail.mit.edu/papers/debruijn.pdf */
+    static always_inline unsigned ntz(unsigned x) {
+        static const unsigned char tz_table[32] =
+        { 0,  1, 28,  2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17,  4, 8,
+         31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18,  6, 11,  5, 10, 9};
+        return tz_table[((uint32_t)((x & -x) * 0x077CB531u)) >> 27];
+    }
+    #endif
 #endif
 
 #include "./gx_error.h"
