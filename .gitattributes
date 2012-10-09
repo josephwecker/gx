@@ -1,0 +1,8 @@
+*.ps -diff
+*.pdf -diff
+*.eps -diff
+*.jpg -diff
+*.png -diff
+*.svg -diff
+*.cap -diff
+*.pickle -diff
