@@ -99,30 +99,30 @@ static optional void gx_error_dump_all();
 
 #define gx_error_initialize(TAG)
 
-#define _raise(RETVAL) {                                         \
+#define _raise(RETVAL) do {                                      \
     _gx_error_cidx += 1;                                         \
     if(_gx_error_cidx > GX_ERROR_BACKTRACE_SIZE - 1) {           \
         _gx_error_cidx = GX_ERROR_BACKTRACE_SIZE - 1;            \
     }                                                            \
     return RETVAL;                                               \
-}
+} while(0)
 
-#define _ignore() {                                              \
+#define _ignore() do {                                           \
     log_debug("Ignored");                                        \
     _clear();                                                    \
-}
+} while(0)
 
-#define _clear() {                                               \
+#define _clear() do {                                            \
     _gx_error_cidx = 0;                                          \
     _gx_error_stack[0].error_number =                            \
         _gx_error_stack[1].error_number = 0;                     \
     errno = 0;                                                   \
-}
+} while(0)
 
-#define _abort() {                                               \
-    _critical();                                                \
+#define _abort() do {                                            \
+    _critical();                                                 \
     exit(errno);                                                 \
-}
+} while(0)
 
 #define _goto(LBL) goto LBL
 
