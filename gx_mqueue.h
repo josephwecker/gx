@@ -48,6 +48,10 @@
 // similar message boundary system as the one provided by the Linux message
 // queues GX writes the size of the message before the message body.
 
+#ifndef GX_MQUEUE_MSG_COUNT
+#define GX_MQUEUE_MSG_COUNT 10
+#endif
+
 #ifndef GX_MQUEUE_MSG_SIZE
 #define GX_MQUEUE_MSG_SIZE 8192
 #endif
@@ -67,7 +71,7 @@ static int gx_mq_open(const char *name, int oflag, int mode) {
     }
 
     attr.mq_flags   = 0;
-    attr.mq_maxmsg  = 10;
+    attr.mq_maxmsg  = GX_MQUEUE_MSG_COUNT;
     attr.mq_maxsize = GX_MQUEUE_MSG_SIZE;
     attr.mq_curmsg  = 0;
     _ (mqfd = mq_open(name, oflags, mode, &attr)) _raise(-1);
