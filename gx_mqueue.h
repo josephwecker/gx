@@ -3,8 +3,7 @@
 
 /**
    @file      gx_mqueue.h
-   @brief     Some extensions to posix message queues (like scatter io) and SysV fallback for OSX
-   @author    Joseph A Wecker <joseph.wecker@gmail.com>
+   @brief     Some extensions to posix message queues (like scatter io) and pipe implementation fallback for OSX
    @author    Achille Roussel <achille.roussel@gmail.com>
    @copyright
      Except where otherwise noted, Copyright (C) 2012 Joseph A Wecker
@@ -112,37 +111,20 @@ static int gx_mq_recv(int mqfd, void *buffer, int nbytes, unsigned *prio) {
     n = 0;
     do {
         _ (c = read(mqfd, ((char *)&a) + n, sizeof(a) - n)) {
-	    if(errno == EINTR) {
-	        continue;
-	    }
-
-	    if(errno != EAGAIN) {
-	        _raise(-1);
-	    } else if(n == 0) {
-	        // We couldn't read any data yet, the pipe is probably empty,
-	        // simply report EAGAIN to the caller.
-	        return -1;
-	    } else {
-	        continue;
-	    }
+            if(errno == EINTR)  continue;
+            if(errno != EAGAIN) _raise(-1);
+            else if(c == 0)     return -1;  // No data- pipe is probably empty, propagate EAGAIN to the caller.
+            else                continue;
         }
         n += c;
     } while(n != sizeof(a));
 
     n = 0;
     do {
-        _ (c = read(mqfd, ((char *)buffer) + n, a - n)) {
-	    if(errno == EINTR) {
-	        continue;
-	    }
-
-	    if(errno != EAGAIN) {
-	        _raise(-1);
-	    } else {
-	        // No data were available yet but we're expecting 'a' bytes so
-	        // we'll retry again because more data should be available soon.
-	        continue;
-	    }
+        switch_esys(c = read(mqfd, ((char *)buffer) + n, a - n)) {
+            case EINTR:
+            case EAGAIN: continue; // No data but we're expecting 'a' bytes soon- so try again.
+            default:     _raise(-1);
         }
         n += c;
     } while(n != a);
@@ -171,18 +153,14 @@ static int gx_mq_send(int mqfd, const void *buffer, int nbytes, unsigned prio) {
 
     nbytes += sizeof(nbytes);
     do {
-      _ (c = write(mqfd, msg + n, nbytes - n)) {
-	  if(errno == EINTR) {
-	      continue;
-	  }
-
-	  if((errno == EINTR) && (n == 0)) {
-	      // No data could be sent yet, we return -1 and errno is set to
-	      // EAGAIN so if the file descriptor was associated with a kqueue
-	      // object it will be notified once more data can be sent to the
-	      // pipe.
-	      return -1;
-	  }
+      switch_esys(c = write(mqfd, msg + n, nbytes - n)) {
+          case EINTR:  continue;
+          case EAGAIN: if(c == 0) return -1;
+              // No data could be sent yet, we return -1 and errno is set to
+              // EAGAIN so if the file descriptor was associated with a kqueue
+              // object it will be notified once more data can be sent to the
+              // pipe.
+          default:     _raise(-1);
       }
       n += c;
     } while(n != nbytes);
