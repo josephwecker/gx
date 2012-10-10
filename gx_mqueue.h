@@ -122,10 +122,10 @@ static int gx_mq_recv(int mqfd, void *buffer, int nbytes, unsigned *prio) {
     n = 0;
     do {
         _ (c = read(mqfd, ((char *)&a) + n, sizeof(a) - n)) {
-            if(errno == EINTR)  continue;
-            if(errno != EAGAIN) _raise(-1);
-            else if(n == 0)     return -1;  // No data- pipe is probably empty, propagate EAGAIN to the caller.
-            else                continue;
+            if(errno == EINTR)  { continue;   }
+            if(errno != EAGAIN) { _raise(-1); }
+            else if(n == 0)     { return -1;  } // No data- pipe is probably empty, propagate EAGAIN to the caller.
+            else                { continue;   }
         }
         if(c == 0) {
           // The pipe was closed or removed, no more data could be read.
