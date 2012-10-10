@@ -41,6 +41,20 @@
 # include <unistd.h>
 # include <string.h>
 # include <stdio.h>
+
+// Mirrors the Linux behavior, if the name format is invalid return ENOENT.
+#define GX_BSD_MQUEUE_PATH(var_name, mqueue_name)                       \
+  char var_name[256] = { 0 };                                           \
+                                                                        \
+  if(   (mqueue_name[0] != '/')                                         \
+     || (mqueue_name[1] == '\0')                                        \
+     || (strchr(mqueue_name + 1, '/') != NULL)) {                       \
+      errno = ENOENT;                                                   \
+      return -1;                                                        \
+  }                                                                     \
+                                                                        \
+  snprintf(var_name, sizeof(var_name), "/tmp%s", mqueue_name)
+
 #endif
 
 // The BSD implementation uses a named pipe for now. In order to implement a
@@ -58,7 +72,7 @@
 // ???
 static char _gx_msg_stage[8192] = {0};
 
-static int gx_mq_open(const char *name, int oflag, int mode) {
+static int gx_mq_open(const char *name, int oflags, int mode) {
     int mqfd;
 
 #if __LINUX__
@@ -71,20 +85,12 @@ static int gx_mq_open(const char *name, int oflag, int mode) {
 
     attr.mq_flags   = 0;
     attr.mq_maxmsg  = GX_MQUEUE_MSG_COUNT;
-    attr.mq_maxsize = GX_MQUEUE_MSG_SIZE;
-    attr.mq_curmsg  = 0;
+    attr.mq_msgsize = GX_MQUEUE_MSG_SIZE;
+    attr.mq_curmsgs = 0;
     _ (mqfd = mq_open(name, oflags, mode, &attr)) _raise(-1);
 
 #else
-    char path[256] = { 0 };
-
-    // Mirrors the Linux behavior, if the name format is invalid return ENOENT.
-    if((name[0] != '/') || (name[1] == '\0') || (strchr(name, '/') != NULL)) {
-        errno = ENOENT;
-        return -1;
-    }
-
-    snprintf(path, "/tmp%s", name);
+    GX_BSD_MQUEUE_PATH(path, name);
 
     if(oflags & O_CREAT) {
         _ (mkfifo(path, mode)) _raise(-1);
@@ -106,15 +112,19 @@ static int gx_mq_recv(int mqfd, void *buffer, int nbytes, unsigned *prio) {
     int a = 0;
     int c = 0;
 
-    (void)prio; // Priorities aren't supported on BSD systems.
+    *prio = 0; // Priorities aren't supported on BSD systems.
 
     n = 0;
     do {
         _ (c = read(mqfd, ((char *)&a) + n, sizeof(a) - n)) {
             if(errno == EINTR)  continue;
             if(errno != EAGAIN) _raise(-1);
-            else if(c == 0)     return -1;  // No data- pipe is probably empty, propagate EAGAIN to the caller.
+            else if(n == 0)     return -1;  // No data- pipe is probably empty, propagate EAGAIN to the caller.
             else                continue;
+        }
+        if(c == 0) {
+          // The pipe was closed or removed, no more data could be read.
+          return 0;
         }
         n += c;
     } while(n != sizeof(a));
@@ -155,7 +165,7 @@ static int gx_mq_send(int mqfd, const void *buffer, int nbytes, unsigned prio) {
     do {
       switch_esys(c = write(mqfd, msg + n, nbytes - n)) {
           case EINTR:  continue;
-          case EAGAIN: if(c == 0) return -1;
+          case EAGAIN: if(n == 0) return -1; continue;
               // No data could be sent yet, we return -1 and errno is set to
               // EAGAIN so if the file descriptor was associated with a kqueue
               // object it will be notified once more data can be sent to the
@@ -182,14 +192,7 @@ static int gx_mq_unlink(const char *name) {
 #if __LINUX__
     _ (mq_unlink(name)) _raise(-1);
 #else
-    char path[256] = { 0 };
-
-    if((name[0] != '/') || (name[1] == '\0') || (strchr(name, '/') != NULL)) {
-        errno = ENOENT;
-        return -1;
-    }
-
-    snprintf(path, sizeof(path), "/tmp%s", name);
+    GX_BSD_MQUEUE_PATH(path, name);
     _ (unlink(path)) _raise(-1);
 #endif
     return 0;
