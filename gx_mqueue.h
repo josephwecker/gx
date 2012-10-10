@@ -78,7 +78,7 @@ static int gx_mq_open(const char *name, int oflags, int mode) {
 #if __LINUX__
     struct mq_attr attr;
 
-    if(oflags & O_RDWR) {
+    if((oflags & O_RDWR) == O_RDWR) {
         errno = EINVAL;
         return -1;
     }
