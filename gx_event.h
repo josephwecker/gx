@@ -62,6 +62,7 @@
  *
  */
 
+#include <fcntl.h>
 #include "./gx.h"
 #include "./gx_error.h"
 #include "./gx_pool.h"
@@ -276,14 +277,25 @@ gx_pool_init(gx_tcp_sess);
 
   #define GX_EVENT_STRUCT epoll_event
 
-  #define gx_event_newset(max_returned) epoll_create(max_returned)
+  #define GX_EVENT_IN     (EPOLLIN | EPOLLET)
+  #define GX_EVENT_OUT    (EPOLLOUT | EPOLLET)
+  #define GX_EVENT_SOCKET (EPOLLRDHUP | EPOLLPRI | EPOLLERR | EPOLLHUP)
+
+  #define gx_event_is_readable(EVENT) ((EVENT).events & GX_EVENT_READABLE)
+  #define gx_event_is_writable(EVENT) ((EVENT).events & GX_EVENT_WRITABLE)
+
+  #define gx_event_newset(...) epoll_create1(EPOLL_CLOEXEC)
+
+  static inline int gx_event_add_full(int evfd, int fd, int flags, void *data_ptr) {
+      struct GX_EVENT_STRUCT new_event = {
+          .events = flags,
+          .data   = { .ptr = data_ptr } 
+      };
+      return epoll_ctl(evfd, EPOLL_CTL_ADD, fd, &new_event);
+  }
 
   static inline int gx_event_add(int evfd, int fd, void *data_ptr) {
-      struct GX_EVENT_STRUCT new_event = {
-          .events = EPOLLIN  | EPOLLOUT | EPOLLET  | EPOLLRDHUP |
-                    EPOLLPRI | EPOLLERR | EPOLLHUP,
-          .data   = { .ptr = data_ptr }};
-      return epoll_ctl(evfd, EPOLL_CTL_ADD, fd, &new_event);
+      return gx_event_add_full(evfd, fd, GX_EVENT_IN | GX_EVENT_OUT | GX_EVENT_SOCKET, data_ptr);
   }
 
   static inline int gx_event_del(int evfd, int fd) {
@@ -315,18 +327,29 @@ gx_pool_init(gx_tcp_sess);
 
   #define GX_EVENT_STRUCT kevent64_s
 
-  #define gx_event_newset(max_returned) kqueue()
+  #define GX_EVENT_IN     EVFILT_READ
+  #define GX_EVENT_OUT    EVFILT_WRITE
+  #define GX_EVENT_SOCKET 0
 
-  static inline int gx_event_add(int evfd, int fd, void *data_ptr) {
+  #define gx_event_is_readable(EVENT) (((EVENT).filter & GX_EVENT_READABLE) == GX_EVENT_READABLE)
+  #define gx_event_is_writable(EVENT) (((EVENT).filter & GX_EVENT_WRITABLE) == GX_EVENT_WRITABLE)
+
+  #define gx_event_newset(...) kqueue()
+
+  static inline int gx_event_add_full(int evfd, int fd, int flags, void *data_ptr) {
       struct GX_EVENT_STRUCT new_event = {
           .ident  = (uint64_t)fd,
-          .filter = EVFILT_READ | EVFILT_WRITE,
+          .filter = flags,
           .flags  = EV_ADD | EV_RECEIPT | EV_CLEAR | EV_EOF | EV_ERROR,
           .fflags = 0,
           .data   = 0,
           .udata  = (uint64_t)data_ptr,
           .ext    = {0,0}};
       return kevent64(evfd, &new_event, 1, NULL, 0, 0, NULL);
+  }
+
+  static inline int gx_event_add(int evfd, int fd, void *data_ptr) {
+      return gx_event_add_full(evfd, fd, GX_EVENT_IN | GX_EVENT_OUT | GX_EVENT_SOCKET, data_ptr);
   }
 
   static inline int gx_event_del(int evfd, int fd) {
@@ -559,6 +582,12 @@ static inline char *gx_closed_reason_txt(int reason) {
     return _gx_closed_reason[- reason];
 }
 
+static inline int gx_set_non_blocking(int fd) {
+    int flags = 0;
+    _ (flags = fcntl(fd, F_GETFL))             _raise(-1);
+    _ (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) _raise(-1);
+    return 0;
+}
 
 static inline void _gx_event_accept_connections(int lim, int afd, int (*ahandler)(gx_tcp_sess *),
         gx_tcp_sess_pool *cespool, int events_fd, gx_rb_pool *rb_pool, gx_rb **rcvrbp) {
@@ -591,7 +620,7 @@ static inline void _gx_event_accept_connections(int lim, int afd, int (*ahandler
                 _error();
                 _raise();
         } else {
-            _ (fcntl(peer_fd, F_SETFL, O_NONBLOCK)) {_error(); close(peer_fd); _raise();}
+            _ (gx_set_non_blocking(peer_fd)) { _error(); close(peer_fd); _raise(); }
 
             if(freq(ahandler != NULL)) {
                 _N(new_sess = acquire_gx_tcp_sess(cespool)) {_error(); close(peer_fd); _raise();}
