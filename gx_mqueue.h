@@ -114,6 +114,11 @@ static int gx_mq_recv(int mqfd, void *buffer, int nbytes, unsigned *prio) {
 
     *prio = 0; // Priorities aren't supported on BSD systems.
 
+    if(nbytes < GX_MQUEUE_MSG_SIZE) {
+        errno = EINVAL;
+        return -1;
+    }
+
     n = 0;
     do {
         _ (c = read(mqfd, ((char *)&a) + n, sizeof(a) - n)) {
