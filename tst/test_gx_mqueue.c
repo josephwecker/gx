@@ -13,8 +13,8 @@ int main(int argc, char **argv) {
 
     unsigned prio = 0;
 
-    _ (r_mqfd = gx_mq_open(GX_MQUEUE_TEST_NAME, O_CREAT | O_RDONLY, 0600)) _abort();
-    _ (w_mqfd = gx_mq_open(GX_MQUEUE_TEST_NAME, O_CREAT | O_WRONLY, 0600)) _abort();
+    _ (r_mqfd = gx_mq_open(GX_MQUEUE_TEST_NAME, O_CREAT | O_RDONLY | O_NONBLOCK, 0600)) _abort();
+    _ (w_mqfd = gx_mq_open(GX_MQUEUE_TEST_NAME, O_CREAT | O_WRONLY | O_NONBLOCK, 0600)) _abort();
 
     _ (gx_mq_send(w_mqfd, string, strlen(string), prio))  _abort();
     _ (gx_mq_recv(r_mqfd, buffer, sizeof(buffer), &prio)) _abort();
