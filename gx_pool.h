@@ -7,18 +7,18 @@
 // allocated by a memory pool.
 #define GX_POOL_OBJECT(TYPE)                    \
   struct {                                      \
-    TYPE * _prev;                               \
-    TYPE * _next;                               \
+      TYPE * _prev;                             \
+      TYPE * _next;                             \
   }
 
 // This macros is provided to help defining the intrusive fields required for objects
 // allocated by a reference counted memory pool.
 #define GX_POOL_REFC_OBJECT(TYPE)               \
   struct {                                      \
-    TYPE * _prev;                               \
-    TYPE * _next;                               \
-    void * _pool;                               \
-    size_t _refc;                               \
+      TYPE * _prev;                             \
+      TYPE * _next;                             \
+      void * _pool;                             \
+      size_t _refc;                             \
   }
 
 // This macros is intended to be used as EXTRA parameter to gx_pool_init_full when the
@@ -33,7 +33,6 @@
             if(TYPE ## _pool_extend(pool, pool->total_items) == -1) goto fin;            \
         res = pool->available_head;                                                      \
         pool->available_head = res->_next;                                               \
-        memset(res, 0, sizeof(TYPE));                                                    \
         _prepend_ ## TYPE(pool, res);                                                    \
       fin:                                                                               \
         pthread_mutex_unlock(&(pool->mutex));                                            \
@@ -45,16 +44,16 @@
                 res->_refc = 1;                                                          \
                 res->_pool = pool;                                                       \
             }                                                                            \
-        }        puts("acquire entry");                                 \
+        }                                                                                \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
-    static inline void TYPE ## _incr_refc(TYPE *entry) { puts("incr counter"); \
+    static inline void TYPE ## _incr_refc(TYPE *entry) {                                 \
         ++(entry->_refc);                                                                \
     }                                                                                    \
                                                                                          \
-    static inline void TYPE ## _decr_refc(TYPE *entry) { puts("decr counter"); \
-      if((--(entry->_refc)) == 0) { puts("destroying entry");           \
+    static inline void TYPE ## _decr_refc(TYPE *entry) {                                 \
+      if((--(entry->_refc)) == 0) {                                                      \
             release_ ## TYPE(entry->_pool, entry);                                       \
         }                                                                                \
     }
@@ -70,7 +69,6 @@
             if(TYPE ## _pool_extend(pool, pool->total_items) == -1) goto fin;            \
         res = pool->available_head;                                                      \
         pool->available_head = res->_next;                                               \
-        memset(res, 0, sizeof(TYPE));                                                    \
         _prepend_ ## TYPE(pool, res);                                                    \
       fin:                                                                               \
         pthread_mutex_unlock(&(pool->mutex));                                            \
@@ -96,7 +94,8 @@
         pthread_mutex_t                      mutex;                                      \
         size_t                               total_items;                                \
         TYPE                                *available_head;                             \
-        TYPE                                *active_head, *active_tail;                  \
+        TYPE                                *active_head;                                \
+        TYPE                                *active_tail;                                \
         TYPE                                *prereleased[0x10000];                       \
         pool_memory_segment ## TYPE         *memseg_head;                                \
     } TYPE ## _pool;                                                                     \
@@ -136,7 +135,9 @@
                                                                                          \
     static int TYPE ## _pool_extend(TYPE ## _pool *pool, size_t by_number) {             \
         TYPE *new_seg;                                                                   \
+        TYPE *prev_seg = NULL;                                                           \
         size_t curr;                                                                     \
+                                                                                         \
         pool_memory_segment ## TYPE *memseg_entry;                                       \
         _N(new_seg = (TYPE *)malloc(sizeof(TYPE) * by_number)) _raise(-1);               \
                                                                                          \
@@ -156,9 +157,16 @@
                 free(new_seg);                                                           \
                 _raise(-1);                                                              \
             }                                                                            \
-            new_seg[curr]._next = (TYPE *)(new_seg + curr + 1);                          \
+            new_seg[curr]._prev = prev_seg;                                              \
+            new_seg[curr]._next = new_seg + (curr + 1);                                  \
+            prev_seg = new_seg + curr;                                                   \
         }                                                                                \
-        new_seg[by_number - 1]._next = (TYPE *)pool->available_head;                     \
+                                                                                         \
+        if(pool->available_head != NULL) {                                               \
+            pool->available_head->_prev = new_seg + (by_number - 1);                     \
+        }                                                                                \
+                                                                                         \
+        new_seg[by_number - 1]._next = pool->available_head;                             \
         pool->available_head = new_seg;                                                  \
         pool->total_items += by_number;                                                  \
         pool->memseg_head = memseg_entry;                                                \
