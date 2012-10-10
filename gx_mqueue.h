@@ -87,7 +87,7 @@ static int gx_mq_open(const char *name, int oflags, int mode) {
     attr.mq_maxmsg  = GX_MQUEUE_MSG_COUNT;
     attr.mq_msgsize = GX_MQUEUE_MSG_SIZE;
     attr.mq_curmsgs = 0;
-    _ (mqfd = mq_open(name, oflags, mode, &attr)) _raise(-1);
+    _ (mqfd = mq_open(name, oflags, (mode_t)mode, &attr)) _raise(-1);
 
 #else
     GX_BSD_MQUEUE_PATH(path, name);
