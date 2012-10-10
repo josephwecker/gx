@@ -41,21 +41,20 @@
             if(rare(CONSTRUCT(res) != 0)) {                                              \
                 release_ ## TYPE(pool, res);                                             \
                 res = NULL;                                                              \
+            } else {                                                                     \
+                res->_refc = 1;                                                          \
+                res->_pool = pool;                                                       \
             }                                                                            \
-        }                                                                                \
-        if(freq((res = (acquire_ ## TYPE(pool))) != NULL)) {                             \
-            res->_refc = 1;                                                              \
-            res->_pool = pool;                                                           \
-        }                                                                                \
+        }        puts("acquire entry");                                 \
         return res;                                                                      \
     }                                                                                    \
                                                                                          \
-    static inline void TYPE ## _incr_refc(TYPE *entry) {                                 \
+    static inline void TYPE ## _incr_refc(TYPE *entry) { puts("incr counter"); \
         ++(entry->_refc);                                                                \
     }                                                                                    \
                                                                                          \
-    static inline void TYPE ## _decr_refc(TYPE *entry) {                                 \
-        if((--(entry->_refc)) == 0) {                                                    \
+    static inline void TYPE ## _decr_refc(TYPE *entry) { puts("decr counter"); \
+      if((--(entry->_refc)) == 0) { puts("destroying entry");           \
             release_ ## TYPE(entry->_pool, entry);                                       \
         }                                                                                \
     }
