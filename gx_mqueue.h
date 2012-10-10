@@ -93,7 +93,11 @@ static int gx_mq_open(const char *name, int oflags, int mode) {
     GX_BSD_MQUEUE_PATH(path, name);
 
     if(oflags & O_CREAT) {
-        _ (mkfifo(path, mode)) _raise(-1);
+        _ (mkfifo(path, mode)) {
+            if(oflags & O_EXCL) {
+                _raise(-1);
+            }
+        }
     }
 
     _ (mqfd = open(path, oflags & ~(O_CREAT), mode)) _raise(-1);
