@@ -97,7 +97,7 @@ lists.each do |name, raw_entries, entries|
 
     trailer = "\n\n/// Quick lookup of string for #{name} enum values using integer.\n" +
               "/// @retval NULL if not found.\n"
-    trailer+= "static __attribute__((__always_inline__,__pure__,__unused__)) const char * $#{name}(int val)\n{\n"+
+    trailer+= "static inline __attribute__((__always_inline__,__pure__,__unused__)) const char * $#{name}(int val)\n{\n"+
               "    return _#{name}_str_map((const char *)(&val));\n" +
               "}\n"
     puts "\n\n"

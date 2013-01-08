@@ -219,7 +219,7 @@ typedef long double                F96,   float96,  float96_be,  float96_le;
     #define  pure          __attribute__ ((__pure__))
     #define  cold          __attribute__ ((__cold__))
     #define  hot           __attribute__ ((__hot__))
-    #define  always_inline __attribute__ ((__always_inline__))
+    #define  always_inline inline __attribute__ ((__always_inline__))
   #else
     #define  inline
     #define  pure
