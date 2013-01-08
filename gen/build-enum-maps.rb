@@ -15,8 +15,8 @@ inc_dirs = {}
 ARGV.each do |arg|
   if arg[-2..-1] == '.h'
     files << arg
-    inc_dirs[File.dirname(arg)] = true
-    inc_dirs[File.dirname(arg)+'/..'] = true
+    inc_dirs[File.dirname(File.expand_path(arg))] = true
+    #inc_dirs[File.dirname(File.expand_path(arg))+'/..'] = true
   elsif arg !~ /\.[a-z]+$/
     inc_dirs[arg] = true
   end
