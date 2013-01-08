@@ -14,10 +14,9 @@
 ADHOCS   = 40
 
 gx_root  = File.join(File.dirname(__FILE__), '..')
-srcf     = "#{gx_root}/gx_log.h"
-
-src      = `gcc -I#{gx_root} -E -P "#{srcf}" 2>/dev/null`      # preprocess
-src      = src.gsub(/\s+/m,' ').gsub(/ ?([=,;})({]) /, '\\1')  # condense whitespace
+srcf     = "gx_log.h"
+src      = `(cd #{gx_root} && exec gcc -I#{gx_root} -E -P "#{srcf}" 2>/dev/null)` # preprocess
+src      = src.gsub(/\s+/m,' ').gsub(/ ?([=,;})({]) /, '\\1')                     # condense whitespace
 enum_def = src[/\btypedef\s*enum\s*gx_log_standard_keys\s*\{([^\}]+)\}/,1]
 abort      "gx_log_standard_keys enum not found in #{srcf}" if enum_def.nil?
 
