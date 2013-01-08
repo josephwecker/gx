@@ -438,7 +438,7 @@ static kv_msg_iov msg_iov = {
 
 
 // Forward declarations
-static inline   void  gx_writev_buf      (char *dst, const struct iovec *iov, int iovcnt);
+//static inline   void  gx_writev_buf      (char *dst, const struct iovec *iov, int iovcnt);
 static noinline void _gx_log_inner       (gx_severity severity, char *severity_str,
                                            int vparam_count, va_list *vparams, int argc, ...);
 static inline   void _gx_log_dispatch    (gx_severity severity, kv_msg_iov *msg);
