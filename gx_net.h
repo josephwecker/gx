@@ -93,7 +93,7 @@ static inline int gx_net_daemonize(void) {
     /* TODO: it should be possible to make this much lighter with clone. */
     pid_t pid, sid;
     _ (pid = fork()) _raise_error(-1);
-    if(pid != 0) exit(EXIT_SUCCESS);
+    if(pid != 0) return pid; //exit(EXIT_SUCCESS);
     /* Child */
     umask(0);
     _ (sid = setsid()) _warning();
