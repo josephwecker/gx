@@ -345,10 +345,20 @@ static gx_logger gx_loggers[GX_NUM_STD_LOGGERS];
 #include "./gxe/log_syslogd.h"
 #include "./gxe/log_mq.h"
 
+#ifndef GX_SEV_STDERR
+#define GX_SEV_STDERR SEV_DEBUG
+#endif
+#ifndef GX_SEV_SYSLOG
+#define GX_SEV_SYSLOG SEV_CRITICAL
+#endif
+#ifndef GX_SEV_MQUEUE
+#define GX_SEV_MQUEUE SEV_DEBUG
+#endif
+
 static gx_logger gx_loggers[3] = {
-    {1, &log_stderr,  SEV_DEBUG},
-//    {1, &log_syslogd, SEV_CRITICAL},
-//    {1, &log_mq,      SEV_DEBUG}
+    {1, &log_stderr,  GX_SEV_STDERR},
+//    {1, &log_syslogd, GX_SEV_SYSLOG},
+//    {1, &log_mq,      GX_SEV_MQUEUE}
 };
 
 
