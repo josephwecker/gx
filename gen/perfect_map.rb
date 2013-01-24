@@ -244,7 +244,7 @@ module PerfectMap
       f_attributes = ['always_inline', 'nonnull', 'pure', 'unused']
       f_attr = "inline __attribute__ (( #{f_attributes.map{|a|"__#{a}__"}.join(', ')} ))"
       f_attr += ' const ' if out_is_pointer? && output_ctype !~ /const/
-      "static #{f_attr} #{output_ctype}#{@name.to_s.strip}(register const char * __attribute__(( __unused__ )) buf)"
+      "static #{f_attr} #{output_ctype}#{@name.to_s.strip}(__attribute__(( __unused__ )) register const char * buf)"
     end
 
     def out_is_struct? () @inputs[0].size > 2              end
