@@ -3,6 +3,8 @@ THISDIR = File.expand_path(File.dirname(__FILE__))
 $LOAD_PATH << THISDIR
 
 require 'tempfile'
+require 'tmpdir'
+require 'fileutils'
 require 'perfect_map'
 include PerfectMap
 
@@ -21,8 +23,29 @@ end
 inc_dirs = inc_dirs.keys
 
 # Run preprocessor on them to resolve dependencies etc. etc.
-cmd      = "cc -I. #{inc_dirs.map{|d| "-I'#{d}'"}.join(' ')} -E #{files.join(' ')}"
-raw      = `#{cmd} 2>/dev/null`
+raw = nil
+Dir.mktmpdir do |tmpinc|
+  cmd="cc -I'#{tmpinc}' #{inc_dirs.map{|d| "-I'#{d}'"}.join(' ')} -I'#{THISDIR}/..' -I'#{THISDIR}/../..' -E #{files.join(' ')}"
+  last_missing = []
+  loop do
+    raw = `#{cmd} 2>'#{tmpinc}/.out_errs'`
+    errs = IO.read(File.join(tmpinc,'.out_errs'))
+    if errs =~ /fatal/
+      s = '[[:space:]]+'
+      missing = errs.scan(/:#{s}fatal#{s}error:([^:]+):#{s}No#{s}such#{s}file/uoim).flatten.map{|f|f.strip}.uniq
+      abort errs if missing.empty? || missing == last_missing
+      last_missing = missing
+      missing.each do |m|
+        full = File.join(tmpinc, m)
+        dir  = File.dirname(full)
+        FileUtils.mkpath(dir)
+        FileUtils.touch(full)
+      end
+      next
+    end
+    break
+  end
+end
 
 # Some quick deletions to make the regexen cleaner
 raw      = raw.gsub(/\/\*.*?\*\//m,   '').    # remove block comments
