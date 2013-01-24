@@ -21,7 +21,7 @@ end
 inc_dirs = inc_dirs.keys
 
 # Run preprocessor on them to resolve dependencies etc. etc.
-cmd      = "gcc -I. #{inc_dirs.map{|d| "-I'#{d}'"}.join(' ')} -E #{files.join(' ')}"
+cmd      = "cc -I. #{inc_dirs.map{|d| "-I'#{d}'"}.join(' ')} -E #{files.join(' ')}"
 raw      = `#{cmd} 2>/dev/null`
 
 # Some quick deletions to make the regexen cleaner
@@ -75,7 +75,7 @@ lists.each do |name, raw_entries, entries|
       src_path    = csrc.path
       bin_path    = csrc.path + '__compiled'
 
-      compile_cmd = "gcc -x c -o '#{bin_path}' '#{src_path}'"
+      compile_cmd = "cc -x c -o '#{bin_path}' '#{src_path}'"
       compile_res = `#{compile_cmd}`
       actual_vals = `'#{bin_path}'`
       `rm '#{bin_path}'`
