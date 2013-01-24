@@ -140,7 +140,7 @@
 
 /// Generic macro help
 
-#define def_as_string(OTHER) _inner_def_as_string(OTHER)
+#define TO_STR(OTHER) _inner_def_as_string(OTHER)
 #define _inner_def_as_string(OTHER) #OTHER
 
 /// Normalize some OS names
