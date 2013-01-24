@@ -1,13 +1,10 @@
 #!/usr/bin/env ruby
-unless Kernel.respond_to?(:require_relative)
-  module Kernel
-    def require_relative(path) require File.join(File.dirname(caller[0]), path.to_str) end
-  end
-end
-require          'pp'
-require          'tempfile'
-require_relative 'perfect_map'
-include          PerfectMap
+THISDIR = File.expand_path(File.dirname(__FILE__))
+$LOAD_PATH << THISDIR
+
+require 'tempfile'
+require 'perfect_map'
+include PerfectMap
 
 # Find all relevant files where enums might exist
 files    = []
