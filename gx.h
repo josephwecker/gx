@@ -138,6 +138,11 @@
 #ifndef GX_H
 #define GX_H
 
+/// Generic macro help
+
+#define def_as_string(OTHER) _inner_def_as_string(OTHER)
+#define _inner_def_as_string(OTHER) #OTHER
+
 /// Normalize some OS names
 #if defined(__linux__) || defined(__LINUX) || defined(__LINUX__) || defined(_LINUX)
   #define __LINUX__ 1
